@@ -14,7 +14,7 @@ struct HomeVideosView: View {
                 }
             }
             .toolbar {
-                ToolbarItem(placement: .principal) {
+                ToolbarItem(placement: .topBarLeading) {
                     Picker("", selection: $selectedHomeTab) {
                         Text("Recommended")
                             .tag("recommended")

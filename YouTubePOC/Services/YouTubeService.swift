@@ -1,19 +1,14 @@
-//
-//  YTM.swift
-//  YouTubePOC
-//
-
 import Foundation
 import YouTubeKit
 import SwiftUI
 import CryptoKit
 
-class YouTubeModelWrapper: ObservableObject {
+class YouTubeServiceWrapper: ObservableObject {
     let model: YouTubeModel
     
     @Published var cookies: String {
         didSet {
-            print("YouTubeModelWrapper: Setting cookies to: \(cookies)")
+            print("YouTubeServiceWrapper: Setting cookies to: \(cookies)")
             model.cookies = cookies
             UserDefaults.standard.set(cookies, forKey: "ytm_cookies")
             model.alwaysUseCookies = !cookies.isEmpty
@@ -23,7 +18,7 @@ class YouTubeModelWrapper: ObservableObject {
     
     @Published var alwaysUseCookies: Bool {
         didSet {
-            print("YouTubeModelWrapper: Setting alwaysUseCookies to: \(alwaysUseCookies)")
+            print("YouTubeServiceWrapper: Setting alwaysUseCookies to: \(alwaysUseCookies)")
             model.alwaysUseCookies = alwaysUseCookies
             UserDefaults.standard.set(alwaysUseCookies, forKey: "ytm_always_use_cookies")
         }
@@ -31,19 +26,19 @@ class YouTubeModelWrapper: ObservableObject {
     
     @Published var accessToken: String? {
         didSet {
-            print("YouTubeModelWrapper: Setting accessToken to: \(accessToken ?? "nil")")
+            print("YouTubeServiceWrapper: Setting accessToken to: \(accessToken ?? "nil")")
             // If YouTubeKit supports setting a token, set it here. Otherwise, store for use in API calls.
         }
     }
     
     init(model: YouTubeModel) {
-        print("YouTubeModelWrapper: Initializing with model")
+        print("YouTubeServiceWrapper: Initializing with model")
         self.model = model
         self.cookies = UserDefaults.standard.string(forKey: "ytm_cookies") ?? ""
         self.alwaysUseCookies = UserDefaults.standard.bool(forKey: "ytm_always_use_cookies")
         model.cookies = self.cookies
         model.alwaysUseCookies = self.alwaysUseCookies
-        print("YouTubeModelWrapper: Initial state:")
+        print("YouTubeServiceWrapper: Initial state:")
         print("- Cookies: \(self.cookies)")
         print("- Always use cookies: \(self.alwaysUseCookies)")
     }
@@ -84,9 +79,9 @@ final class YTM {
     
     // The single shared instance
     private static let instance = YouTubeModel()
-    private static let wrapper = YouTubeModelWrapper(model: instance)
+    private static let wrapper = YouTubeServiceWrapper(model: instance)
     
-    static var shared: YouTubeModelWrapper {
+    static var shared: YouTubeServiceWrapper {
         return wrapper
     }
     

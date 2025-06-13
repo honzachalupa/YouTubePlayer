@@ -3,7 +3,7 @@ import YouTubeKit
 
 @main
 struct YouTubePOCApp: App {
-    @StateObject private var youtubeWrapper = YTM.shared
+    @StateObject private var youtubeService = YTM.shared
     
     init() {
         // YTM setup is handled by YouTubeAuthService based on login state.
@@ -16,7 +16,7 @@ struct YouTubePOCApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(youtubeWrapper)
+                .environmentObject(youtubeService)
         }
     }
 }

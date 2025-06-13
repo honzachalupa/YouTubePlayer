@@ -2,7 +2,7 @@ import SwiftUI
 import YouTubeKit
 
 struct VideoView: View {
-    @EnvironmentObject private var youtubeWrapper: YouTubeModelWrapper
+    @EnvironmentObject private var youtubeService: YouTubeServiceWrapper
     var video: YTVideo
     
     var body: some View {
