@@ -25,24 +25,34 @@ struct VideoView: View {
                         .font(.caption)
                     
                     HStack {
-                        Button {
-                            Task {
-                                await video.likeVideo(youtubeModel: YTM.model)
+                        ControlGroup {
+                            Button {
+                                Task {
+                                    await video.likeVideo(youtubeModel: YTM.model)
+                                }
+                            } label: {
+                                Label("Like", systemImage: "hand.thumbsup")
                             }
-                        } label: {
-                            Image(systemName: "hand.thumbsup")
+                            
+                            Button {
+                                Task {
+                                    await video.dislikeVideo(youtubeModel: YTM.model)
+                                }
+                            } label: {
+                                Label("Disike", systemImage: "hand.thumbsdown")
+                            }
                         }
                         
-                        Button {
-                            Task {
-                                await video.dislikeVideo(youtubeModel: YTM.model)
-                            }
-                        } label: {
-                            Image(systemName: "hand.thumbsdown")
+                        Button { } label: {
+                            Label("Share", systemImage: "arrowshape.turn.up.right.fill")
+                        }
+                        
+                        Button { } label: {
+                            Label("Save", systemImage: "square.and.arrow.down.fill")
                         }
                     }
                 }
-                .padding()
+                .padding(12)
                 
                 Spacer()
             }
@@ -73,6 +83,9 @@ struct VideoView: View {
         ]
     )
     
-    VideoView(video: sampleVideo)
-        .environmentObject(YTM.shared)
+    VStack {}
+        .sheet(isPresented: .constant(true)) {
+            VideoView(video: sampleVideo)
+        }
+    .environmentObject(YTM.shared)
 }

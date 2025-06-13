@@ -5,19 +5,19 @@ struct ChannelInfoView: View {
     let channel: YTLittleChannelInfos
     
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 15) {
             if let thumbnailUrl = channel.thumbnails.first?.url {
                 AsyncImage(url: thumbnailUrl) { phase in
-                    if let image = phase.image {
-                        image.resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 30)
-                            .clipShape(Circle())
-                    } else if phase.error != nil {
-                        Color.gray
-                    } else {
-                        ProgressView()
+                    Group {
+                        if let image = phase.image {
+                            image.resizable()
+                                .aspectRatio(contentMode: .fit)
+                        } else {
+                            Color.gray.opacity(0.5)
+                        }
                     }
+                    .frame(width: 30, height: 30)
+                    .clipShape(Circle())
                 }
             }
                 

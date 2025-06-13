@@ -7,13 +7,24 @@ struct AccountLinkView: View {
         NavigationLink {
             AccountView()
         } label: {
-            if authService.isAuthenticated {
-                Image(systemName: "person.circle.fill")
-                    .font(.title)
+            /* if authService.isAuthenticated {
+                if let userInfo = authService.userInfo {
+                    AsyncImage(url: URL(string: userInfo.picture)) { image in
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 50, height: 50)
+                            .clipped()
+                    } placeholder: {
+                        Label("Account", systemImage: "person.fill")
+                            .frame(width: 50, height: 50)
+                    }
+                }
             } else {
-                Image(systemName: "person.circle")
-                    .font(.title)
-            }
+                Label("Account", systemImage: "person.fill")
+            } */
+            
+            Label("Account", systemImage: "person.fill")
         }
     }
 }

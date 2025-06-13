@@ -1,44 +1,47 @@
 import SwiftUI
 import YouTubeKit
 
-@MainActor final class AccountViewModel: ObservableObject {
-    @Published var isLoading = false
-    @Published var error: String?
-    private let authService: YouTubeAuthService
-    
-    init() {
-        self.authService = YouTubeAuthService.shared
-    }
-    
-    func signOut() {
-        isLoading = true
-        authService.signOut()
-        isLoading = false
-    }
-}
-
 struct AccountView: View {
-    @StateObject private var viewModel = AccountViewModel()
-    @ObservedObject private var authService = YouTubeAuthService.shared
+    @StateObject private var authService = YouTubeAuthService.shared
     @State private var isShowingLoginView = false
     
     var body: some View {
         NavigationStack {
-            VStack {
+            Group {
                 if authService.isAuthenticated {
-                    // This part will not show user info yet, as we are not fetching it.
-                    // It will just confirm that the user is logged in.
-                    VStack(spacing: 16) {
-                        Image(systemName: "person.circle.fill")
-                             .font(.system(size: 100))
-                             .foregroundColor(.gray)
-                        Text("Signed In")
-                            .font(.title2)
-                        Text("You are signed in with your YouTube account.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                    List {
+                        HStack {
+                            if let pictureUrl = authService.userInfo?.picture {
+                                AsyncImage(url: URL(string: pictureUrl)) { image in
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 50, height: 50)
+                                        .clipShape(Circle())
+                                } placeholder: {
+                                    Circle()
+                                        .fill(Color.gray.opacity(0.3))
+                                        .frame(width: 50, height: 50)
+                                }
+                            }
+                            
+                            Spacer()
+                            
+                            VStack(spacing: 8) {
+                                if let name = authService.userInfo?.name {
+                                    Text(name)
+                                        .font(.title)
+                                        .bold()
+                                }
+                            }
+                            
+                            Spacer()
+                        }
+                        .padding(.vertical, 8)
                     }
-                    .padding()
+                    .refreshable {
+                        await authService.fetchUserInfo()
+                    }
                 } else {
                     VStack(spacing: 16) {
                         Text("Sign in to access your YouTube account")
@@ -53,7 +56,7 @@ struct AccountView: View {
                 }
             }
             .overlay {
-                if viewModel.isLoading {
+                if authService.isLoading {
                     ProgressView()
                         .scaleEffect(1.5)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -64,7 +67,7 @@ struct AccountView: View {
                 if authService.isAuthenticated {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
-                            viewModel.signOut()
+                            authService.signOut()
                         } label: {
                             Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
                         }
@@ -88,7 +91,6 @@ struct AccountView: View {
     let service = YouTubeAuthService.shared
     service.userInfo = .init(
         name: "John Doe",
-        email: "john@example.com",
         picture: "https://picsum.photos/200"
     )
     

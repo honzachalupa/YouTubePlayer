@@ -30,6 +30,7 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
     @Published var isAuthenticated = false
     @Published var authError: String?
     @Published var userInfo: UserInfo?
+    @Published private(set) var isLoading = false
     
     private var authSession: ASWebAuthenticationSession?
     private let clientID = "906870749753-ajab2im3jtl2ecfqbp28lo27k2vv0v0t.apps.googleusercontent.com"
@@ -51,20 +52,21 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
     
     struct UserInfo: Codable {
         let name: String
-        let email: String
         let picture: String
     }
     
     override private init() {
         super.init()
         print("YouTubeAuthService: Initialized.")
-        // All automatic token validation has been removed.
-        // The app now relies on cookies provided in YouTubePOCApp.swift.
         
         // We can check if cookies are present and set the isAuthenticated flag accordingly.
         if !YTM.cookies.isEmpty {
             self.isAuthenticated = true
             print("YouTubeAuthService: Found existing cookies, user is considered authenticated.")
+            // Fetch user info if we're already authenticated
+            Task {
+                await fetchUserInfo()
+            }
         } else {
             self.isAuthenticated = false
             print("YouTubeAuthService: No cookies found, user is not authenticated.")
@@ -75,34 +77,78 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
         return self.presentationWindow ?? ASPresentationAnchor()
     }
     
+    func fetchUserInfo() async {
+        guard isAuthenticated else {
+            print("YouTubeAuthService: Cannot fetch user info - not authenticated")
+            return
+        }
+        
+        isLoading = true
+        print("YouTubeAuthService: Fetching user info...")
+        
+        do {
+            let response = try await AccountInfosResponse.sendThrowingRequest(youtubeModel: YTM.model, data: [:])
+            print("YouTubeAuthService: Raw response: \(response)")
+            
+            if !response.isDisconnected, let accountName = response.name {
+                let pictureURL = response.avatar.first?.url
+                self.userInfo = UserInfo(
+                    name: accountName,
+                    picture: pictureURL?.absoluteString ?? ""
+                )
+                print("YouTubeAuthService: Successfully fetched user info: \(String(describing: self.userInfo))")
+            } else {
+                print("YouTubeAuthService: Could not fetch user info, account may be disconnected. Response: \(response)")
+                self.userInfo = nil
+            }
+        } catch {
+            print("YouTubeAuthService: Error fetching user info: \(error)")
+            self.userInfo = nil
+            authError = error.localizedDescription
+        }
+        
+        isLoading = false
+    }
+    
     func handleSignIn(cookies: String) {
         print("YouTubeAuthService: Handling sign-in with extracted cookies.")
+        isLoading = true
+        
         YTM.cookies = cookies
         YTM.alwaysUseCookies = true
         self.isAuthenticated = true
+        
+        // Fetch user info after signing in
+        Task {
+            await fetchUserInfo()
+        }
     }
     
     func signOut() {
         print("YouTubeAuthService: Starting sign out...")
+        isLoading = true
         
         self.isAuthenticated = false
         self.userInfo = nil
+        self.authError = nil
         
         YTM.reset()
         
         let dataStore = WKWebsiteDataStore.default()
         let dataTypes = WKWebsiteDataStore.allWebsiteDataTypes()
         
-        dataStore.fetchDataRecords(ofTypes: dataTypes) { records in
+        dataStore.fetchDataRecords(ofTypes: dataTypes) { [weak self] records in
             let youtubeRecords = records.filter { $0.displayName.contains("youtube") || $0.displayName.contains("google") }
             
             if youtubeRecords.isEmpty {
                 print("YouTubeAuthService: No YouTube/Google website data to clear.")
+                self?.isLoading = false
                 return
             }
             
             dataStore.removeData(ofTypes: dataTypes, for: youtubeRecords) {
                 print("YouTubeAuthService: Cleared website data for YouTube and Google.")
+                self?.isLoading = false
             }
         }
         

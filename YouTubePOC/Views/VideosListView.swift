@@ -1,49 +1,73 @@
 import SwiftUI
 import YouTubeKit
 
-extension YTVideo: @retroactive Identifiable {
-    public var id: String { self.videoId }
-}
-
 struct VideosListView: View {
-    var videos: [YTVideo]
-    @State private var selectedVideo: YTVideo? = nil
+    @StateObject public var viewModel: VideoListViewModel
+    public let navigationTitle: String
     
+    @State private var selectedVideo: YTVideo? = nil
+
     var body: some View {
-        List(videos, id: \.videoId, selection: $selectedVideo) { video in
-            if let thumbnailURL = video.thumbnails.first?.url {
-                Section {
-                    NavigationLink(value: video) {
-                        VStack(alignment: .leading, spacing: 5) {
-                            AsyncImage(url: thumbnailURL) { phase in
-                                if let image = phase.image {
-                                    image.resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .padding(.top, -15) // TODO: Solve using some cleaner way
-                                        .padding(.horizontal, -20)
-                                        .padding(.trailing, -22)
-                                        .padding(.bottom, 5)
-                                } else if phase.error != nil {
-                                    Color.gray
-                                } else {
-                                    ProgressView()
+        NavigationStack {
+            Group {
+                if viewModel.isFetching && viewModel.videos.isEmpty {
+                    ProgressView()
+                        .controlSize(.large)
+                } else if let error = viewModel.error {
+                    ContentUnavailableView(error, systemImage: "exclamationmark.triangle.fill")
+                } else if viewModel.videos.isEmpty {
+                    ContentUnavailableView("No videos found", systemImage: "play.slash.fill")
+                } else {
+                    List(viewModel.videos, id: \.videoId, selection: $selectedVideo) { video in
+                        if let thumbnailURL = video.thumbnails.first?.url {
+                            Section {
+                                NavigationLink(value: video) {
+                                    VStack(alignment: .leading, spacing: 5) {
+                                        AsyncImage(url: thumbnailURL) { phase in
+                                            Group {
+                                                if let image = phase.image {
+                                                    image.resizable()
+                                                        .padding(.top, -15) // TODO: Solve using some cleaner way
+                                                        .padding(.horizontal, -20)
+                                                        .padding(.trailing, -22)
+                                                        .padding(.bottom, 5)
+                                                } else if phase.error != nil {
+                                                    Color.gray
+                                                } else {
+                                                    ProgressView()
+                                                }
+                                            }
+                                            .aspectRatio(16/10, contentMode: .fit)
+                                        }
+                                        
+                                        if let channel = video.channel {
+                                            ChannelInfoView(channel: channel)
+                                        }
+                                        
+                                        Text(video.title ?? "")
+                                            .font(.headline)
+                                    }
                                 }
                             }
-                            
-                            if let channel = video.channel {
-                                ChannelInfoView(channel: channel)
-                            }
-                            
-                            Text(video.title ?? "")
-                                .font(.headline)
                         }
                     }
                 }
             }
+            .sheet(item: $selectedVideo) { video in
+                VideoView(video: video)
+                    .presentationDragIndicator(.visible)
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    AccountLinkView()
+                }
+            }
+            .navigationTitle(navigationTitle)
         }
-        .sheet(item: $selectedVideo) { video in
-            VideoView(video: video)
-                .presentationDragIndicator(.visible)
+        .task {
+            if viewModel.videos.isEmpty {
+                await viewModel.fetchVideos()
+            }
         }
     }
 }
@@ -51,7 +75,7 @@ struct VideosListView: View {
 #Preview {
     let sampleVideo = YTVideo(
         videoId: "cETgTtu6atM",
-        title: "WWDC25: What’s new in SwiftUI | Apple",
+        title: "WWDC25: What's new in SwiftUI | Apple",
         channel: YTLittleChannelInfos(
             channelId: "",
             name: "MacRumors",
@@ -68,5 +92,5 @@ struct VideosListView: View {
         ]
     )
     
-    VideosListView(videos: [sampleVideo, sampleVideo, sampleVideo])
+    return VideosListView(viewModel: VideoListViewModel(staticVideos: [sampleVideo, sampleVideo, sampleVideo]), navigationTitle: "Videos")
 }

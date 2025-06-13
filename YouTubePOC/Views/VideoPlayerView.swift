@@ -109,22 +109,15 @@ struct VideoPlayerView: View {
             if playerModel.isLoading {
                 ProgressView()
             } else if let error = playerModel.error {
-                VStack(spacing: 16) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 50))
-                        .foregroundColor(.red)
-                    
-                    Text(error)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                }
+                ContentUnavailableView(error, systemImage: "exclamationmark.triangle.fill")
             } else {
                 if !isFullscreen {
                     VideoPlayer(player: playerModel.player)
-                        .aspectRatio(16/9, contentMode: .fit)
+                        .aspectRatio(16/10, contentMode: .fit)
                 }
             }
         }
+        .aspectRatio(16/10, contentMode: .fit)
         .task {
             playerModel.loadVideo(video: video)
         }

@@ -2,161 +2,68 @@ import SwiftUI
 import YouTubeKit
 
 struct SearchVideosView: View {
-    @EnvironmentObject private var youtubeWrapper: YouTubeModelWrapper
-    @State private var query: String = "WWDC 2025 SwiftUI"
+    @StateObject private var viewModel = VideoListViewModel(videoFetcher: {
+        let response = try await AccountSubscriptionsFeedResponse.sendThrowingRequest(youtubeModel: YTM.model, data: [:])
+        return response.results
+    })
+    @State private var query: String = ""
     @State private var videos: [YTVideo] = []
-    @State private var error: String?
-    @State private var isLoading = false
     
-    func fetchVideosSearch() async {
+    func performSearch() async {
         guard !query.isEmpty else {
-            error = "Please enter a search term"
+            // Clear videos if query is empty
+            videos = []
             return
         }
         
-        videos.removeAll()
-        error = nil
-        isLoading = true
-        
-        print("SearchVideosView: Starting to search for '\(query)'")
-        print("Current YTM state:")
-        print("- Cookies: \(YTM.cookies)")
-        print("- Always use cookies: \(YTM.alwaysUseCookies)")
-        print("- Visitor data present: \(!YTM.model.visitorData.isEmpty)")
-        
         do {
-            let response = try await SearchResponse.sendThrowingRequest(youtubeModel: YTM.model, data: [
-                .query: query,
-                .params: "EgIQAQ%3D%3D"  // Filter for videos only
-            ])
-            print("SearchVideosView: Got response")
-            print("- Raw results count: \(response.results.count)")
-            
-            var newVideos: [YTVideo] = []
-            var seenIds = Set<String>()
-            
-            for result in response.results {
-                print("Processing result: \(type(of: result))")
-                if let video = result as? YTVideo {
-                    if !seenIds.contains(video.videoId) {
-                        seenIds.insert(video.videoId)
-                        newVideos.append(video)
-                        print("Added video: \(video.title ?? "untitled") (\(video.videoId))")
-                    }
-                } else {
-                    print("Result is not a video: \(type(of: result))")
-                }
-            }
-            
-            // If no results, try without the video filter
-            if newVideos.isEmpty {
-                print("SearchVideosView: No results with video filter, trying without filter...")
-                let unfilteredResponse = try await SearchResponse.sendThrowingRequest(youtubeModel: YTM.model, data: [
-                    .query: query
-                ])
-                
-                for result in unfilteredResponse.results {
-                    print("Processing unfiltered result: \(type(of: result))")
-                    if let video = result as? YTVideo {
-                        if !seenIds.contains(video.videoId) {
-                            seenIds.insert(video.videoId)
-                            newVideos.append(video)
-                            print("Added unfiltered video: \(video.title ?? "untitled") (\(video.videoId))")
-                        }
-                    }
-                }
-            }
-            
-            await MainActor.run {
-                videos = newVideos
-                if newVideos.isEmpty {
-                    error = "No videos found for '\(query)'"
-                }
-                isLoading = false
-            }
+            let response = try await SearchResponse.sendThrowingRequest(
+                youtubeModel: YTM.model,
+                data: [.query: query]
+            )
+            // Extract only YTVideo objects from the results
+            self.videos = response.results.compactMap { $0 as? YTVideo }
         } catch {
-            print("SearchVideosView: Error searching videos: \(error)")
-            await MainActor.run {
-                self.error = error.localizedDescription
-                isLoading = false
-            }
+            print("Error searching videos: \(error)")
+            // Handle error, maybe show an alert to the user
+            self.videos = []
         }
     }
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                Form {
-                    HStack {
-                        TextField("Search YouTube", text: $query)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .autocorrectionDisabled()
-                            .submitLabel(.search)
-                            .onSubmit {
-                                Task {
-                                    await fetchVideosSearch()
-                                }
-                            }
-                        
-                        if !query.isEmpty {
-                            Button {
-                                Task {
-                                    await fetchVideosSearch()
-                                }
-                            } label: {
-                                Image(systemName: "magnifyingglass")
-                            }
-                            .disabled(isLoading)
+            VStack {
+                HStack {
+                    TextField("Search YouTube...", text: $query)
+                        .textFieldStyle(.roundedBorder)
+                        .autocorrectionDisabled()
+                        .submitLabel(.search)
+                        .onSubmit(of: .text) {
+                            Task { await performSearch() }
                         }
+                    
+                    Button(action: {
+                        Task { await performSearch() }
+                    }) {
+                        Image(systemName: "magnifyingglass")
                     }
                 }
-                .frame(height: 65)
+                .padding()
                 
-                Group {
-                    if !videos.isEmpty {
-                        VideosListView(videos: videos)
-                    } else if let error = error {
-                        VStack(spacing: 16) {
-                            Image(systemName: "exclamationmark.triangle")
-                                .font(.system(size: 50))
-                                .foregroundColor(.red)
-                            
-                            Text(error)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal)
-                            
-                            if !query.isEmpty {
-                                Button("Try Again") {
-                                    Task {
-                                        await fetchVideosSearch()
-                                    }
-                                }
-                                .buttonStyle(.borderedProminent)
-                            }
-                        }
-                        .padding()
-                    } else if isLoading {
-                        ProgressView()
-                            .controlSize(.large)
-                            .padding()
-                    } else {
-                        Text("Enter a search term to begin")
-                            .foregroundColor(.secondary)
-                            .padding()
-                    }
+                if !videos.isEmpty {
+                    VideosListView(viewModel: viewModel, navigationTitle: "Search")
+                } else {
+                    Spacer()
+                    Text("Enter a search term to begin.")
+                        .foregroundColor(.secondary)
+                    Spacer()
                 }
             }
             .navigationTitle("Search")
-        }
-        .task {
-            if !query.isEmpty {
-                await fetchVideosSearch()
-            }
         }
     }
 }
 
 #Preview {
     SearchVideosView()
-        .environmentObject(YTM.shared)
 }
