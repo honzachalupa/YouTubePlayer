@@ -69,10 +69,6 @@ struct ChannelView: View {
 }
 
 #Preview {
-    ContentView()
-}
-
-#Preview {
     let channel = YTLittleChannelInfos(
         channelId: "UCtcmk_u_kqeibnHqxTSNitg",
         name: "Channel Name",

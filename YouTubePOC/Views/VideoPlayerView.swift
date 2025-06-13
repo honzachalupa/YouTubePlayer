@@ -8,11 +8,11 @@ import AVFoundation
     @Published var player: AVPlayer?
     @Published var isLoading = false
     @Published var error: String?
-    private let YTM = YouTubeModel()
     private let authService: YouTubeAuthService
     
-    init(authService: YouTubeAuthService) {
-        self.authService = authService
+    init() {
+        // Since we're on the main actor, we can safely access shared
+        self.authService = YouTubeAuthService.shared
         configureAudioSession()
     }
     
@@ -37,7 +37,7 @@ import AVFoundation
             
             do {
                 await self.getVisitorData()
-                let streamingInfos = try await video.fetchStreamingInfosThrowing(youtubeModel: self.YTM)
+                let streamingInfos = try await video.fetchStreamingInfosThrowing(youtubeModel: YTM.model)
                 
                 guard let streamingURL = streamingInfos.streamingURL else {
                     print("Failed to get streaming URL")
@@ -57,19 +57,10 @@ import AVFoundation
                 }
             } catch let error as ResponseExtractionError {
                 print("Error loading video: \(error)")
-                
+
                 await MainActor.run {
                     if error.stepDescription.contains("Login is required") {
-                        if !self.authService.isAuthenticated {
-                            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                               let window = windowScene.windows.first {
-                                self.authService.signIn(from: window)
-                            } else {
-                                self.error = "Could not present authentication window"
-                            }
-                        } else {
-                            self.error = "Authentication failed. Please try signing in again."
-                        }
+                        self.error = "Authentication required. Please make sure you have provided valid cookies in the app settings."
                     } else {
                         self.error = "Failed to load video: \(error.localizedDescription)"
                     }
@@ -87,9 +78,9 @@ import AVFoundation
     }
     
     private func getVisitorData() async {
-        if YTM.visitorData.isEmpty {
-            if let visitorData = try? await SearchResponse.sendThrowingRequest(youtubeModel: YTM, data: [.query: "homefwhfjoifj"]).visitorData {
-                YTM.visitorData = visitorData
+        if YTM.model.visitorData.isEmpty {
+            if let visitorData = try? await SearchResponse.sendThrowingRequest(youtubeModel: YTM.model, data: [.query: "homefwhfjoifj"]).visitorData {
+                YTM.model.visitorData = visitorData
             } else {
                 print("Couldn't get visitorData, request may fail.")
             }
@@ -103,7 +94,6 @@ import AVFoundation
 }
 
 struct VideoPlayerView: View {
-    @StateObject private var authService = YouTubeAuthService()
     @StateObject private var playerModel: PlayerViewModel
     @State private var isFullscreen: Bool = false
     
@@ -111,7 +101,7 @@ struct VideoPlayerView: View {
     
     init(video: YTVideo) {
         self.video = video
-        _playerModel = StateObject(wrappedValue: PlayerViewModel(authService: YouTubeAuthService()))
+        _playerModel = StateObject(wrappedValue: PlayerViewModel())
     }
     
     var body: some View {
@@ -134,48 +124,12 @@ struct VideoPlayerView: View {
                         .aspectRatio(16/9, contentMode: .fit)
                 }
             }
-            
-            Button("Sign In") {
-                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                   let window = windowScene.windows.first {
-                    print("Attempting to sign in")
-                    authService.signIn(from: window)
-                } else {
-                    print("Window or windowScene is nil")
-                }
-            }
         }
-        .fullScreenCover(isPresented: $isFullscreen) {
-            VideoPlayer(player: playerModel.player)
-                .ignoresSafeArea()
-                .gesture(DragGesture(minimumDistance: 20, coordinateSpace: .global).onEnded { value in
-                    let horizontalAmount = value.translation.width
-                    let verticalAmount = value.translation.height
-                    
-                    if abs(horizontalAmount) > abs(verticalAmount) {
-                        print(horizontalAmount < 0 ? "left swipe" : "right swipe")
-                    } else {
-                        print(verticalAmount < 0 ? "up swipe" : "down swipe")
-                        
-                        if verticalAmount > 0 {
-                            isFullscreen = false
-                        }
-                    }
-                })
-        }
-        .onAppear {
+        .task {
             playerModel.loadVideo(video: video)
         }
         .onDisappear {
             playerModel.cleanup()
-        }
-        .onRotate { orientation in
-            isFullscreen = orientation != .landscapeLeft || orientation != .landscapeRight
-        }
-        .onChange(of: authService.isAuthenticated) {
-            if authService.isAuthenticated {
-                playerModel.loadVideo(video: video)
-            }
         }
     }
 }

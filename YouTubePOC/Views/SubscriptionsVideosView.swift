@@ -2,14 +2,14 @@ import SwiftUI
 import YouTubeKit
 
 struct SubscriptionsVideosView: View {
-    private var YTM = YouTubeModel()
+    @EnvironmentObject private var youtubeWrapper: YouTubeModelWrapper
     @State private var videos: [YTVideo] = []
     
     func fetchVideos() async {
         videos.removeAll()
         
         Task {
-            AccountSubscriptionsFeedResponse.sendNonThrowingRequest(youtubeModel: YTM, data: [:], result: { result in
+            AccountSubscriptionsFeedResponse.sendNonThrowingRequest(youtubeModel: YTM.model, data: [:], result: { result in
                 switch result {
                     case .success(let response):
                         var newVideos: [YTVideo] = []
@@ -52,4 +52,5 @@ struct SubscriptionsVideosView: View {
 
 #Preview {
     SubscriptionsVideosView()
+        .environmentObject(YTM.shared)
 }

@@ -2,7 +2,7 @@ import SwiftUI
 import YouTubeKit
 
 struct VideoView: View {
-    private let YTM = YouTubeModel()
+    @EnvironmentObject private var youtubeWrapper: YouTubeModelWrapper
     var video: YTVideo
     
     var body: some View {
@@ -25,35 +25,21 @@ struct VideoView: View {
                         .font(.caption)
                     
                     HStack {
-                        ControlGroup {
-                            Button {
-                                Task {
-                                    await video.likeVideo(youtubeModel: YTM)
-                                }
-                            } label: {
-                                Label("Like", systemImage: "hand.thumbsup.fill")
+                        Button {
+                            Task {
+                                await video.likeVideo(youtubeModel: YTM.model)
                             }
-                            .buttonStyle(.glass)
-                            
-                            Button {
-                                Task {
-                                    await video.dislikeVideo(youtubeModel: YTM)
-                                }
-                            } label: {
-                                Label("Dislike", systemImage: "hand.thumbsdown.fill")
-                            }
-                            .buttonStyle(.glass)
+                        } label: {
+                            Image(systemName: "hand.thumbsup")
                         }
                         
-                        Button { } label: {
-                            Label("Save", systemImage: "bookmark.fill")
+                        Button {
+                            Task {
+                                await video.dislikeVideo(youtubeModel: YTM.model)
+                            }
+                        } label: {
+                            Image(systemName: "hand.thumbsdown")
                         }
-                        .buttonStyle(.glass)
-                        
-                        Button { } label: {
-                            Label("Share", systemImage: "square.and.arrow.up.fill")
-                        }
-                        .buttonStyle(.glass)
                     }
                 }
                 .padding()
@@ -70,7 +56,7 @@ struct VideoView: View {
 #Preview {
     let sampleVideo = YTVideo(
         videoId: "cETgTtu6atM",
-        title: "WWDC25: What’s new in SwiftUI | Apple",
+        title: "WWDC25: What's new in SwiftUI | Apple",
         channel: YTLittleChannelInfos(
             channelId: "",
             name: "MacRumors",
@@ -88,4 +74,5 @@ struct VideoView: View {
     )
     
     VideoView(video: sampleVideo)
+        .environmentObject(YTM.shared)
 }
