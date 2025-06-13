@@ -18,6 +18,7 @@ struct VideoView: View {
                         NavigationLink(value: channel) {
                             ChannelInfoView(channel: channel)
                         }
+                        .foregroundStyle(.foreground)
                     }
                     
                     Text("Posted: \(video.timePosted ?? ""), views count: \(video.viewCount ?? "")")
@@ -72,7 +73,10 @@ struct VideoView: View {
         title: "WWDC25: What’s new in SwiftUI | Apple",
         channel: YTLittleChannelInfos(
             channelId: "",
-            name: "MacRumors"
+            name: "MacRumors",
+            thumbnails: [
+                YTThumbnail(url: URL(string: "https://yt3.ggpht.com/QM10AqUfNyZxhp92xKOfs5PBnS5vCngEKlbiC--ZHTraiZRubULznnjh9lDWFiGYLkLTRf3g=s68-c-k-c0x00ffffff-no-rj")!)
+            ]
         ),
         viewCount: "64K views",
         timeLength: "6:31",

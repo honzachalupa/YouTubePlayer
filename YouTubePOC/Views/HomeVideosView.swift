@@ -1,7 +1,7 @@
 import SwiftUI
 import YouTubeKit
 
-struct HomeView: View {
+struct HomeVideosView: View {
     private var YTM = YouTubeModel()
     @State private var videos: [YTVideo] = []
     
@@ -9,19 +9,18 @@ struct HomeView: View {
         videos.removeAll()
         
         Task {
-            TrendingVideosResponse.sendNonThrowingRequest(youtubeModel: YTM, data: [:], result: { result in
+            HomeScreenResponse.sendNonThrowingRequest(youtubeModel: YTM, data: [:], result: { result in
                 switch result {
                     case .success(let response):
                         var newVideos: [YTVideo] = []
                         var seenIds = Set<String>()
                         
-                        if let currentIdentifier = response.currentContentIdentifier,
-                           let videos = response.categoriesContentsStore[currentIdentifier] {
-                            for video in videos {
-                                if !seenIds.contains(video.videoId) {
-                                    seenIds.insert(video.videoId)
-                                    newVideos.append(video)
-                                }
+                        print("response.results", response.results)
+                        
+                        for video in response.results {
+                            if !seenIds.contains(video.videoId) {
+                                seenIds.insert(video.videoId)
+                                newVideos.append(video)
                             }
                         }
                         
@@ -38,7 +37,7 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             VideosListView(videos: videos)
-                .navigationTitle("Home")
+                .navigationTitle("Subscriptions")
         }
         .task {
             await fetchVideos()
@@ -47,5 +46,5 @@ struct HomeView: View {
 }
 
 #Preview {
-    HomeView()
+    HomeVideosView()
 }

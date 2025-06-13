@@ -3,12 +3,12 @@ import SwiftUI
 struct ContentView: View {
     var body: some View {
         TabView {
-            Tab("Trending", systemImage: "play.house.fill") {
+            Tab("Home", systemImage: "play.house.fill") {
                 TrendingVideosView()
             }
             
             Tab("Subscriptions", systemImage: "play.square.stack.fill") {
-                TrendingVideosView()
+                HomeVideosView()
             }
             
             Tab("Search", systemImage: "magnifyingglass", role: .search) {

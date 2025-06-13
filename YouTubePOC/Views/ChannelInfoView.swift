@@ -22,7 +22,6 @@ struct ChannelInfoView: View {
             }
                 
             Text(channel.name ?? "")
-                .foregroundStyle(.foreground)
                 .fontWeight(.medium)
         }
     }

@@ -38,7 +38,12 @@ struct TrendingVideosView: View {
     var body: some View {
         NavigationStack {
             VideosListView(videos: videos)
-                .navigationTitle("Trending")
+                .navigationTitle("Home")
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        AccountLinkView()
+                    }
+                }
         }
         .task {
             await fetchVideos()
