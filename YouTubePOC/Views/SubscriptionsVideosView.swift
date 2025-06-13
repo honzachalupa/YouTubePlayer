@@ -1,7 +1,7 @@
 import SwiftUI
 import YouTubeKit
 
-struct HomeVideosView: View {
+struct SubscriptionsVideosView: View {
     private var YTM = YouTubeModel()
     @State private var videos: [YTVideo] = []
     
@@ -9,7 +9,7 @@ struct HomeVideosView: View {
         videos.removeAll()
         
         Task {
-            HomeScreenResponse.sendNonThrowingRequest(youtubeModel: YTM, data: [:], result: { result in
+            AccountSubscriptionsFeedResponse.sendNonThrowingRequest(youtubeModel: YTM, data: [:], result: { result in
                 switch result {
                     case .success(let response):
                         var newVideos: [YTVideo] = []
@@ -28,7 +28,7 @@ struct HomeVideosView: View {
                             videos = newVideos
                         }
                     case .failure(let error):
-                        print(error.localizedDescription)
+                        print(error)
                 }
             })
         }
@@ -42,7 +42,7 @@ struct HomeVideosView: View {
                         AccountLinkView()
                     }
                 }
-                .navigationTitle("Home")
+                .navigationTitle("Subscriptions")
         }
         .task {
             await fetchVideos()
@@ -51,5 +51,5 @@ struct HomeVideosView: View {
 }
 
 #Preview {
-    HomeVideosView()
+    SubscriptionsVideosView()
 }

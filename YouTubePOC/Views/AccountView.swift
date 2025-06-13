@@ -71,6 +71,7 @@ struct AccountView: View {
             }
             .navigationTitle(authService.isAuthenticated ? "Account" : "Sign in")
         }
+        .toolbarVisibility(.hidden, for: .tabBar)
     }
 }
 

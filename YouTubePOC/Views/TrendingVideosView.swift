@@ -29,7 +29,7 @@ struct TrendingVideosView: View {
                             videos = newVideos
                         }
                     case .failure(let error):
-                        print(error)
+                        print(error.localizedDescription)
                 }
             })
         }
@@ -38,7 +38,7 @@ struct TrendingVideosView: View {
     var body: some View {
         NavigationStack {
             VideosListView(videos: videos)
-                .navigationTitle("Home")
+                .navigationTitle("Trending")
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         AccountLinkView()
