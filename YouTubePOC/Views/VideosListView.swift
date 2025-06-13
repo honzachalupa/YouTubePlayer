@@ -22,12 +22,13 @@ struct VideosListView: View {
                         if let thumbnailURL = video.thumbnails.first?.url {
                             Section {
                                 NavigationLink(value: video) {
-                                    VStack(alignment: .leading, spacing: 5) {
+                                    VStack(alignment: .leading, spacing: 10) {
                                         AsyncImage(url: thumbnailURL) { phase in
                                             Group {
                                                 if let image = phase.image {
                                                     image.resizable()
-                                                        .padding(.top, -15) // TODO: Solve using some cleaner way
+                                                        // TODO: Replace the negative paddings with somethiing more elegant
+                                                        .padding(.top, -15)
                                                         .padding(.horizontal, -20)
                                                         .padding(.trailing, -22)
                                                         .padding(.bottom, 5)

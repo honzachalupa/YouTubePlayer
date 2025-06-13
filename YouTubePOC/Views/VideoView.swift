@@ -33,6 +33,7 @@ struct VideoView: View {
                             } label: {
                                 Label("Like", systemImage: "hand.thumbsup")
                             }
+                            .buttonStyle(.glass)
                             
                             Button {
                                 Task {
@@ -41,15 +42,18 @@ struct VideoView: View {
                             } label: {
                                 Label("Disike", systemImage: "hand.thumbsdown")
                             }
+                            .buttonStyle(.glass)
                         }
                         
                         Button { } label: {
                             Label("Share", systemImage: "arrowshape.turn.up.right.fill")
                         }
+                        .buttonStyle(.glass)
                         
                         Button { } label: {
                             Label("Save", systemImage: "square.and.arrow.down.fill")
                         }
+                        .buttonStyle(.glass)
                     }
                 }
                 .padding(12)

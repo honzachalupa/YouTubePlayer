@@ -5,7 +5,7 @@ struct ChannelInfoView: View {
     let channel: YTLittleChannelInfos
     
     var body: some View {
-        HStack(spacing: 15) {
+        HStack(spacing: 10) {
             if let thumbnailUrl = channel.thumbnails.first?.url {
                 AsyncImage(url: thumbnailUrl) { phase in
                     Group {
