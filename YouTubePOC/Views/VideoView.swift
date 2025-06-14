@@ -33,7 +33,6 @@ struct VideoView: View {
                             } label: {
                                 Label("Like", systemImage: "hand.thumbsup")
                             }
-                            .buttonStyle(.glass)
                             
                             Button {
                                 Task {
@@ -42,21 +41,18 @@ struct VideoView: View {
                             } label: {
                                 Label("Disike", systemImage: "hand.thumbsdown")
                             }
-                            .buttonStyle(.glass)
                         }
                         
                         Button { } label: {
                             Label("Share", systemImage: "arrowshape.turn.up.right.fill")
                         }
-                        .buttonStyle(.glass)
                         
                         Button { } label: {
                             Label("Save", systemImage: "square.and.arrow.down.fill")
                         }
-                        .buttonStyle(.glass)
                     }
                 }
-                .padding(12)
+                .padding(15)
                 
                 Spacer()
             }
@@ -68,7 +64,7 @@ struct VideoView: View {
 }
 
 #Preview {
-    let sampleVideo = YTVideo(
+    let video = YTVideo(
         videoId: "cETgTtu6atM",
         title: "WWDC25: What's new in SwiftUI | Apple",
         channel: YTLittleChannelInfos(
@@ -89,7 +85,7 @@ struct VideoView: View {
     
     VStack {}
         .sheet(isPresented: .constant(true)) {
-            VideoView(video: sampleVideo)
+            VideoView(video: video)
         }
     .environmentObject(YTM.shared)
 }

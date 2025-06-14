@@ -13,7 +13,7 @@ struct ChannelInfoView: View {
                             image.resizable()
                                 .aspectRatio(contentMode: .fit)
                         } else {
-                            Color.gray.opacity(0.5)
+                            Color.gray.opacity(0.2)
                         }
                     }
                     .frame(width: 30, height: 30)

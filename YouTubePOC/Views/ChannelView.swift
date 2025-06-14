@@ -48,10 +48,8 @@ struct ChannelView: View {
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 40)
                             .clipShape(Circle())
-                    } else if phase.error != nil {
-                        Color.gray
                     } else {
-                        ProgressView()
+                        Color.gray
                     }
                 }
             }

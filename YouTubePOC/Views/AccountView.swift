@@ -20,7 +20,7 @@ struct AccountView: View {
                                         .clipShape(Circle())
                                 } placeholder: {
                                     Circle()
-                                        .fill(Color.gray.opacity(0.3))
+                                        .fill(Color.gray.opacity(0.2))
                                         .frame(width: 50, height: 50)
                                 }
                             }
@@ -58,7 +58,7 @@ struct AccountView: View {
             .overlay {
                 if authService.isLoading {
                     ProgressView()
-                        .scaleEffect(1.5)
+                        .controlSize(.large)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(.ultraThinMaterial)
                 }

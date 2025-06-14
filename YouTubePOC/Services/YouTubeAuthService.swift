@@ -74,7 +74,16 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
     }
     
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        return self.presentationWindow ?? ASPresentationAnchor()
+        // Get the active window scene
+        guard let windowScene = UIApplication.shared.connectedScenes
+            .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
+              let window = windowScene.windows.first(where: { $0.isKeyWindow })
+        else {
+            print("YouTubeAuthService: Could not find active window scene")
+            return UIWindow(windowScene: UIApplication.shared.connectedScenes.first as! UIWindowScene)
+        }
+        
+        return window
     }
     
     func fetchUserInfo() async {

@@ -105,19 +105,22 @@ struct VideoPlayerView: View {
     }
     
     var body: some View {
-        VStack {
+        Group {
             if playerModel.isLoading {
-                ProgressView()
+                Color.gray.opacity(0.2)
+                    .overlay {
+                        ProgressView()
+                            .controlSize(.large)
+                    }
             } else if let error = playerModel.error {
                 ContentUnavailableView(error, systemImage: "exclamationmark.triangle.fill")
             } else {
                 if !isFullscreen {
                     VideoPlayer(player: playerModel.player)
-                        .aspectRatio(16/10, contentMode: .fit)
                 }
             }
         }
-        .aspectRatio(16/10, contentMode: .fit)
+        .aspectRatio(16/9, contentMode: .fit)
         .task {
             playerModel.loadVideo(video: video)
         }
@@ -128,7 +131,7 @@ struct VideoPlayerView: View {
 }
 
 #Preview {
-    let sampleVideo = YTVideo(
+    let video = YTVideo(
         videoId: "cETgTtu6atM",
         title: "WWDC25: What's new in SwiftUI | Apple",
         channel: YTLittleChannelInfos(
@@ -144,5 +147,5 @@ struct VideoPlayerView: View {
         ]
     )
     
-    VideoPlayerView(video: sampleVideo)
+    VideoPlayerView(video: video)
 }

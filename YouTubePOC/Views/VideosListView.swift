@@ -22,31 +22,26 @@ struct VideosListView: View {
                         if let thumbnailURL = video.thumbnails.first?.url {
                             Section {
                                 NavigationLink(value: video) {
-                                    VStack(alignment: .leading, spacing: 10) {
+                                    VStack(alignment: .leading, spacing: 12) {
                                         AsyncImage(url: thumbnailURL) { phase in
                                             Group {
                                                 if let image = phase.image {
                                                     image.resizable()
-                                                        // TODO: Replace the negative paddings with somethiing more elegant
-                                                        .padding(.top, -15)
-                                                        .padding(.horizontal, -20)
-                                                        .padding(.trailing, -22)
-                                                        .padding(.bottom, 5)
-                                                } else if phase.error != nil {
-                                                    Color.gray
                                                 } else {
-                                                    ProgressView()
+                                                    Color.gray.opacity(0.2)
+                                                        .overlay {
+                                                            ProgressView()
+                                                        }
                                                 }
                                             }
-                                            .aspectRatio(16/10, contentMode: .fit)
+                                            .aspectRatio(16/9, contentMode: .fit)
+                                            // TODO: Replace the negative paddings with somethiing more elegant
+                                            .padding(.top, -15)
+                                            .padding(.horizontal, -20)
+                                            .padding(.trailing, -22)
                                         }
                                         
-                                        if let channel = video.channel {
-                                            ChannelInfoView(channel: channel)
-                                        }
-                                        
-                                        Text(video.title ?? "")
-                                            .font(.headline)
+                                        VideoInfoView(video: video)
                                     }
                                 }
                             }
@@ -74,7 +69,7 @@ struct VideosListView: View {
 }
 
 #Preview {
-    let sampleVideo = YTVideo(
+    let video = YTVideo(
         videoId: "cETgTtu6atM",
         title: "WWDC25: What's new in SwiftUI | Apple",
         channel: YTLittleChannelInfos(
@@ -93,5 +88,5 @@ struct VideosListView: View {
         ]
     )
     
-    return VideosListView(viewModel: VideoListViewModel(staticVideos: [sampleVideo, sampleVideo, sampleVideo]), navigationTitle: "Videos")
+    return VideosListView(viewModel: VideoListViewModel(staticVideos: [video, video, video]), navigationTitle: "Videos")
 }
