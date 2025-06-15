@@ -9,7 +9,11 @@ struct VideosListView: View {
     @EnvironmentObject private var playerManager: PlayerManager
     @State private var selectedVideo: YTVideo? = nil
     @State private var isLoading: Bool = false
-
+    
+    private let columns = [
+        GridItem(.adaptive(minimum: 600, maximum: 1200), spacing: 20)
+    ]
+    
     func fetch() async {
         isLoading = true
         await fetchVideos()
@@ -26,47 +30,69 @@ struct VideosListView: View {
             } else if videos.isEmpty {
                 ContentUnavailableView("No videos found", systemImage: "play.slash.fill")
             } else {
-                List(videos, id: \.videoId, selection: $selectedVideo) { video in
-                    if let thumbnailURL = video.thumbnails.first?.url {
-                        Section {
-                            NavigationLink(value: video) {
-                                VStack(alignment: .leading, spacing: 12) {
-                                    AsyncImage(url: thumbnailURL) { phase in
-                                        Group {
-                                            if let image = phase.image {
-                                                image.resizable()
-                                            } else {
-                                                Color.gray.opacity(0.2)
-                                                    .overlay {
-                                                        ProgressView()
-                                                    }
-                                            }
-                                        }
-                                        .aspectRatio(16/9, contentMode: .fit)
-                                        // TODO: Replace the negative paddings with somethiing more elegant
-                                        .padding(.top, -15)
-                                        .padding(.horizontal, -20)
-                                        .padding(.trailing, -22)
-                                    }
-                                    
-                                    VideoInfoView(video: video)
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 16) {
+                        ForEach(videos, id: \.videoId) { video in
+                            VideoRowView(video: video)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    playerManager.selectVideo(video)
                                 }
-                            }
-                            .onTapGesture {
-                                playerManager.selectVideo(video)
-                            }
                         }
                     }
+                    .padding()
                 }
                 .refreshable {
                     await fetch()
                 }
             }
         }
-
         .task {
             await fetch()
         }
+    }
+}
+
+struct VideoRowView: View {
+    let video: YTVideo
+    
+    var body: some View {
+        VStack(alignment: .leading) {
+            if let thumbnailURL = video.thumbnails.last?.url {
+                AsyncImage(url: thumbnailURL) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(16/9, contentMode: .fit)
+                } placeholder: {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.2))
+                        .aspectRatio(16/9, contentMode: .fit)
+                }
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(video.title ?? "")
+                    .font(.headline)
+                    .lineLimit(2)
+                
+                if let channel = video.channel {
+                    Text(channel.name ?? "")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                
+                HStack {
+                    Text(video.viewCount ?? "")
+                    Text("•")
+                    Text(video.timePosted ?? "")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            .padding(20)
+        }
+        .background(.regularMaterial)
+        .cornerRadius(20)
     }
 }
 
@@ -90,7 +116,7 @@ struct VideosListView: View {
         ]
     )
     
-    VideosListView(videos: [video, video, video], error: nil) {}
+    VideosListView(videos: [video, video, video], fetchVideos: { Task.init { } })
         .environmentObject(PlayerManager())
 }
 
