@@ -28,7 +28,7 @@ struct SubscriptionsVideosView: View {
     
     var body: some View {
         NavigationStack {
-            VideosListView(videos: videos, error: fetchError) {
+            VideosGridView(videos: videos, error: fetchError) {
                 await fetchVideos()
             }
             .navigationTitle("Subscriptions")

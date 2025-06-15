@@ -51,7 +51,7 @@ struct SearchVideosView: View {
                 .padding(20)
             }
             
-            VideosListView(videos: videos, error: fetchError) {
+            VideosGridView(videos: videos, error: fetchError) {
                 await searchVideos()
             }
             .onChange(of: query) {

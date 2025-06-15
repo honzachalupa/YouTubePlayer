@@ -1,7 +1,7 @@
 import SwiftUI
 import YouTubeKit
 
-struct VideosListView: View {
+struct VideosGridView: View {
     public var videos: [YTVideo]
     public var error: Error?
     public var fetchVideos: () async -> Void
@@ -116,7 +116,7 @@ struct VideoRowView: View {
         ]
     )
     
-    VideosListView(videos: [video, video, video], fetchVideos: { Task.init { } })
+    VideosGridView(videos: [video, video, video], fetchVideos: { Task.init { } })
         .environmentObject(PlayerManager())
 }
 

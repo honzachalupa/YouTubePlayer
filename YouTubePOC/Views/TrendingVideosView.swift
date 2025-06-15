@@ -35,7 +35,7 @@ struct TrendingVideosView: View {
     })
 
     var body: some View {
-        VideosListView(viewModel: viewModel, navigationTitle: "Trending")
+        VideosGridView(viewModel: viewModel, navigationTitle: "Trending")
     } */
     
     var body: some View {

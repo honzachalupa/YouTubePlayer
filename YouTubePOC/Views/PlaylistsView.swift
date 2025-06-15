@@ -1,13 +1,7 @@
-//
-//  PlaylistsView.swift
-//  YouTubePOC
-//
-//  Created by Jan Chalupa on 15.06.2025.
-//
-
 import SwiftUI
 
 struct PlaylistsView: View {
+    // AccountPlaylistsResponse
     var body: some View {
         Text("PlaylistsView")
     }
