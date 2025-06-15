@@ -4,7 +4,7 @@ import YouTubeKit
 @main
 struct YouTubePOCApp: App {
     @StateObject private var youtubeService = YTM.shared
-    @StateObject private var videoStateManager = VideoStateManager()
+    @StateObject private var playerManager = PlayerManager()
     
     init() {
         YTM.setup()
@@ -14,7 +14,7 @@ struct YouTubePOCApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(youtubeService)
-                .environmentObject(videoStateManager)
+                .environmentObject(playerManager)
         }
     }
 }

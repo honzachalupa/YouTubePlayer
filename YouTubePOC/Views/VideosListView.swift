@@ -6,10 +6,16 @@ struct VideosListView: View {
     public var error: Error?
     public var fetchVideos: () async -> Void
     
+    @EnvironmentObject private var playerManager: PlayerManager
     @State private var selectedVideo: YTVideo? = nil
     @State private var isLoading: Bool = false
-    @State private var isVideoSheetPresented: Bool = false
 
+    func fetch() async {
+        isLoading = true
+        await fetchVideos()
+        isLoading = false
+    }
+    
     var body: some View {
         Group {
             if isLoading && videos.isEmpty {
@@ -47,27 +53,19 @@ struct VideosListView: View {
                                 }
                             }
                             .onTapGesture {
-                                // videoState.selectVideo(video)
-                                isVideoSheetPresented = true
+                                playerManager.selectVideo(video)
                             }
                         }
                     }
                 }
                 .refreshable {
-                    isLoading = true
-                    await fetchVideos()
-                    isLoading = false
+                    await fetch()
                 }
             }
         }
+
         .task {
-            isLoading = true
-            await fetchVideos()
-            isLoading = false
-        }
-        .sheet(isPresented: $isVideoSheetPresented) {
-            VideoView()
-                .presentationDragIndicator(.visible)
+            await fetch()
         }
     }
 }
@@ -93,6 +91,6 @@ struct VideosListView: View {
     )
     
     VideosListView(videos: [video, video, video], error: nil) {}
-        .environmentObject(VideoStateManager())
+        .environmentObject(PlayerManager())
 }
 

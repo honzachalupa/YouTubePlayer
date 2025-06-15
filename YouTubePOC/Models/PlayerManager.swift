@@ -1,29 +1,64 @@
 import SwiftUI
-import YouTubeKit
 import AVKit
+import YouTubeKit
 
 @MainActor
-class PlayerViewModel: ObservableObject {
-    @Published var player: AVPlayer?
+class PlayerManager: ObservableObject {
+    // MARK: - Published Properties
+    @Published var selectedVideo: YTVideo?
+    @Published var isVideoSheetPresented = false
+    @Published private(set) var player: AVPlayer?
+    @Published var isPlaying = false
     @Published var isLoading = false
     @Published var error: String?
     
+    // MARK: - Private Properties
     private var playerTimeObserver: Any?
     private let authService: YouTubeAuthService
     
+    // MARK: - Initialization
     init() {
         self.authService = .shared
         configureAudioSession()
     }
     
-    @MainActor
-deinit {
-        if let observer = playerTimeObserver, let currentPlayer = player {
-            currentPlayer.removeTimeObserver(observer)
+    // MARK: - Public Methods
+    func selectVideo(_ video: YTVideo) {
+        // Only update if it's a different video
+        if selectedVideo?.videoId != video.videoId {
+            cleanup()
+            selectedVideo = video
         }
+        isVideoSheetPresented = true
+        loadVideo(video)
     }
     
-    func loadVideo(video: YTVideo) {
+    func togglePlayPause() {
+        if isPlaying {
+            player?.pause()
+        } else {
+            player?.play()
+        }
+        isPlaying.toggle()
+    }
+    
+    @MainActor
+    func loadVideo(_ video: YTVideo) {
+        // If it's the same video and we already have a player, just play it
+        if let currentVideo = selectedVideo, currentVideo.videoId == video.videoId, let existingPlayer = player {
+            // Only play if not already playing
+            if !isPlaying {
+                existingPlayer.play()
+                isPlaying = true
+            }
+            return
+        }
+        
+        // Clean up previous player
+        cleanup()
+        
+        // Update selected video
+        selectedVideo = video
         isLoading = true
         error = nil
         
@@ -42,6 +77,7 @@ deinit {
                 setupPlayerObservation(for: newPlayer)
                 self.player = newPlayer
                 self.player?.play()
+                self.isPlaying = true
                 self.isLoading = false
                 
             } catch let error as ResponseExtractionError {
@@ -64,8 +100,10 @@ deinit {
             playerTimeObserver = nil
         }
         player = nil
+        isPlaying = false
     }
     
+    // MARK: - Private Methods
     private func configureAudioSession() {
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
@@ -85,8 +123,13 @@ deinit {
         // Add new observer
         let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         playerTimeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] _ in
-            // Handle time updates if needed
-            _ = self  // Silence the 'never read' warning
+            guard let self = self else { return }
+            Task { @MainActor in
+                let isCurrentlyPlaying = player.rate > 0 && player.error == nil
+                if self.isPlaying != isCurrentlyPlaying {
+                    self.isPlaying = isCurrentlyPlaying
+                }
+            }
         }
     }
     

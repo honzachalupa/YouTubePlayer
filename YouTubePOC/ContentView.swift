@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct ContentView: View {
+    @EnvironmentObject private var playerManager: PlayerManager
+    
     var body: some View {
         TabView {
             Tab("Subscriptions", systemImage: "play.house.fill") {
@@ -23,10 +25,18 @@ struct ContentView: View {
                 SearchVideosView()
             }
         }
+        .sheet(isPresented: $playerManager.isVideoSheetPresented) {
+            if playerManager.selectedVideo != nil {
+                VideoView()
+                    .environmentObject(playerManager)
+            }
+        }
         .tabViewBottomAccessory {
-            AccessoryControlsView()
-                .padding(.leading, 1)
-                .padding(.trailing, 15)
+            if playerManager.selectedVideo != nil {
+                AccessoryControlsView()
+                    .padding(.leading, 1)
+                    .padding(.trailing, 15)
+            }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
     }
@@ -34,6 +44,6 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .environmentObject(VideoStateManager())
+        .environmentObject(PlayerManager())
         .environmentObject(YTM.shared)
 }

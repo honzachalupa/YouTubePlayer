@@ -2,12 +2,17 @@ import SwiftUI
 import YouTubeKit
 
 struct AccessoryControlsView: View {
-    @EnvironmentObject private var videoState: VideoStateManager
-    @StateObject private var playerModel = PlayerViewModel()
+    @EnvironmentObject private var playerManager: PlayerManager
+    @State private var isPlaying = false
+    private let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
+    
+    private func updatePlayState() {
+        isPlaying = playerManager.isPlaying
+    }
     
     var body: some View {
         HStack {
-            if let video = videoState.selectedVideo {
+            if let video = playerManager.selectedVideo {
                 if let thumbnailUrl = video.thumbnails.first?.url {
                     AsyncImage(url: thumbnailUrl) { phase in
                         Group {
@@ -26,37 +31,37 @@ struct AccessoryControlsView: View {
                     }
                 }
                 
-                VStack(alignment: .leading) {
+                Button {
+                    playerManager.isVideoSheetPresented = true
+                } label: {
                     Text(video.title ?? "")
                         .font(.callout)
                         .fontWeight(.bold)
                         .lineLimit(1)
-                    
-                    if let channelName = video.channel?.name {
-                        Text(channelName)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                        .clipped()
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .clipped()
                 
                 Button {
-                    videoState.isVideoSheetPresented = true
+                    playerManager.togglePlayPause()
                 } label: {
-                    Label("Play", systemImage: "play.fill")
+                    Label(
+                        isPlaying ? "Pause" : "Play",
+                        systemImage: isPlaying ? "pause.fill" : "play.fill"
+                    )
+                }
+                .onReceive(timer) { _ in
+                    updatePlayState()
                 }
                 .padding(.leading, 5)
-            } else {
-                EmptyView()
             }
         }
-        .padding(.horizontal, 8)
     }
 }
 
 #Preview {
-    let videoStateManager = VideoStateManager()
-    videoStateManager.selectedVideo = YTVideo(
+    let playerManager = PlayerManager()
+    playerManager.selectedVideo = YTVideo(
         videoId: "cETgTtu6atM",
         title: "WWDC25: What's new in SwiftUI | Apple",
         channel: YTLittleChannelInfos(
@@ -76,5 +81,5 @@ struct AccessoryControlsView: View {
     )
     
     return AccessoryControlsView()
-        .environmentObject(videoStateManager)
+        .environmentObject(playerManager)
 }

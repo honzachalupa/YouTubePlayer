@@ -3,13 +3,15 @@ import YouTubeKit
 
 struct VideoView: View {
     @EnvironmentObject private var youtubeService: YouTubeServiceWrapper
-    @EnvironmentObject private var videoState: VideoStateManager
+    @EnvironmentObject private var playerManager: PlayerManager
+    @State private var currentVideo: YTVideo?
     
     var body: some View {
-        if let video = videoState.selectedVideo {
+        if let video = playerManager.selectedVideo {
             NavigationStack {
                 VStack {
                     VideoPlayerView(video: video)
+                        .id(video.videoId) // Force recreation when video changes
                     
                     VStack(alignment: .leading, spacing: 15) {
                         Text(video.title ?? "")

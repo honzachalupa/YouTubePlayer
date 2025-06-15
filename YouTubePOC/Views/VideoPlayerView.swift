@@ -1,39 +1,56 @@
 import SwiftUI
-import AVKit
 import YouTubeKit
+import AVKit
 
 struct VideoPlayerView: View {
-    let video: YTVideo
-    @StateObject private var playerModel: PlayerViewModel
+    @EnvironmentObject private var playerManager: PlayerManager
     @State private var isFullscreen: Bool = false
     
-    init(video: YTVideo) {
-        self.video = video
-        _playerModel = StateObject(wrappedValue: PlayerViewModel())
-    }
+    let video: YTVideo
     
     var body: some View {
         Group {
-            if playerModel.isLoading {
+            if playerManager.isLoading && playerManager.selectedVideo?.videoId == video.videoId {
                 Color.gray.opacity(0.2)
                     .overlay {
                         ProgressView()
                             .controlSize(.large)
                     }
-            } else if let error = playerModel.error {
+            } else if let error = playerManager.error, playerManager.selectedVideo?.videoId == video.videoId {
                 ContentUnavailableView(error, systemImage: "exclamationmark.triangle.fill")
+            } else if let player = playerManager.player, playerManager.selectedVideo?.videoId == video.videoId {
+                VideoPlayer(player: player)
+                    .onAppear {
+                        // Only play if not already playing
+                        if !playerManager.isPlaying {
+                            player.play()
+                            playerManager.isPlaying = true
+                        }
+                    }
             } else {
-                if !isFullscreen {
-                    VideoPlayer(player: playerModel.player)
-                }
+                Color.gray.opacity(0.2)
+                    .overlay {
+                        ProgressView()
+                            .controlSize(.large)
+                    }
             }
         }
         .aspectRatio(16/9, contentMode: .fit)
-        .task {
-            playerModel.loadVideo(video: video)
+        .onAppear {
+            // Only load the video if it's different from the currently selected one
+            if playerManager.selectedVideo?.videoId != video.videoId {
+                playerManager.loadVideo(video)
+            } else if !playerManager.isPlaying {
+                // If it's the same video but not playing, ensure it plays
+                playerManager.player?.play()
+                playerManager.isPlaying = true
+            }
         }
-        .onDisappear {
-            playerModel.cleanup()
+        .onChange(of: video) {
+            // Only load if it's a different video
+            if playerManager.selectedVideo?.videoId != video.videoId {
+                playerManager.loadVideo(video)
+            }
         }
     }
 }
