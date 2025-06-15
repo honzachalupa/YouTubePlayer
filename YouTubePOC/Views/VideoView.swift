@@ -4,7 +4,28 @@ import YouTubeKit
 struct VideoView: View {
     @EnvironmentObject private var youtubeService: YouTubeServiceWrapper
     @EnvironmentObject private var playerManager: PlayerManager
-    @State private var currentVideo: YTVideo?
+    @State private var description: String? = nil
+    
+    func fetchDetails() async {
+        if let videoId = playerManager.selectedVideo?.videoId {
+            do {
+                await youtubeService.getVisitorData()
+                
+                let response = try await VideoInfosResponse.sendThrowingRequest(
+                    youtubeModel: YTM.model,
+                    data: [.query: videoId]
+                )
+                
+                withAnimation {
+                    description = response.videoDescription
+                }
+            } catch {
+                print(error.localizedDescription)
+            }
+        } else {
+            print("Video ID not provided.")
+        }
+    }
     
     var body: some View {
         if let video = playerManager.selectedVideo {
@@ -54,6 +75,10 @@ struct VideoView: View {
                                 Label("Save", systemImage: "square.and.arrow.down.fill")
                             }
                         }
+                        
+                        if let description {
+                            Text(description)
+                        }
                     }
                     .padding(15)
                     
@@ -61,6 +86,9 @@ struct VideoView: View {
                 }
                 .navigationDestination(for: YTLittleChannelInfos.self) { channelInfo in
                     ChannelView(channelInfo: channelInfo)
+                }
+                .task {
+                    await fetchDetails()
                 }
             }
         }

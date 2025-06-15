@@ -13,7 +13,10 @@ struct SubscriptionsVideosView: View {
             )
             
             withAnimation {
-                videos = response.results
+                // Filter out shorts
+                videos = response.results.filter {
+                    $0.channel?.thumbnails != nil
+                }
             }
         } catch {
             withAnimation {

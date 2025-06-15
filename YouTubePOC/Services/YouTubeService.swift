@@ -31,6 +31,19 @@ class YouTubeServiceWrapper: ObservableObject {
         }
     }
     
+    func getVisitorData() async {
+        if model.visitorData.isEmpty {
+            if let visitorData = try? await SearchResponse.sendThrowingRequest(
+                youtubeModel: model,
+                data: [.query: "homefwhfjoifj"]
+            ).visitorData {
+                model.visitorData = visitorData
+            } else {
+                print("Couldn't get visitorData, request may fail.")
+            }
+        }
+    }
+    
     init(model: YouTubeModel) {
         // print("YouTubeServiceWrapper: Initializing with model")
         self.model = model
@@ -107,7 +120,6 @@ final class YTM {
     }
     
     static func setup() {
-        print("YTM: Setting up...")
         // Initialize with default settings
         instance.selectedLocale = "en-US"
         
