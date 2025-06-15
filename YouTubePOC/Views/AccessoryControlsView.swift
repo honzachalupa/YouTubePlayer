@@ -31,16 +31,13 @@ struct AccessoryControlsView: View {
                     }
                 }
                 
-                Button {
-                    playerManager.isVideoSheetPresented = true
-                } label: {
-                    Text(video.title ?? "")
-                        .font(.callout)
-                        .fontWeight(.bold)
-                        .lineLimit(1)
-                        .clipped()
-                }
-                .clipped()
+                Text(video.title ?? "")
+                    .font(.callout)
+                    .fontWeight(.bold)
+                    .lineLimit(1)
+                    .onTapGesture {
+                        playerManager.isVideoSheetPresented = true
+                    }
                 
                 Button {
                     playerManager.togglePlayPause()

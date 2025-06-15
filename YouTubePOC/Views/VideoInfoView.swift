@@ -17,7 +17,7 @@ struct VideoInfoView: View {
                         }
                     }
                     .frame(width: 40, height: 40)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .clipShape(Circle())
                 }
             }
                 

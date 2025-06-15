@@ -57,19 +57,17 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
     
     override private init() {
         super.init()
-//         print("YouTubeAuthService: Initialized.")
+//      print("YouTubeAuthService: Initialized.")
         
-        // We can check if cookies are present and set the isAuthenticated flag accordingly.
         if !YTM.cookies.isEmpty {
             self.isAuthenticated = true
-            print("YouTubeAuthService: Found existing cookies, user is considered authenticated.")
-            // Fetch user info if we're already authenticated
+            
             Task {
                 await fetchUserInfo()
             }
         } else {
             self.isAuthenticated = false
-//             print("YouTubeAuthService: No cookies found, user is not authenticated.")
+//          print("YouTubeAuthService: No cookies found, user is not authenticated.")
         }
     }
     
