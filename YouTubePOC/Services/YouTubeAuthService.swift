@@ -39,11 +39,11 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
     private var accessToken: String? {
         get { 
             let token = UserDefaults.standard.string(forKey: "youtube_access_token")
-            print("YouTubeAuthService: Getting access token: \(token ?? "nil")")
+//             print("YouTubeAuthService: Getting access token: \(token ?? "nil")")
             return token
         }
         set { 
-            print("YouTubeAuthService: Setting access token: \(newValue ?? "nil")")
+//             print("YouTubeAuthService: Setting access token: \(newValue ?? "nil")")
             UserDefaults.standard.set(newValue, forKey: "youtube_access_token")
             // Set the token in YTM for API calls
             YTM.accessToken = newValue
@@ -57,7 +57,7 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
     
     override private init() {
         super.init()
-        print("YouTubeAuthService: Initialized.")
+//         print("YouTubeAuthService: Initialized.")
         
         // We can check if cookies are present and set the isAuthenticated flag accordingly.
         if !YTM.cookies.isEmpty {
@@ -69,7 +69,7 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
             }
         } else {
             self.isAuthenticated = false
-            print("YouTubeAuthService: No cookies found, user is not authenticated.")
+//             print("YouTubeAuthService: No cookies found, user is not authenticated.")
         }
     }
     
@@ -93,11 +93,11 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
         }
         
         isLoading = true
-        print("YouTubeAuthService: Fetching user info...")
+        // print("YouTubeAuthService: Fetching user info...")
         
         do {
             let response = try await AccountInfosResponse.sendThrowingRequest(youtubeModel: YTM.model, data: [:])
-            print("YouTubeAuthService: Raw response: \(response)")
+            // print("YouTubeAuthService: Raw response: \(response)")
             
             if !response.isDisconnected, let accountName = response.name {
                 let pictureURL = response.avatar.first?.url
@@ -105,7 +105,7 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
                     name: accountName,
                     picture: pictureURL?.absoluteString ?? ""
                 )
-                print("YouTubeAuthService: Successfully fetched user info: \(String(describing: self.userInfo))")
+                // print("YouTubeAuthService: Successfully fetched user info: \(String(describing: self.userInfo))")
             } else {
                 print("YouTubeAuthService: Could not fetch user info, account may be disconnected. Response: \(response)")
                 self.userInfo = nil
@@ -120,7 +120,7 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
     }
     
     func handleSignIn(cookies: String) {
-        print("YouTubeAuthService: Handling sign-in with extracted cookies.")
+        // print("YouTubeAuthService: Handling sign-in with extracted cookies.")
         isLoading = true
         
         YTM.cookies = cookies
@@ -134,7 +134,7 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
     }
     
     func signOut() {
-        print("YouTubeAuthService: Starting sign out...")
+        // print("YouTubeAuthService: Starting sign out...")
         isLoading = true
         
         self.isAuthenticated = false
@@ -161,6 +161,6 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
             }
         }
         
-        print("YouTubeAuthService: Sign out complete")
+        // print("YouTubeAuthService: Sign out complete")
     }
 } 

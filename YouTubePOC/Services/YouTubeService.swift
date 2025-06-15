@@ -8,7 +8,7 @@ class YouTubeServiceWrapper: ObservableObject {
     
     @Published var cookies: String {
         didSet {
-            print("YouTubeServiceWrapper: Setting cookies to: \(cookies)")
+            // print("YouTubeServiceWrapper: Setting cookies to: \(cookies)")
             model.cookies = cookies
             UserDefaults.standard.set(cookies, forKey: "ytm_cookies")
             model.alwaysUseCookies = !cookies.isEmpty
@@ -18,7 +18,7 @@ class YouTubeServiceWrapper: ObservableObject {
     
     @Published var alwaysUseCookies: Bool {
         didSet {
-            print("YouTubeServiceWrapper: Setting alwaysUseCookies to: \(alwaysUseCookies)")
+            // print("YouTubeServiceWrapper: Setting alwaysUseCookies to: \(alwaysUseCookies)")
             model.alwaysUseCookies = alwaysUseCookies
             UserDefaults.standard.set(alwaysUseCookies, forKey: "ytm_always_use_cookies")
         }
@@ -26,21 +26,21 @@ class YouTubeServiceWrapper: ObservableObject {
     
     @Published var accessToken: String? {
         didSet {
-            print("YouTubeServiceWrapper: Setting accessToken to: \(accessToken ?? "nil")")
+            // print("YouTubeServiceWrapper: Setting accessToken to: \(accessToken ?? "nil")")
             // If YouTubeKit supports setting a token, set it here. Otherwise, store for use in API calls.
         }
     }
     
     init(model: YouTubeModel) {
-        print("YouTubeServiceWrapper: Initializing with model")
+        // print("YouTubeServiceWrapper: Initializing with model")
         self.model = model
         self.cookies = UserDefaults.standard.string(forKey: "ytm_cookies") ?? ""
         self.alwaysUseCookies = UserDefaults.standard.bool(forKey: "ytm_always_use_cookies")
         model.cookies = self.cookies
         model.alwaysUseCookies = self.alwaysUseCookies
-        print("YouTubeServiceWrapper: Initial state:")
-        print("- Cookies: \(self.cookies)")
-        print("- Always use cookies: \(self.alwaysUseCookies)")
+        // print("YouTubeServiceWrapper: Initial state:")
+        // print("- Cookies: \(self.cookies)")
+        // print("- Always use cookies: \(self.alwaysUseCookies)")
     }
     
     func generateSAPISIDHASH(forCookies cookies: String, time: Int? = nil) -> String? {
@@ -88,16 +88,16 @@ final class YTM {
     static var cookies: String {
         get { shared.cookies }
         set { 
-            print("YTM: Setting cookies to: \(newValue)")
-            shared.cookies = newValue 
+            // print("YTM: Setting cookies to: \(newValue)")
+            shared.cookies = newValue
         }
     }
     
     static var alwaysUseCookies: Bool {
         get { shared.alwaysUseCookies }
         set { 
-            print("YTM: Setting alwaysUseCookies to: \(newValue)")
-            shared.alwaysUseCookies = newValue 
+            // print("YTM: Setting alwaysUseCookies to: \(newValue)")
+            shared.alwaysUseCookies = newValue
         }
     }
     
@@ -113,21 +113,21 @@ final class YTM {
         
         // Restore cookies if available
         if let savedCookies = UserDefaults.standard.string(forKey: "ytm_cookies") {
-            print("YTM: Found saved cookies: \(savedCookies)")
+            // print("YTM: Found saved cookies: \(savedCookies)")
             cookies = savedCookies
             alwaysUseCookies = UserDefaults.standard.bool(forKey: "ytm_always_use_cookies")
-            print("YTM: Restored settings:")
-            print("- Cookies: \(cookies)")
-            print("- Always use cookies: \(alwaysUseCookies)")
+            // print("YTM: Restored settings:")
+            // print("- Cookies: \(cookies)")
+            // print("- Always use cookies: \(alwaysUseCookies)")
         } else {
             print("YTM: No saved cookies found during setup")
         }
         
         // Verify the setup
-        print("YTM: Setup complete. Current state:")
-        print("- Model cookies: \(model.cookies)")
-        print("- Wrapper cookies: \(shared.cookies)")
-        print("- Stored cookies: \(UserDefaults.standard.string(forKey: "ytm_cookies") ?? "nil")")
+        // print("YTM: Setup complete. Current state:")
+        // print("- Model cookies: \(model.cookies)")
+        // print("- Wrapper cookies: \(shared.cookies)")
+        // print("- Stored cookies: \(UserDefaults.standard.string(forKey: "ytm_cookies") ?? "nil")")
     }
     
     static func reset() {
@@ -146,10 +146,10 @@ final class YTM {
         // Force UserDefaults to save immediately
         UserDefaults.standard.synchronize()
         
-        print("YTM: Reset complete. Current state:")
-        print("- Model cookies: \(model.cookies)")
-        print("- Wrapper cookies: \(shared.cookies)")
-        print("- Stored cookies: \(UserDefaults.standard.string(forKey: "ytm_cookies") ?? "nil")")
+        // print("YTM: Reset complete. Current state:")
+        // print("- Model cookies: \(model.cookies)")
+        // print("- Wrapper cookies: \(shared.cookies)")
+        // print("- Stored cookies: \(UserDefaults.standard.string(forKey: "ytm_cookies") ?? "nil")")
     }
     
     static var model: YouTubeModel {

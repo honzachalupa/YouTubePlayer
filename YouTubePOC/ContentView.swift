@@ -3,13 +3,16 @@ import SwiftUI
 struct ContentView: View {
     var body: some View {
         TabView {
-            
             Tab("Subscriptions", systemImage: "play.house.fill") {
                 SubscriptionsVideosView()
             }
             
-            Tab("Recommended", systemImage: "play.square.stack.fill") {
+            Tab("Recommended", systemImage: "play.rectangle.on.rectangle.fill") {
                 RecommendedVideosView()
+            }
+            
+            Tab("Playlists", systemImage: "play.square.stack.fill") {
+                PlaylistsView()
             }
             
             /* Tab("Trending", systemImage: "play.house.fill") {
@@ -31,4 +34,6 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+        .environmentObject(VideoStateManager())
+        .environmentObject(YTM.shared)
 }

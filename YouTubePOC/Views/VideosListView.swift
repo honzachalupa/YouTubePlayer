@@ -2,68 +2,72 @@ import SwiftUI
 import YouTubeKit
 
 struct VideosListView: View {
-    @StateObject public var viewModel: VideoListViewModel
-    public let navigationTitle: String
+    public var videos: [YTVideo]
+    public var error: Error?
+    public var fetchVideos: () async -> Void
     
     @State private var selectedVideo: YTVideo? = nil
+    @State private var isLoading: Bool = false
+    @State private var isVideoSheetPresented: Bool = false
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if viewModel.isFetching && viewModel.videos.isEmpty {
-                    ProgressView()
-                        .controlSize(.large)
-                } else if let error = viewModel.error {
-                    ContentUnavailableView(error, systemImage: "exclamationmark.triangle.fill")
-                } else if viewModel.videos.isEmpty {
-                    ContentUnavailableView("No videos found", systemImage: "play.slash.fill")
-                } else {
-                    List(viewModel.videos, id: \.videoId, selection: $selectedVideo) { video in
-                        if let thumbnailURL = video.thumbnails.first?.url {
-                            Section {
-                                NavigationLink(value: video) {
-                                    VStack(alignment: .leading, spacing: 12) {
-                                        AsyncImage(url: thumbnailURL) { phase in
-                                            Group {
-                                                if let image = phase.image {
-                                                    image.resizable()
-                                                } else {
-                                                    Color.gray.opacity(0.2)
-                                                        .overlay {
-                                                            ProgressView()
-                                                        }
-                                                }
+        Group {
+            if isLoading && videos.isEmpty {
+                ProgressView()
+                    .controlSize(.large)
+            } else if let error = error {
+                ContentUnavailableView(error.localizedDescription, systemImage: "exclamationmark.triangle.fill")
+            } else if videos.isEmpty {
+                ContentUnavailableView("No videos found", systemImage: "play.slash.fill")
+            } else {
+                List(videos, id: \.videoId, selection: $selectedVideo) { video in
+                    if let thumbnailURL = video.thumbnails.first?.url {
+                        Section {
+                            NavigationLink(value: video) {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    AsyncImage(url: thumbnailURL) { phase in
+                                        Group {
+                                            if let image = phase.image {
+                                                image.resizable()
+                                            } else {
+                                                Color.gray.opacity(0.2)
+                                                    .overlay {
+                                                        ProgressView()
+                                                    }
                                             }
-                                            .aspectRatio(16/9, contentMode: .fit)
-                                            // TODO: Replace the negative paddings with somethiing more elegant
-                                            .padding(.top, -15)
-                                            .padding(.horizontal, -20)
-                                            .padding(.trailing, -22)
                                         }
-                                        
-                                        VideoInfoView(video: video)
+                                        .aspectRatio(16/9, contentMode: .fit)
+                                        // TODO: Replace the negative paddings with somethiing more elegant
+                                        .padding(.top, -15)
+                                        .padding(.horizontal, -20)
+                                        .padding(.trailing, -22)
                                     }
+                                    
+                                    VideoInfoView(video: video)
                                 }
+                            }
+                            .onTapGesture {
+                                // videoState.selectVideo(video)
+                                isVideoSheetPresented = true
                             }
                         }
                     }
                 }
-            }
-            .sheet(item: $selectedVideo) { video in
-                VideoView(video: video)
-                    .presentationDragIndicator(.visible)
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    AccountLinkView()
+                .refreshable {
+                    isLoading = true
+                    await fetchVideos()
+                    isLoading = false
                 }
             }
-            .navigationTitle(navigationTitle)
         }
         .task {
-            if viewModel.videos.isEmpty {
-                await viewModel.fetchVideos()
-            }
+            isLoading = true
+            await fetchVideos()
+            isLoading = false
+        }
+        .sheet(isPresented: $isVideoSheetPresented) {
+            VideoView()
+                .presentationDragIndicator(.visible)
         }
     }
 }
@@ -88,5 +92,7 @@ struct VideosListView: View {
         ]
     )
     
-    return VideosListView(viewModel: VideoListViewModel(staticVideos: [video, video, video]), navigationTitle: "Videos")
+    VideosListView(videos: [video, video, video], error: nil) {}
+        .environmentObject(VideoStateManager())
 }
+

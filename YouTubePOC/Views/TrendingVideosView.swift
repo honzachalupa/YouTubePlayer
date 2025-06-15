@@ -2,7 +2,7 @@ import SwiftUI
 import YouTubeKit
 
 struct TrendingVideosView: View {
-    @StateObject private var viewModel = VideoListViewModel(videoFetcher: {
+    /* @StateObject private var viewModel = VideoListViewModel(videoFetcher: {
         let response = try await TrendingVideosResponse.sendThrowingRequest(youtubeModel: YTM.model, data: [:])
         
         // The trending response has a specific structure we need to handle.
@@ -36,6 +36,10 @@ struct TrendingVideosView: View {
 
     var body: some View {
         VideosListView(viewModel: viewModel, navigationTitle: "Trending")
+    } */
+    
+    var body: some View {
+        Text("TrendingVideosView")
     }
 }
 

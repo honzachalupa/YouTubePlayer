@@ -2,13 +2,34 @@ import SwiftUI
 import YouTubeKit
 
 struct SubscriptionsVideosView: View {
-    @StateObject private var viewModel = VideoListViewModel(videoFetcher: {
-        let response = try await AccountSubscriptionsFeedResponse.sendThrowingRequest(youtubeModel: YTM.model, data: [:])
-        return response.results
-    })
+    @State private var videos: [YTVideo] = []
+    @State private var fetchError: Error? = nil
 
+    func fetchVideos() async {
+        do {
+            let response = try await AccountSubscriptionsFeedResponse.sendThrowingRequest(
+                youtubeModel: YTM.model,
+                data: [:]
+            )
+            
+            withAnimation {
+                videos = response.results
+            }
+        } catch {
+            withAnimation {
+                fetchError = error
+                videos = []
+            }
+        }
+    }
+    
     var body: some View {
-        VideosListView(viewModel: viewModel, navigationTitle: "Subscriptions")
+        NavigationStack {
+            VideosListView(videos: videos, error: fetchError) {
+                await fetchVideos()
+            }
+            .navigationTitle("Subscriptions")
+        }
     }
 }
 

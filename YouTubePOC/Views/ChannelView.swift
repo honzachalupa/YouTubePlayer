@@ -3,7 +3,8 @@ import YouTubeKit
 
 struct ChannelView: View {
     var YTM = YouTubeModel()
-    let channel: YTLittleChannelInfos
+    public var channel: YTChannel? = nil
+    public var channelInfo: YTLittleChannelInfos? = nil
     
     @State private var isLoading: Bool = false
     
@@ -41,7 +42,7 @@ struct ChannelView: View {
     
     var body: some View {
         HStack(spacing: 10) {
-            if let thumbnailUrl = channel.thumbnails.first?.url {
+            if let thumbnailUrl = channel?.thumbnails.first?.url {
                 AsyncImage(url: thumbnailUrl) { phase in
                     if let image = phase.image {
                         image.resizable()
@@ -54,7 +55,7 @@ struct ChannelView: View {
                 }
             }
                 
-            Text(channel.name ?? "")
+            Text(channel?.name ?? "")
                 .font(.subheadline)
         }
         .onAppear {
@@ -67,9 +68,9 @@ struct ChannelView: View {
 }
 
 #Preview {
-    let channel = YTLittleChannelInfos(
-        channelId: "UCtcmk_u_kqeibnHqxTSNitg",
+    let channel = YTChannel(
         name: "Channel Name",
+        channelId: "UCtcmk_u_kqeibnHqxTSNitg",
         thumbnails: [
             YTThumbnail(url: URL(string: "https://yt3.ggpht.com/QM10AqUfNyZxhp92xKOfs5PBnS5vCngEKlbiC--ZHTraiZRubULznnjh9lDWFiGYLkLTRf3g=s68-c-k-c0x00ffffff-no-rj")!)
         ]

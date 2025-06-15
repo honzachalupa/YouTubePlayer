@@ -2,7 +2,61 @@ import SwiftUI
 import YouTubeKit
 
 struct AccessoryControlsView: View {
-    let video = YTVideo(
+    @EnvironmentObject private var videoState: VideoStateManager
+    @StateObject private var playerModel = PlayerViewModel()
+    
+    var body: some View {
+        HStack {
+            if let video = videoState.selectedVideo {
+                if let thumbnailUrl = video.thumbnails.first?.url {
+                    AsyncImage(url: thumbnailUrl) { phase in
+                        Group {
+                            if let image = phase.image {
+                                image.resizable()
+                            } else {
+                                Color.gray.opacity(0.2)
+                                    .overlay {
+                                        ProgressView()
+                                    }
+                            }
+                        }
+                        .aspectRatio(16/9, contentMode: .fill)
+                        .frame(width: 60, height: 40)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                }
+                
+                VStack(alignment: .leading) {
+                    Text(video.title ?? "")
+                        .font(.callout)
+                        .fontWeight(.bold)
+                        .lineLimit(1)
+                    
+                    if let channelName = video.channel?.name {
+                        Text(channelName)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                
+                Button {
+                    videoState.isVideoSheetPresented = true
+                } label: {
+                    Label("Play", systemImage: "play.fill")
+                }
+                .padding(.leading, 5)
+            } else {
+                EmptyView()
+            }
+        }
+        .padding(.horizontal, 8)
+    }
+}
+
+#Preview {
+    let videoStateManager = VideoStateManager()
+    videoStateManager.selectedVideo = YTVideo(
         videoId: "cETgTtu6atM",
         title: "WWDC25: What's new in SwiftUI | Apple",
         channel: YTLittleChannelInfos(
@@ -21,44 +75,6 @@ struct AccessoryControlsView: View {
         ]
     )
     
-    var body: some View {
-        HStack {
-            if let thumbnailUrl = video.channel?.thumbnails.first?.url {
-                AsyncImage(url: thumbnailUrl) { phase in
-                    Group {
-                        if let image = phase.image {
-                            image.resizable()
-                        } else {
-                            Color.gray
-                        }
-                    }
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 40)
-                    .clipShape(Circle())
-                }
-            }
-            
-            Text(video.title ?? "")
-                .font(.callout)
-                .fontWeight(.bold)
-                .lineLimit(1)
-            
-            Group {
-                if false {
-                    Button { } label: {
-                        Label("Pause", systemImage: "pause.fill")
-                    }
-                } else {
-                    Button { } label: {
-                        Label("Play", systemImage: "play.fill")
-                    }
-                }
-            }
-            .padding(.leading, 5)
-        }
-    }
-}
-
-#Preview {
-    AccessoryControlsView()
+    return AccessoryControlsView()
+        .environmentObject(videoStateManager)
 }
