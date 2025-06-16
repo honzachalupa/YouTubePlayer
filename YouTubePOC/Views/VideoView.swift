@@ -7,17 +7,18 @@ struct VideoView: View {
     @State private var description: String? = nil
     
     func fetchDetails() async {
-        if let videoId = playerManager.selectedVideo?.videoId {
+        if let video = playerManager.selectedVideo {
             do {
                 await youtubeService.getVisitorData()
                 
-                let response = try await VideoInfosResponse.sendThrowingRequest(
-                    youtubeModel: YTM.model,
-                    data: [.query: videoId]
+                let response = try await video.fetchMoreInfosThrowing(
+                    youtubeModel: YTM.model
                 )
                 
                 withAnimation {
-                    description = response.videoDescription
+                    description = response.videoDescription?.map { part in
+                        part.text ?? ""
+                    }.joined()
                 }
             } catch {
                 print(error.localizedDescription)

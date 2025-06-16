@@ -6,12 +6,11 @@ struct VideosGridView: View {
     public var error: Error?
     public var fetchVideos: () async -> Void
     
-    @EnvironmentObject private var playerManager: PlayerManager
     @State private var selectedVideo: YTVideo? = nil
     @State private var isLoading: Bool = false
     
     private let columns = [
-        GridItem(.adaptive(minimum: 600, maximum: 1200), spacing: 20)
+        GridItem(.adaptive(minimum: 600, maximum: 1200), spacing: 20, alignment: .top)
     ]
     
     func fetch() async {
@@ -31,13 +30,9 @@ struct VideosGridView: View {
                 ContentUnavailableView("No videos found", systemImage: "play.slash.fill")
             } else {
                 ScrollView {
-                    LazyVGrid(columns: columns, spacing: 16) {
+                    LazyVGrid(columns: columns, spacing: 20) {
                         ForEach(videos, id: \.videoId) { video in
-                            VideoRowView(video: video)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    playerManager.selectVideo(video)
-                                }
+                            VideoGridItemView(video: video)
                         }
                     }
                     .padding()
@@ -52,7 +47,7 @@ struct VideosGridView: View {
     }
 }
 
-struct VideoRowView: View {
+struct VideoGridItemView: View {
     public let video: YTVideo
     
     @EnvironmentObject private var playerManager: PlayerManager
@@ -78,18 +73,25 @@ struct VideoRowView: View {
             }
             
             VideoInfoView(video: video, mainLabel: .videoTitle)
-                .padding(20)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
+
+            Spacer()
         }
-        .onAppear {
-            playlistsViewModel.updatePlayerManager(playerManager)
+        .background(.regularMaterial)
+        .cornerRadius(20)
+        .shadow(color: .black.opacity(0.3), radius: 10)
+        .onTapGesture {
+            playerManager.selectVideo(video)
         }
         .contextMenu {
             Section("Add to playlist") {
                 AddRemoveVideoPlaylistListView(video: video)
             }
         }
-        .background(.regularMaterial)
-        .cornerRadius(20)
+        .onAppear {
+            playlistsViewModel.updatePlayerManager(playerManager)
+        }
     }
 }
 

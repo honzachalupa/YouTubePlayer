@@ -66,5 +66,6 @@ struct VideoActionsView: View {
     )
     
     VideoActionsView(video: video)
+        .padding()
         .environmentObject(PlayerManager())
 }
