@@ -75,7 +75,14 @@ struct VideoRowView: View {
                     .lineLimit(2)
                 
                 ChannelInfoView(channel: video.channel)
-                VideoStatsView(video: video)
+                
+                HStack {
+                    VideoStatsView(video: video)
+                    
+                    Spacer()
+                    
+                    VideoActionsView(video: video, showPlaylistSelectionOnly: true)
+                }
             }
             .padding(20)
         }
