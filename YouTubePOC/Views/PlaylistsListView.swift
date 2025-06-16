@@ -1,7 +1,7 @@
 import SwiftUI
 import YouTubeKit
 
-struct PlaylistsGridView: View {
+struct PlaylistsListView: View {
     @EnvironmentObject private var youtubeService: YouTubeServiceWrapper
     @State private var playlists: [YTPlaylist] = []
     
@@ -16,10 +16,6 @@ struct PlaylistsGridView: View {
             
             withAnimation {
                 playlists = response.results
-                
-                response.results.forEach { playlist in
-                    print("playlists", playlist.title ?? "-", playlist.videoCount ?? "-", playlist.frontVideos.count)
-                }
             }
         } catch {
             print(error.localizedDescription)
@@ -37,18 +33,17 @@ struct PlaylistsGridView: View {
                 } label: {
                     Text(playlist.title ?? "")
                     
-                    Spacer()
-                    
                     Text(playlist.videoCount ?? "")
-                        .opacity(0.3)
+                        .opacity(0.5)
                 }
             }
             .task { await fetchPlaylists() }
+            .refreshable { await fetchPlaylists() }
             .navigationTitle("Playlists")
         }
     }
 }
 
 #Preview {
-    PlaylistsGridView()
+    PlaylistsListView()
 }

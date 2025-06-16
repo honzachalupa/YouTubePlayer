@@ -14,7 +14,7 @@ struct ContentView: View {
             }
             
             Tab("Playlists", systemImage: "play.square.stack.fill") {
-                PlaylistsGridView()
+                PlaylistsListView()
             }
             
             /* Tab("Trending", systemImage: "play.house.fill") {
