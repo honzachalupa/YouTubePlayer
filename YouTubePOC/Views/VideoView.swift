@@ -1,5 +1,6 @@
 import SwiftUI
 import YouTubeKit
+import MarkdownUI
 
 struct VideoView: View {
     @EnvironmentObject private var youtubeService: YouTubeServiceWrapper
@@ -77,7 +78,7 @@ struct VideoView: View {
                         }
                         
                         if let description {
-                            Text(description)
+                            Markdown(description)
                         }
                     }
                     .padding(15)
@@ -87,9 +88,7 @@ struct VideoView: View {
                 .navigationDestination(for: YTLittleChannelInfos.self) { channelInfo in
                     ChannelView(channelInfo: channelInfo)
                 }
-                .task {
-                    await fetchDetails()
-                }
+                .task { await fetchDetails() }
             }
         }
     }

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2166E2482E002CEA003D90CA /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 2166E2472E002CEA003D90CA /* MarkdownUI */; };
 		21795FB92DFB3C3A00482B97 /* YouTubeKit in Frameworks */ = {isa = PBXBuildFile; productRef = 21795FB82DFB3C3A00482B97 /* YouTubeKit */; };
 /* End PBXBuildFile section */
 
@@ -41,6 +42,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				21795FB92DFB3C3A00482B97 /* YouTubeKit in Frameworks */,
+				2166E2482E002CEA003D90CA /* MarkdownUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -84,6 +86,7 @@
 			name = YouTubePOC;
 			packageProductDependencies = (
 				21795FB82DFB3C3A00482B97 /* YouTubeKit */,
+				2166E2472E002CEA003D90CA /* MarkdownUI */,
 			);
 			productName = YouTubePOC;
 			productReference = 216CD24D2DD24C2900E3F397 /* YouTubePOC.app */;
@@ -115,6 +118,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				21795FB72DFB3C3A00482B97 /* XCRemoteSwiftPackageReference "YouTubeKit" */,
+				2166E2462E002CEA003D90CA /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 216CD24E2DD24C2900E3F397 /* Products */;
@@ -356,6 +360,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		2166E2462E002CEA003D90CA /* XCRemoteSwiftPackageReference "swift-markdown-ui" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/gonzalezreal/swift-markdown-ui.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.4.1;
+			};
+		};
 		21795FB72DFB3C3A00482B97 /* XCRemoteSwiftPackageReference "YouTubeKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/b5i/YouTubeKit/";
@@ -367,6 +379,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		2166E2472E002CEA003D90CA /* MarkdownUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2166E2462E002CEA003D90CA /* XCRemoteSwiftPackageReference "swift-markdown-ui" */;
+			productName = MarkdownUI;
+		};
 		21795FB82DFB3C3A00482B97 /* YouTubeKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 21795FB72DFB3C3A00482B97 /* XCRemoteSwiftPackageReference "YouTubeKit" */;

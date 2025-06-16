@@ -47,9 +47,7 @@ struct VideosGridView: View {
                 }
             }
         }
-        .task {
-            await fetch()
-        }
+        .task { await fetch() }
     }
 }
 
