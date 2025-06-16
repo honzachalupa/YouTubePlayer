@@ -30,25 +30,7 @@ struct VideoActionsView: View {
                 }
                 
                 Menu {
-                    if playerManager.availablePlaylists.isEmpty {
-                        Text("No playlists available")
-                    } else {
-                        ForEach(playerManager.availablePlaylists, id: \.playlist.playlistId) { item in
-                            if item.isVideoPresentInside {
-                                Button(role: .destructive) {
-                                    playerManager.removeFromPlaylist(video, item.playlist)
-                                } label: {
-                                    Label("Remove from \(item.playlist.title ?? "")", systemImage: "minus.circle")
-                                }
-                            } else {
-                                Button {
-                                    playerManager.addToPlaylist(video, item.playlist)
-                                } label: {
-                                    Label("Add to \(item.playlist.title ?? "")", systemImage: "plus.circle")
-                                }
-                            }
-                        }
-                    }
+                    AddRemoveVideoPlaylistListView(video: video)
                 } label: {
                     Label("Save", systemImage: "square.and.arrow.down.fill")
                 }

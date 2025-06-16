@@ -85,25 +85,7 @@ struct VideoRowView: View {
         }
         .contextMenu {
             Section("Add to playlist") {
-                if playlistsViewModel.playlistStates.isEmpty {
-                    Text("No playlists available")
-                } else {
-                    ForEach(playlistsViewModel.playlistStates, id: \.playlist.playlistId) { item in
-                        if item.isVideoPresentInside {
-                            Button(role: .destructive) {
-                                playlistsViewModel.removeFromPlaylist(item.playlist)
-                            } label: {
-                                Label("Remove from \(item.playlist.title ?? "")", systemImage: "minus.circle")
-                            }
-                        } else {
-                            Button {
-                                playlistsViewModel.addToPlaylist(item.playlist)
-                            } label: {
-                                Label("Add to \(item.playlist.title ?? "")", systemImage: "plus.circle")
-                            }
-                        }
-                    }
-                }
+                AddRemoveVideoPlaylistListView(video: video)
             }
         }
         .background(.regularMaterial)
