@@ -41,6 +41,7 @@ struct VideosGridView: View {
                         }
                     }
                     .padding()
+                    .animation(.easeInOut, value: videos)
                 }
                 .refreshable {
                     await fetch()

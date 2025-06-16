@@ -5,7 +5,7 @@ struct VideoStatsView: View {
     public var video: YTVideo
     
     var value: String {
-        [video.viewCount ?? "", video.timePosted ?? ""]
+        [video.timePosted ?? "", video.viewCount ?? ""]
             .filter { !$0.isEmpty }
             .joined(separator: " • ")
     }

@@ -25,6 +25,7 @@ struct PlaylistsListView: View {
             }
         }
     }
+    
     var body: some View {
         NavigationStack {
             List(playlists, id: \.playlistId) { playlist in

@@ -43,7 +43,7 @@ struct PlaylistView: View {
     
     var body: some View {
         NavigationStack {
-            VideosGridView(videos: videos) {
+            VideosGridView(videos: filteredVideos) {
                 await fetchVideos()
             }
             .searchable(text: $searchText, prompt: "Search videos in playlist")

@@ -1,6 +1,5 @@
 import SwiftUI
 import YouTubeKit
-import MarkdownUI
 
 struct VideoView: View {
     @EnvironmentObject private var youtubeService: YouTubeServiceWrapper
@@ -69,16 +68,20 @@ struct VideoView: View {
                                 Button { } label: {
                                     Label("Share", systemImage: "arrowshape.turn.up.right.fill")
                                 }
+                                .disabled(true)
                                 
                                 Button { } label: {
                                     Label("Save", systemImage: "square.and.arrow.down.fill")
                                 }
+                                .disabled(true)
                             }
                             .buttonStyle(.bordered)
                         }
                         
                         if let description {
-                            Text(.init(description))
+                            ScrollView(.vertical) {
+                                Text(.init(description))
+                            }
                         }
                     }
                     .padding(15)

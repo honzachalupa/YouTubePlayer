@@ -3,10 +3,25 @@ import YouTubeKit
 import AVKit
 
 struct VideoPlayerView: View {
+    public let video: YTVideo
+    
     @EnvironmentObject private var playerManager: PlayerManager
     @State private var isFullscreen: Bool = false
     
-    let video: YTVideo
+    @ViewBuilder
+    func FullScreenButton() -> some View {
+        Button {
+            isFullscreen.toggle()
+        } label: {
+            if isFullscreen {
+                Image(systemName: "arrow.down.right.and.arrow.up.left")
+            } else {
+                Label("Enter fullscreen", systemImage: "arrow.up.left.and.arrow.down.right")
+            }
+        }
+        .buttonStyle(.glass)
+        .padding()
+    }
     
     var body: some View {
         Group {
@@ -19,14 +34,25 @@ struct VideoPlayerView: View {
             } else if let error = playerManager.error, playerManager.selectedVideo?.videoId == video.videoId {
                 ContentUnavailableView(error, systemImage: "exclamationmark.triangle.fill")
             } else if let player = playerManager.player, playerManager.selectedVideo?.videoId == video.videoId {
-                VideoPlayer(player: player)
-                    .onAppear {
-                        // Only play if not already playing
-                        if !playerManager.isPlaying {
-                            player.play()
-                            playerManager.isPlaying = true
+                ZStack(alignment: .top) {
+                    VideoPlayer(player: player)
+                        .onAppear {
+                            // Only play if not already playing
+                            if !playerManager.isPlaying {
+                                player.play()
+                                playerManager.isPlaying = true
+                            }
                         }
+                    
+                    FullScreenButton()
+                }
+                .fullScreenCover(isPresented: $isFullscreen) {
+                    ZStack(alignment: .top) {
+                        VideoPlayer(player: player)
+                        
+                        FullScreenButton()
                     }
+                }
             } else {
                 Color.gray.opacity(0.2)
                     .overlay {

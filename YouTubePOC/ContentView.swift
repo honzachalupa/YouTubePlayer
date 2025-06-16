@@ -1,7 +1,31 @@
 import SwiftUI
+import YouTubeKit
 
 struct ContentView: View {
     @EnvironmentObject private var playerManager: PlayerManager
+    @EnvironmentObject private var youtubeService: YouTubeServiceWrapper
+    @State private var playlists: [YTPlaylist] = []
+    
+    func fetchPlaylists() async {
+        do {
+            await youtubeService.getVisitorData()
+            
+            let response = try await AccountPlaylistsResponse.sendThrowingRequest(
+                youtubeModel: YTM.model,
+                data: [:]
+            )
+            
+            withAnimation {
+                playlists = response.results
+            }
+        } catch {
+            print(error.localizedDescription)
+            
+            withAnimation {
+                playlists = []
+            }
+        }
+    }
     
     var body: some View {
         TabView {
@@ -41,6 +65,7 @@ struct ContentView: View {
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
+        .task { await fetchPlaylists() }
     }
 }
 
