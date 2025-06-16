@@ -79,13 +79,7 @@ struct VideoRowView: View {
                         .foregroundStyle(.secondary)
                 }
                 
-                HStack {
-                    Text(video.viewCount ?? "")
-                    Text("•")
-                    Text(video.timePosted ?? "")
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                VideoStatsView(video: video)
             }
             .padding(20)
         }

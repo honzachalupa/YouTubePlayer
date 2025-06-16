@@ -46,11 +46,10 @@ struct VideoView: View {
                             .foregroundStyle(.foreground)
                         }
                         
-                        Text("Posted: \(video.timePosted ?? ""), views count: \(video.viewCount ?? "")")
-                            .font(.caption)
+                        VideoStatsView(video: video)
                         
                         HStack {
-                            ControlGroup {
+                            Group {
                                 Button {
                                     Task {
                                         await video.likeVideo(youtubeModel: YTM.model)
@@ -66,19 +65,20 @@ struct VideoView: View {
                                 } label: {
                                     Label("Disike", systemImage: "hand.thumbsdown")
                                 }
+                                
+                                Button { } label: {
+                                    Label("Share", systemImage: "arrowshape.turn.up.right.fill")
+                                }
+                                
+                                Button { } label: {
+                                    Label("Save", systemImage: "square.and.arrow.down.fill")
+                                }
                             }
-                            
-                            Button { } label: {
-                                Label("Share", systemImage: "arrowshape.turn.up.right.fill")
-                            }
-                            
-                            Button { } label: {
-                                Label("Save", systemImage: "square.and.arrow.down.fill")
-                            }
+                            .buttonStyle(.bordered)
                         }
                         
                         if let description {
-                            Markdown(description)
+                            Text(.init(description))
                         }
                     }
                     .padding(15)
