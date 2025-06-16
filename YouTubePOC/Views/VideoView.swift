@@ -46,36 +46,7 @@ struct VideoView: View {
                         }
                         
                         VideoStatsView(video: video)
-                        
-                        HStack {
-                            Group {
-                                Button {
-                                    playerManager.toggleLike()
-                                } label: {
-                                    Label("Like", systemImage: playerManager.likeStatus == .liked ? "hand.thumbsup.fill" : "hand.thumbsup")
-                                }
-                                .tint(playerManager.likeStatus == .liked ? .green : .none)
-                                .symbolEffect(.bounce, value: playerManager.likeStatus)
-                                
-                                Button {
-                                    playerManager.toggleDislike()
-                                } label: {
-                                    Image(systemName: playerManager.likeStatus == .disliked ? "hand.thumbsdown.fill" : "hand.thumbsdown")
-                                }
-                                .tint(playerManager.likeStatus == .disliked ? .red : .none)
-                                .symbolEffect(.bounce, value: playerManager.likeStatus)
-                                
-                                ShareLink(item: "https://www.youtube.com/watch?v=\(video.videoId)") {
-                                    Label("Share", systemImage: "arrowshape.turn.up.right.fill")
-                                }
-                                
-                                Button { } label: {
-                                    Label("Save", systemImage: "square.and.arrow.down.fill")
-                                }
-                                .disabled(true)
-                            }
-                            .buttonStyle(.bordered)
-                        }
+                        VideoActionsView(video: video)
                         
                         if let description {
                             ScrollView(.vertical) {

@@ -13,6 +13,7 @@ class PlayerManager: ObservableObject {
     @Published var error: String?
     @Published var isFullscreen = false
     @Published var likeStatus: YTLikeStatus = .nothing
+    @Published var availablePlaylists: [(playlist: YTPlaylist, isVideoPresentInside: Bool)] = []
     
     // MARK: - Private Properties
     private var playerTimeObserver: Any?
@@ -74,6 +75,10 @@ class PlayerManager: ObservableObject {
                 if let status = moreInfos.authenticatedInfos?.likeStatus {
                     likeStatus = status
                 }
+                
+                // Fetch available playlists
+                let playlistsResponse = try await video.fetchAllPossibleHostPlaylistsThrowing(youtubeModel: YTM.model)
+                availablePlaylists = playlistsResponse.playlistsAndStatus
                 
                 guard let streamingURL = streamingInfos.streamingURL else {
                     error = "Failed to get video streaming URL"
@@ -153,6 +158,62 @@ class PlayerManager: ObservableObject {
                 }
             } catch {
                 self.error = "Failed to update like status: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    func addToPlaylist(_ playlist: YTPlaylist) {
+        guard let video = selectedVideo else { return }
+        
+        Task {
+            do {
+                let response = try await AddVideoToPlaylistResponse.sendThrowingRequest(
+                    youtubeModel: YTM.model,
+                    data: [
+                        .movingVideoId: video.videoId,
+                        .browseId: playlist.playlistId.hasPrefix("VL") ? String(playlist.playlistId.dropFirst(2)) : playlist.playlistId
+                    ]
+                )
+                
+                if response.isDisconnected {
+                    error = "Failed to add video to playlist: Not authenticated"
+                } else if !response.success {
+                    error = "Failed to add video to playlist"
+                } else {
+                    // Update playlists status
+                    let playlistsResponse = try await video.fetchAllPossibleHostPlaylistsThrowing(youtubeModel: YTM.model)
+                    availablePlaylists = playlistsResponse.playlistsAndStatus
+                }
+            } catch {
+                self.error = "Failed to add video to playlist: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    func removeFromPlaylist(_ playlist: YTPlaylist) {
+        guard let video = selectedVideo else { return }
+        
+        Task {
+            do {
+                let response = try await RemoveVideoByIdFromPlaylistResponse.sendThrowingRequest(
+                    youtubeModel: YTM.model,
+                    data: [
+                        .movingVideoId: video.videoId,
+                        .browseId: playlist.playlistId.hasPrefix("VL") ? String(playlist.playlistId.dropFirst(2)) : playlist.playlistId
+                    ]
+                )
+                
+                if response.isDisconnected {
+                    error = "Failed to remove video from playlist: Not authenticated"
+                } else if !response.success {
+                    error = "Failed to remove video from playlist"
+                } else {
+                    // Update playlists status
+                    let playlistsResponse = try await video.fetchAllPossibleHostPlaylistsThrowing(youtubeModel: YTM.model)
+                    availablePlaylists = playlistsResponse.playlistsAndStatus
+                }
+            } catch {
+                self.error = "Failed to remove video from playlist: \(error.localizedDescription)"
             }
         }
     }
