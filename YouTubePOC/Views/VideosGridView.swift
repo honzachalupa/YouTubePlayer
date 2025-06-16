@@ -60,17 +60,18 @@ struct VideoGridItemView: View {
     
     var body: some View {
         VStack(alignment: .leading) {
-            if let thumbnailURL = video.thumbnails.last?.url {
-                AsyncImage(url: thumbnailURL) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(16/9, contentMode: .fit)
-                } placeholder: {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.2))
-                        .aspectRatio(16/9, contentMode: .fit)
+            Group {
+                if let thumbnailURL = video.thumbnails.last?.url {
+                    AsyncImage(url: thumbnailURL) { image in
+                        image
+                            .resizable()
+                    } placeholder: {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.2))
+                    }
                 }
             }
+            .aspectRatio(16/9, contentMode: .fit)
             
             VideoInfoView(video: video, mainLabel: .videoTitle)
                 .padding(.horizontal, 20)

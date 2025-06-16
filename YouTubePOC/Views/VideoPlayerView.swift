@@ -31,7 +31,6 @@ struct VideoPlayerView: View {
                         if let image = phase.image {
                             image
                                 .resizable()
-                                .aspectRatio(16/9, contentMode: .fit)
                                 .overlay {
                                     Color.black.opacity(0.3)
                                     ProgressView()
@@ -39,7 +38,6 @@ struct VideoPlayerView: View {
                                 }
                         } else {
                             Color.gray.opacity(0.2)
-                                .aspectRatio(16/9, contentMode: .fit)
                                 .overlay {
                                     ProgressView()
                                         .controlSize(.large)
@@ -48,7 +46,6 @@ struct VideoPlayerView: View {
                     }
                 } else {
                     Color.gray.opacity(0.2)
-                        .aspectRatio(16/9, contentMode: .fit)
                         .overlay {
                             ProgressView()
                                 .controlSize(.large)
@@ -78,7 +75,6 @@ struct VideoPlayerView: View {
                 }
             } else {
                 Color.gray.opacity(0.2)
-                    .aspectRatio(16/9, contentMode: .fit)
                     .overlay {
                         ProgressView()
                             .controlSize(.large)

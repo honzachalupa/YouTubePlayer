@@ -70,8 +70,11 @@ class PlayerManager: ObservableObject {
     
     @MainActor
     func loadVideo(_ video: YTVideo) {
+        print("Starting to load video:", video.videoId)
+        
         // If it's the same video and we already have a player, just play it
         if let currentVideo = selectedVideo, currentVideo.videoId == video.videoId, let existingPlayer = player {
+            print("Same video already loaded, just playing")
             // Only play if not already playing
             if !isPlaying {
                 existingPlayer.play()
@@ -88,13 +91,32 @@ class PlayerManager: ObservableObject {
         isLoading = true
         error = nil
         
+        // Get visitor data if needed
         Task {
             do {
-                // Ensure we have fresh visitor data and authentication
-                await getVisitorData()
+                print("Getting visitor data...")
+                if YTM.model.visitorData.isEmpty {
+                    if let visitorData = try? await SearchResponse.sendThrowingRequest(
+                        youtubeModel: YTM.model,
+                        data: [.query: "homefwhfjoifj"],
+                        useCookies: true
+                    ).visitorData {
+                        YTM.model.visitorData = visitorData
+                        print("Using new visitor data")
+                    } else {
+                        print("Couldn't get visitorData")
+                    }
+                } else {
+                    print("Using existing visitor data")
+                }
                 
-                // First get the streaming URL and set up the player
-                let streamingInfos = try await video.fetchStreamingInfosThrowing(youtubeModel: YTM.model)
+                // First get more info about the video
+                print("Getting video info...")
+                let _ = try await video.fetchMoreInfosThrowing(youtubeModel: YTM.model, useCookies: true)
+                
+                // Now get the streaming URL (with cookies disabled as per library requirement)
+                print("Fetching streaming info...")
+                let streamingInfos = try await video.fetchStreamingInfosThrowing(youtubeModel: YTM.model, useCookies: false)
                 
                 guard let streamingURL = streamingInfos.streamingURL else {
                     error = "Failed to get video streaming URL"
@@ -102,47 +124,18 @@ class PlayerManager: ObservableObject {
                     return
                 }
                 
-                let newPlayer = AVPlayer(url: streamingURL)
-                setupPlayerObservation(for: newPlayer)
-                self.player = newPlayer
-                self.player?.play()
-                self.isPlaying = true
-                self.isLoading = false
+                // Create and configure player
+                let playerItem = AVPlayerItem(url: streamingURL)
+                player = AVPlayer(playerItem: playerItem)
                 
-                // Then fetch additional info in the background
-                Task {
-                    do {
-                        // Fetch more info to get like status
-                        let moreInfos = try await video.fetchMoreInfosThrowing(youtubeModel: YTM.model)
-                        if let status = moreInfos.authenticatedInfos?.likeStatus {
-                            likeStatus = status
-                        }
-                        
-                        // Fetch available playlists
-                        let playlistsResponse = try await video.fetchAllPossibleHostPlaylistsThrowing(youtubeModel: YTM.model)
-                        availablePlaylists = playlistsResponse.playlistsAndStatus
-                    } catch {
-                        // Don't show errors for additional info - it's not critical
-                        print("Failed to fetch additional info: \(error.localizedDescription)")
-                    }
-                }
-                
-            } catch let error as ResponseExtractionError {
-                if error.stepDescription.contains("Login is required") {
-                    // Check if we're actually authenticated
-                    if authService.isAuthenticated {
-                        self.error = "Failed to load video: Authentication error. Please try signing out and signing in again."
-                    } else {
-                        self.error = "Authentication required. Please sign in."
-                    }
-                } else {
-                    self.error = "Failed to load video: \(error.localizedDescription)"
-                }
-                self.isLoading = false
+                // Start playback
+                player?.play()
+                isPlaying = true
+                isLoading = false
                 
             } catch {
-                self.error = "Failed to load video: \(error.localizedDescription)"
-                self.isLoading = false
+                self.error = "Error loading video: \(error.localizedDescription)"
+                isLoading = false
             }
         }
     }
@@ -265,7 +258,6 @@ class PlayerManager: ObservableObject {
         }
     }
     
-    // MARK: - Private Methods
     private func configureAudioSession() {
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
@@ -297,14 +289,22 @@ class PlayerManager: ObservableObject {
     
     private func getVisitorData() async {
         if YTM.model.visitorData.isEmpty {
-            if let visitorData = try? await SearchResponse.sendThrowingRequest(
-                youtubeModel: YTM.model,
-                data: [.query: "homefwhfjoifj"]
-            ).visitorData {
-                YTM.model.visitorData = visitorData
-            } else {
-                print("Couldn't get visitorData, request may fail.")
+            do {
+                let response = try await SearchResponse.sendThrowingRequest(
+                    youtubeModel: YTM.model,
+                    data: [.query: ""]
+                )
+                if let visitorData = response.visitorData {
+                    YTM.model.visitorData = visitorData
+                    print("Successfully got visitor data")
+                } else {
+                    print("No visitor data in response")
+                }
+            } catch {
+                print("Failed to get visitor data:", error.localizedDescription)
             }
+        } else {
+            print("Using existing visitor data")
         }
     }
 }
