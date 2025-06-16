@@ -11,6 +11,8 @@ class PlayerManager: ObservableObject {
     @Published var isPlaying = false
     @Published var isLoading = false
     @Published var error: String?
+    @Published var isFullscreen = false
+    @Published var likeStatus: YTLikeStatus = .nothing
     
     // MARK: - Private Properties
     private var playerTimeObserver: Any?
@@ -67,6 +69,12 @@ class PlayerManager: ObservableObject {
                 await getVisitorData()
                 let streamingInfos = try await video.fetchStreamingInfosThrowing(youtubeModel: YTM.model)
                 
+                // Fetch more info to get like status
+                let moreInfos = try await video.fetchMoreInfosThrowing(youtubeModel: YTM.model, useCookies: true)
+                if let status = moreInfos.authenticatedInfos?.likeStatus {
+                    likeStatus = status
+                }
+                
                 guard let streamingURL = streamingInfos.streamingURL else {
                     error = "Failed to get video streaming URL"
                     isLoading = false
@@ -101,6 +109,52 @@ class PlayerManager: ObservableObject {
         }
         player = nil
         isPlaying = false
+    }
+    
+    func toggleFullscreen() {
+        withAnimation {
+            isFullscreen.toggle()
+        }
+    }
+    
+    func toggleLike() {
+        Task {
+            do {
+                switch likeStatus {
+                    case .nothing:
+                        try await selectedVideo?.likeVideoThrowing(youtubeModel: YTM.model)
+                        likeStatus = .liked
+                    case .liked:
+                        try await selectedVideo?.removeLikeFromVideoThrowing(youtubeModel: YTM.model)
+                        likeStatus = .nothing
+                    case .disliked:
+                        try await selectedVideo?.likeVideoThrowing(youtubeModel: YTM.model)
+                        likeStatus = .liked
+                }
+            } catch {
+                self.error = "Failed to update like status: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    func toggleDislike() {
+        Task {
+            do {
+                switch likeStatus {
+                    case .nothing:
+                        try await selectedVideo?.dislikeVideoThrowing(youtubeModel: YTM.model)
+                        likeStatus = .disliked
+                    case .liked:
+                        try await selectedVideo?.dislikeVideoThrowing(youtubeModel: YTM.model)
+                        likeStatus = .disliked
+                    case .disliked:
+                        try await selectedVideo?.removeLikeFromVideoThrowing(youtubeModel: YTM.model)
+                        likeStatus = .nothing
+                }
+            } catch {
+                self.error = "Failed to update like status: \(error.localizedDescription)"
+            }
+        }
     }
     
     // MARK: - Private Methods

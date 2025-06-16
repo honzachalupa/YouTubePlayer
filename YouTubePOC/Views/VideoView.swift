@@ -50,20 +50,20 @@ struct VideoView: View {
                         HStack {
                             Group {
                                 Button {
-                                    Task {
-                                        await video.likeVideo(youtubeModel: YTM.model)
-                                    }
+                                    playerManager.toggleLike()
                                 } label: {
-                                    Label("Like", systemImage: "hand.thumbsup")
+                                    Label("Like", systemImage: playerManager.likeStatus == .liked ? "hand.thumbsup.fill" : "hand.thumbsup")
                                 }
+                                .tint(playerManager.likeStatus == .liked ? .green : .none)
+                                .symbolEffect(.bounce, value: playerManager.likeStatus)
                                 
                                 Button {
-                                    Task {
-                                        await video.dislikeVideo(youtubeModel: YTM.model)
-                                    }
+                                    playerManager.toggleDislike()
                                 } label: {
-                                    Label("Disike", systemImage: "hand.thumbsdown")
+                                    Image(systemName: playerManager.likeStatus == .disliked ? "hand.thumbsdown.fill" : "hand.thumbsdown")
                                 }
+                                .tint(playerManager.likeStatus == .disliked ? .red : .none)
+                                .symbolEffect(.bounce, value: playerManager.likeStatus)
                                 
                                 ShareLink(item: "https://www.youtube.com/watch?v=\(video.videoId)") {
                                     Label("Share", systemImage: "arrowshape.turn.up.right.fill")
