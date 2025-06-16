@@ -65,10 +65,9 @@ struct VideoView: View {
                                     Label("Disike", systemImage: "hand.thumbsdown")
                                 }
                                 
-                                Button { } label: {
+                                ShareLink(item: "https://www.youtube.com/watch?v=\(video.videoId)") {
                                     Label("Share", systemImage: "arrowshape.turn.up.right.fill")
                                 }
-                                .disabled(true)
                                 
                                 Button { } label: {
                                     Label("Save", systemImage: "square.and.arrow.down.fill")
