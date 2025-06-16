@@ -36,13 +36,13 @@ struct VideoActionsView: View {
                         ForEach(playerManager.availablePlaylists, id: \.playlist.playlistId) { item in
                             if item.isVideoPresentInside {
                                 Button(role: .destructive) {
-                                    playerManager.removeFromPlaylist(item.playlist)
+                                    playerManager.removeFromPlaylist(video, item.playlist)
                                 } label: {
                                     Label("Remove from \(item.playlist.title ?? "")", systemImage: "minus.circle")
                                 }
                             } else {
                                 Button {
-                                    playerManager.addToPlaylist(item.playlist)
+                                    playerManager.addToPlaylist(video, item.playlist)
                                 } label: {
                                     Label("Add to \(item.playlist.title ?? "")", systemImage: "plus.circle")
                                 }
@@ -66,7 +66,7 @@ struct VideoActionsView: View {
 #Preview {
     let video = YTVideo(
         videoId: "cETgTtu6atM",
-        title: "WWDC25: What's new in SwiftUI | Apple",
+        title: "WWDC25: What's new in SwiftUI",
         channel: YTLittleChannelInfos(
             channelId: "",
             name: "MacRumors",

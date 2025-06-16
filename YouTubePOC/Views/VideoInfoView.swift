@@ -56,7 +56,7 @@ struct VideoInfoView: View {
 #Preview("Variant: videoTitle") {
     let video = YTVideo(
         videoId: "cETgTtu6atM",
-        title: "WWDC25: What's new in SwiftUI | Apple",
+        title: "WWDC25: What's new in SwiftUI",
         channel: YTLittleChannelInfos(
             channelId: "",
             name: "MacRumors",
@@ -80,7 +80,7 @@ struct VideoInfoView: View {
 #Preview("Variant: channelName") {
     let video = YTVideo(
         videoId: "cETgTtu6atM",
-        title: "WWDC25: What's new in SwiftUI | Apple",
+        title: "WWDC25: What's new in SwiftUI",
         channel: YTLittleChannelInfos(
             channelId: "",
             name: "MacRumors",

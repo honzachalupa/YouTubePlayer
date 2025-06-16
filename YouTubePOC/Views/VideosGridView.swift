@@ -53,7 +53,15 @@ struct VideosGridView: View {
 }
 
 struct VideoRowView: View {
-    let video: YTVideo
+    public let video: YTVideo
+    
+    @EnvironmentObject private var playerManager: PlayerManager
+    @StateObject private var playlistsViewModel: VideoPlaylistsViewModel
+    
+    init(video: YTVideo) {
+        self.video = video
+        self._playlistsViewModel = StateObject(wrappedValue: VideoPlaylistsViewModel(video: video, playerManager: PlayerManager()))
+    }
     
     var body: some View {
         VStack(alignment: .leading) {
@@ -72,8 +80,31 @@ struct VideoRowView: View {
             VideoInfoView(video: video, mainLabel: .videoTitle)
                 .padding(20)
         }
+        .onAppear {
+            playlistsViewModel.updatePlayerManager(playerManager)
+        }
         .contextMenu {
-            Button("xx") {}
+            Section("Add to playlist") {
+                if playlistsViewModel.playlistStates.isEmpty {
+                    Text("No playlists available")
+                } else {
+                    ForEach(playlistsViewModel.playlistStates, id: \.playlist.playlistId) { item in
+                        if item.isVideoPresentInside {
+                            Button(role: .destructive) {
+                                playlistsViewModel.removeFromPlaylist(item.playlist)
+                            } label: {
+                                Label("Remove from \(item.playlist.title ?? "")", systemImage: "minus.circle")
+                            }
+                        } else {
+                            Button {
+                                playlistsViewModel.addToPlaylist(item.playlist)
+                            } label: {
+                                Label("Add to \(item.playlist.title ?? "")", systemImage: "plus.circle")
+                            }
+                        }
+                    }
+                }
+            }
         }
         .background(.regularMaterial)
         .cornerRadius(20)
@@ -83,7 +114,7 @@ struct VideoRowView: View {
 #Preview {
     let video = YTVideo(
         videoId: "cETgTtu6atM",
-        title: "WWDC25: What's new in SwiftUI | Apple",
+        title: "WWDC25: What's new in SwiftUI",
         channel: YTLittleChannelInfos(
             channelId: "",
             name: "MacRumors",

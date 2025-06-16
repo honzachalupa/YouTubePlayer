@@ -108,7 +108,7 @@ struct VideoPlayerView: View {
 #Preview {
     let video = YTVideo(
         videoId: "cETgTtu6atM",
-        title: "WWDC25: What's new in SwiftUI | Apple",
+        title: "WWDC25: What's new in SwiftUI",
         channel: YTLittleChannelInfos(
             channelId: "",
             name: "MacRumors"

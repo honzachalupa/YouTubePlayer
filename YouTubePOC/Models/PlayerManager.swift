@@ -13,13 +13,37 @@ class PlayerManager: ObservableObject {
     @Published var isFullscreen = false
     @Published var likeStatus: YTLikeStatus = .nothing
     @Published var availablePlaylists: [(playlist: YTPlaylist, isVideoPresentInside: Bool)] = []
+    @Published var temporaryPlaylistStates: [String: [(playlist: YTPlaylist, isVideoPresentInside: Bool)]] = [:]
     
     private var playerTimeObserver: Any?
     private let authService: YouTubeAuthService
+    private let playlistService = YouTubePlaylistService.shared
     
     init() {
         self.authService = .shared
         configureAudioSession()
+    }
+    
+    func getPlaylistStates(for video: YTVideo) async -> [(playlist: YTPlaylist, isVideoPresentInside: Bool)] {
+        // If this is the selected video, use the main availablePlaylists
+        if video.videoId == selectedVideo?.videoId {
+            return availablePlaylists
+        }
+        
+        // If we have temporary states for this video, use those
+        if let states = temporaryPlaylistStates[video.videoId] {
+            return states
+        }
+        
+        // Otherwise fetch playlists for this specific video
+        do {
+            let response = try await video.fetchAllPossibleHostPlaylistsThrowing(youtubeModel: YTM.model)
+            temporaryPlaylistStates[video.videoId] = response.playlistsAndStatus
+            return response.playlistsAndStatus
+        } catch {
+            print("Failed to fetch playlists for video:", error.localizedDescription)
+            return []
+        }
     }
     
     func selectVideo(_ video: YTVideo) {
@@ -30,6 +54,9 @@ class PlayerManager: ObservableObject {
         }
         isVideoSheetPresented = true
         loadVideo(video)
+        Task {
+            await fetchPlaylists(for: video)
+        }
     }
     
     func togglePlayPause() {
@@ -176,44 +203,48 @@ class PlayerManager: ObservableObject {
         }
     }
     
-    func addToPlaylist(_ playlist: YTPlaylist) {
-        guard let video = selectedVideo else { return }
-        
+    private func fetchPlaylists(for video: YTVideo) async {
+        do {
+            let response = try await video.fetchAllPossibleHostPlaylistsThrowing(youtubeModel: YTM.model)
+            
+            withAnimation {
+                availablePlaylists = response.playlistsAndStatus.map { item in
+                    (playlist: item.playlist, isVideoPresentInside: item.isVideoPresentInside)
+                }
+            }
+        } catch {
+            print("Failed to fetch playlists:", error.localizedDescription)
+            withAnimation {
+                availablePlaylists = []
+            }
+        }
+    }
+    
+    func addToPlaylist(_ video: YTVideo, _ playlist: YTPlaylist) {
         Task {
             do {
-                await getVisitorData()
-                
                 let response = try await AddVideoToPlaylistResponse.sendThrowingRequest(
                     youtubeModel: YTM.model,
                     data: [
                         .movingVideoId: video.videoId,
                         .browseId: playlist.playlistId.hasPrefix("VL") ? String(playlist.playlistId.dropFirst(2)) : playlist.playlistId
-                    ],
-                    useCookies: true
+                    ]
                 )
                 
-                if response.isDisconnected {
-                    error = "Failed to add video to playlist: Not authenticated"
-                } else if !response.success {
-                    error = "Failed to add video to playlist"
+                if response.success {
+                    await fetchPlaylists(for: video)
                 } else {
-                    // Update playlists status
-                    let playlistsResponse = try await video.fetchAllPossibleHostPlaylistsThrowing(youtubeModel: YTM.model)
-                    availablePlaylists = playlistsResponse.playlistsAndStatus
+                    error = "Failed to add video to playlist"
                 }
             } catch {
-                self.error = "Failed to add video to playlist: \(error.localizedDescription)"
+                self.error = error.localizedDescription
             }
         }
     }
     
-    func removeFromPlaylist(_ playlist: YTPlaylist) {
-        guard let video = selectedVideo else { return }
-        
+    func removeFromPlaylist(_ video: YTVideo, _ playlist: YTPlaylist) {
         Task {
             do {
-                await getVisitorData()
-                
                 let response = try await RemoveVideoByIdFromPlaylistResponse.sendThrowingRequest(
                     youtubeModel: YTM.model,
                     data: [
@@ -223,17 +254,13 @@ class PlayerManager: ObservableObject {
                     useCookies: true
                 )
                 
-                if response.isDisconnected {
-                    error = "Failed to remove video from playlist: Not authenticated"
-                } else if !response.success {
-                    error = "Failed to remove video from playlist"
+                if response.success {
+                    await fetchPlaylists(for: video)
                 } else {
-                    // Update playlists status
-                    let playlistsResponse = try await video.fetchAllPossibleHostPlaylistsThrowing(youtubeModel: YTM.model)
-                    availablePlaylists = playlistsResponse.playlistsAndStatus
+                    error = "Failed to remove video from playlist"
                 }
             } catch {
-                self.error = "Failed to remove video from playlist: \(error.localizedDescription)"
+                self.error = error.localizedDescription
             }
         }
     }
