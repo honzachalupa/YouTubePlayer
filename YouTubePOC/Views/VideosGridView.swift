@@ -69,22 +69,11 @@ struct VideoRowView: View {
                 }
             }
             
-            VStack(alignment: .leading, spacing: 10) {
-                Text(video.title ?? "")
-                    .font(.headline)
-                    .lineLimit(2)
-                
-                ChannelInfoView(channel: video.channel)
-                
-                HStack {
-                    VideoStatsView(video: video)
-                    
-                    Spacer()
-                    
-                    VideoActionsView(video: video, showPlaylistSelectionOnly: true)
-                }
-            }
-            .padding(20)
+            VideoInfoView(video: video, mainLabel: .videoTitle)
+                .padding(20)
+        }
+        .contextMenu {
+            Button("xx") {}
         }
         .background(.regularMaterial)
         .cornerRadius(20)

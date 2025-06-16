@@ -42,12 +42,11 @@ struct VideoView: View {
                                 
                                 if let channelInfo = video.channel {
                                     NavigationLink(value: channelInfo) {
-                                        ChannelInfoView(channel: channelInfo)
+                                        VideoInfoView(video: video, mainLabel: .channelName)
                                     }
                                     .foregroundStyle(.foreground)
                                 }
                                 
-                                VideoStatsView(video: video)
                                 VideoActionsView(video: video)
                                 
                                 if let description {
@@ -75,6 +74,7 @@ struct VideoView: View {
     VStack {}
         .sheet(isPresented: .constant(true)) {
             VideoView()
+                .environmentObject(YouTubeServiceWrapper(model: YTM.model))
+                .environmentObject(PlayerManager())
         }
-        .environmentObject(YTM.shared)
 }

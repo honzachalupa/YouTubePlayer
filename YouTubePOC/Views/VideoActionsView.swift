@@ -3,33 +3,30 @@ import YouTubeKit
 
 struct VideoActionsView: View {
     public let video: YTVideo
-    public var showPlaylistSelectionOnly: Bool = false
     
     @EnvironmentObject private var playerManager: PlayerManager
     
     var body: some View {
         HStack {
             Group {
-                if !showPlaylistSelectionOnly {
-                    Button {
-                        playerManager.toggleLike()
-                    } label: {
-                        Label("Like", systemImage: playerManager.likeStatus == .liked ? "hand.thumbsup.fill" : "hand.thumbsup")
-                    }
-                    .tint(playerManager.likeStatus == .liked ? .green : .none)
-                    .symbolEffect(.bounce, value: playerManager.likeStatus == .liked)
-                    
-                    Button {
-                        playerManager.toggleDislike()
-                    } label: {
-                        Image(systemName: playerManager.likeStatus == .disliked ? "hand.thumbsdown.fill" : "hand.thumbsdown")
-                    }
-                    .tint(playerManager.likeStatus == .disliked ? .red : .none)
-                    .symbolEffect(.bounce, value: playerManager.likeStatus == .disliked)
-                    
-                    ShareLink(item: "https://www.youtube.com/watch?v=\(video.videoId)") {
-                        Label("Share", systemImage: "arrowshape.turn.up.right.fill")
-                    }
+                Button {
+                    playerManager.toggleLike()
+                } label: {
+                    Label("Like", systemImage: playerManager.likeStatus == .liked ? "hand.thumbsup.fill" : "hand.thumbsup")
+                }
+                .tint(playerManager.likeStatus == .liked ? .green : .none)
+                .symbolEffect(.bounce, value: playerManager.likeStatus == .liked)
+                
+                Button {
+                    playerManager.toggleDislike()
+                } label: {
+                    Image(systemName: playerManager.likeStatus == .disliked ? "hand.thumbsdown.fill" : "hand.thumbsdown")
+                }
+                .tint(playerManager.likeStatus == .disliked ? .red : .none)
+                .symbolEffect(.bounce, value: playerManager.likeStatus == .disliked)
+                
+                ShareLink(item: "https://www.youtube.com/watch?v=\(video.videoId)") {
+                    Label("Share", systemImage: "arrowshape.turn.up.right.fill")
                 }
                 
                 Menu {
