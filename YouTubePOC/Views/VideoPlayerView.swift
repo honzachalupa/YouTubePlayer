@@ -8,6 +8,19 @@ struct VideoPlayerView: View {
     @EnvironmentObject private var playerManager: PlayerManager
     @State private var isFullscreen: Bool = false
     
+    private struct CustomVideoPlayer: UIViewControllerRepresentable {
+        let player: AVPlayer
+        
+        func makeUIViewController(context: Context) -> AVPlayerViewController {
+            let controller = AVPlayerViewController()
+            controller.player = player
+            controller.allowsPictureInPicturePlayback = true
+            return controller
+        }
+        
+        func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) { }
+    }
+    
     @ViewBuilder
     func FullScreenButton() -> some View {
         Button {
@@ -55,7 +68,7 @@ struct VideoPlayerView: View {
                 ContentUnavailableView(error, systemImage: "exclamationmark.triangle.fill")
             } else if let player = playerManager.player {
                 ZStack(alignment: .top) {
-                    VideoPlayer(player: player)
+                    CustomVideoPlayer(player: player)
                         .onAppear {
                             // Only play if not already playing
                             if !playerManager.isPlaying {
@@ -63,12 +76,18 @@ struct VideoPlayerView: View {
                                 playerManager.isPlaying = true
                             }
                         }
+                        .onDisappear {
+                            // Don't stop playback when view disappears to support background playback
+                            if !playerManager.isPlaying {
+                                player.pause()
+                            }
+                        }
                     
                     FullScreenButton()
                 }
                 .fullScreenCover(isPresented: $isFullscreen) {
                     ZStack(alignment: .top) {
-                        VideoPlayer(player: player)
+                        CustomVideoPlayer(player: player)
                         
                         FullScreenButton()
                     }

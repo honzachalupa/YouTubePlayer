@@ -31,5 +31,7 @@
 	<array>
 		<string>audio</string>
 	</array>
+	<key>AVFoundationPictureInPictureEnabledByDefault</key>
+	<true/>
 </dict>
 </plist>

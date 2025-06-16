@@ -1,6 +1,7 @@
 import SwiftUI
 import AVKit
 import YouTubeKit
+import MediaPlayer
 
 @MainActor
 class PlayerManager: ObservableObject {
@@ -18,10 +19,215 @@ class PlayerManager: ObservableObject {
     private var playerTimeObserver: Any?
     private let authService: YouTubeAuthService
     private let playlistService = YouTubePlaylistService.shared
+    private var thumbnailImage: UIImage?
     
     init() {
         self.authService = .shared
+        
+        // Configure audio session first
         configureAudioSession()
+        
+        // Then set up remote controls
+        setupRemoteTransportControls()
+        
+        // Begin receiving remote control events
+        UIApplication.shared.beginReceivingRemoteControlEvents()
+    }
+    
+    nonisolated deinit {
+        Task { @MainActor in
+            UIApplication.shared.endReceivingRemoteControlEvents()
+        }
+    }
+    
+    private func configureAudioSession() {
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            print("Failed to configure audio session:", error)
+        }
+    }
+    
+    private func setupRemoteTransportControls() {
+        // Get the shared command center
+        let commandCenter = MPRemoteCommandCenter.shared()
+        
+        // Remove any existing handlers
+        commandCenter.playCommand.removeTarget(nil)
+        commandCenter.pauseCommand.removeTarget(nil)
+        commandCenter.skipForwardCommand.removeTarget(nil)
+        commandCenter.skipBackwardCommand.removeTarget(nil)
+        
+        // Enable commands
+        commandCenter.playCommand.isEnabled = true
+        commandCenter.pauseCommand.isEnabled = true
+        commandCenter.skipForwardCommand.isEnabled = true
+        commandCenter.skipBackwardCommand.isEnabled = true
+        
+        // Add handler for play command
+        commandCenter.playCommand.addTarget { [weak self] event -> MPRemoteCommandHandlerStatus in
+            guard let self = self else { return .commandFailed }
+            Task { @MainActor in
+                if let player = self.player {
+                    player.play()
+                    self.isPlaying = true
+                    self.updateNowPlayingInfo()
+                }
+            }
+            return .success
+        }
+        
+        // Add handler for pause command
+        commandCenter.pauseCommand.addTarget { [weak self] event -> MPRemoteCommandHandlerStatus in
+            guard let self = self else { return .commandFailed }
+            Task { @MainActor in
+                if let player = self.player {
+                    player.pause()
+                    self.isPlaying = false
+                    self.updateNowPlayingInfo()
+                }
+            }
+            return .success
+        }
+        
+        // Add handler for skip forward command
+        commandCenter.skipForwardCommand.preferredIntervals = [15]
+        commandCenter.skipForwardCommand.addTarget { [weak self] event -> MPRemoteCommandHandlerStatus in
+            guard let self = self else { return .commandFailed }
+            Task { @MainActor in
+                if let player = self.player {
+                    let currentTime = player.currentTime()
+                    player.seek(to: CMTimeAdd(currentTime, CMTime(seconds: 15, preferredTimescale: 1)))
+                    self.updateNowPlayingInfo()
+                }
+            }
+            return .success
+        }
+        
+        // Add handler for skip backward command
+        commandCenter.skipBackwardCommand.preferredIntervals = [15]
+        commandCenter.skipBackwardCommand.addTarget { [weak self] event -> MPRemoteCommandHandlerStatus in
+            guard let self = self else { return .commandFailed }
+            Task { @MainActor in
+                if let player = self.player {
+                    let currentTime = player.currentTime()
+                    player.seek(to: CMTimeSubtract(currentTime, CMTime(seconds: 15, preferredTimescale: 1)))
+                    self.updateNowPlayingInfo()
+                }
+            }
+            return .success
+        }
+    }
+    
+    private func updateNowPlayingInfo() {
+        guard let video = selectedVideo else {
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+            return
+        }
+        
+        var nowPlayingInfo = [String: Any]()
+        
+        // Set the title and artist
+        nowPlayingInfo[MPMediaItemPropertyTitle] = video.title ?? "Unknown Title"
+        nowPlayingInfo[MPMediaItemPropertyArtist] = video.channel?.name ?? "Unknown Channel"
+        
+        // Set playback info if player exists
+        if let player = player {
+            // Duration
+            if let duration = player.currentItem?.duration.seconds, !duration.isNaN {
+                nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = duration
+            }
+            
+            // Current time
+            let currentTime = player.currentTime().seconds
+            if !currentTime.isNaN {
+                nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime
+            }
+            
+            // Playback rate
+            nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = player.rate
+            
+            // Default playback rate
+            nowPlayingInfo[MPNowPlayingInfoPropertyDefaultPlaybackRate] = 1.0
+        }
+        
+        // Set the artwork if we have it
+        if let thumbnailImage = thumbnailImage {
+            let artwork = MPMediaItemArtwork(boundsSize: thumbnailImage.size) { size in
+                return thumbnailImage
+            }
+            nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
+        }
+        
+        // Update the now playing info
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+    }
+    
+    private func loadThumbnailImage(from url: URL) async {
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            thumbnailImage = UIImage(data: data)
+            await MainActor.run {
+                updateNowPlayingInfo()
+            }
+        } catch {
+            print("Failed to load thumbnail image:", error)
+        }
+    }
+    
+    private func setupPlayerObservation(for player: AVPlayer) {
+        // Remove previous observer if any
+        if let observer = playerTimeObserver {
+            player.removeTimeObserver(observer)
+            playerTimeObserver = nil
+        }
+        
+        // Add new observer
+        let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        playerTimeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] _ in
+            guard let self = self else { return }
+            Task { @MainActor in
+                self.updateNowPlayingInfo()
+            }
+        }
+        
+        // Observe player status changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(playerItemDidPlayToEndTime),
+            name: .AVPlayerItemDidPlayToEndTime,
+            object: player.currentItem
+        )
+    }
+    
+    @objc private func playerItemDidPlayToEndTime() {
+        Task { @MainActor in
+            isPlaying = false
+            updateNowPlayingInfo()
+        }
+    }
+    
+    func cleanup() {
+        // Stop playback
+        player?.pause()
+        
+        // Remove time observer
+        if let observer = playerTimeObserver, let player = player {
+            player.removeTimeObserver(observer)
+            playerTimeObserver = nil
+        }
+        
+        // Remove notification observers
+        NotificationCenter.default.removeObserver(self)
+        
+        // Clear player and thumbnail
+        player = nil
+        thumbnailImage = nil
+        isPlaying = false
+        
+        // Clear now playing info
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
     
     func getPlaylistStates(for video: YTVideo) async -> [(playlist: YTPlaylist, isVideoPresentInside: Bool)] {
@@ -79,6 +285,7 @@ class PlayerManager: ObservableObject {
             if !isPlaying {
                 existingPlayer.play()
                 isPlaying = true
+                updateNowPlayingInfo()
             }
             return
         }
@@ -90,6 +297,14 @@ class PlayerManager: ObservableObject {
         selectedVideo = video
         isLoading = true
         error = nil
+        
+        // Load thumbnail for lock screen controls
+        if let thumbnailURLString = video.thumbnails.last?.url.absoluteString,
+           let thumbnailURL = URL(string: thumbnailURLString) {
+            Task {
+                await loadThumbnailImage(from: thumbnailURL)
+            }
+        }
         
         // Get visitor data if needed
         Task {
@@ -126,28 +341,31 @@ class PlayerManager: ObservableObject {
                 
                 // Create and configure player
                 let playerItem = AVPlayerItem(url: streamingURL)
-                player = AVPlayer(playerItem: playerItem)
+                let newPlayer = AVPlayer(playerItem: playerItem)
+                
+                // Enable background playback
+                newPlayer.preventsDisplaySleepDuringVideoPlayback = false
+                newPlayer.allowsExternalPlayback = true
+                
+                // Set up audio session again to ensure it's active
+                configureAudioSession()
+                
+                player = newPlayer
+                setupPlayerObservation(for: newPlayer)
                 
                 // Start playback
                 player?.play()
                 isPlaying = true
                 isLoading = false
                 
+                // Update now playing info
+                updateNowPlayingInfo()
+                
             } catch {
                 self.error = "Error loading video: \(error.localizedDescription)"
                 isLoading = false
             }
         }
-    }
-    
-    func cleanup() {
-        player?.pause()
-        if let observer = playerTimeObserver, let player = player {
-            player.removeTimeObserver(observer)
-            playerTimeObserver = nil
-        }
-        player = nil
-        isPlaying = false
     }
     
     func toggleFullscreen() {
@@ -255,56 +473,6 @@ class PlayerManager: ObservableObject {
             } catch {
                 self.error = error.localizedDescription
             }
-        }
-    }
-    
-    private func configureAudioSession() {
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-            try AVAudioSession.sharedInstance().setActive(true)
-        } catch {
-            print("Failed to configure audio session: \(error)")
-        }
-    }
-    
-    private func setupPlayerObservation(for player: AVPlayer) {
-        // Remove previous observer if any
-        if let observer = playerTimeObserver, let oldPlayer = self.player {
-            oldPlayer.removeTimeObserver(observer)
-            playerTimeObserver = nil
-        }
-        
-        // Add new observer
-        let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
-        playerTimeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] _ in
-            guard let self = self else { return }
-            Task { @MainActor in
-                let isCurrentlyPlaying = player.rate > 0 && player.error == nil
-                if self.isPlaying != isCurrentlyPlaying {
-                    self.isPlaying = isCurrentlyPlaying
-                }
-            }
-        }
-    }
-    
-    private func getVisitorData() async {
-        if YTM.model.visitorData.isEmpty {
-            do {
-                let response = try await SearchResponse.sendThrowingRequest(
-                    youtubeModel: YTM.model,
-                    data: [.query: ""]
-                )
-                if let visitorData = response.visitorData {
-                    YTM.model.visitorData = visitorData
-                    print("Successfully got visitor data")
-                } else {
-                    print("No visitor data in response")
-                }
-            } catch {
-                print("Failed to get visitor data:", error.localizedDescription)
-            }
-        } else {
-            print("Using existing visitor data")
         }
     }
 }
