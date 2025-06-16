@@ -4,6 +4,7 @@ import YouTubeKit
 struct AccountView: View {
     @StateObject private var authService = YouTubeAuthService.shared
     @State private var isShowingLoginView = false
+    @State private var showSignOutConfirmation = false
     
     var body: some View {
         NavigationStack {
@@ -27,12 +28,9 @@ struct AccountView: View {
                             
                             Spacer()
                             
-                            VStack(spacing: 8) {
-                                if let name = authService.userInfo?.name {
-                                    Text(name)
-                                        .font(.title)
-                                        .bold()
-                                }
+                            if let name = authService.userInfo?.name {
+                                Text(name)
+                                    .font(.title)
                             }
                             
                             Spacer()
@@ -67,11 +65,23 @@ struct AccountView: View {
                 if authService.isAuthenticated {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
-                            authService.signOut()
+                            showSignOutConfirmation = true
                         } label: {
                             Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
                         }
                         .tint(.red)
+                        .confirmationDialog(
+                            "Are you sure you want to sign out?",
+                            isPresented: $showSignOutConfirmation,
+                            titleVisibility: .visible
+                        ) {
+                            Button("Sign Out", role: .destructive) {
+                                authService.signOut()
+                            }
+                            Button("Cancel", role: .cancel) { }
+                        } message: {
+                            Text("You will need to sign in again to access your account.")
+                        }
                     }
                 }
             }

@@ -2,11 +2,11 @@ import SwiftUI
 import YouTubeKit
 
 struct ChannelInfoView: View {
-    let channel: YTLittleChannelInfos
+    let channel: YTLittleChannelInfos?
     
     var body: some View {
         HStack(spacing: 10) {
-            if let thumbnailUrl = channel.thumbnails.first?.url {
+            if let thumbnailUrl = channel?.thumbnails.first?.url {
                 AsyncImage(url: thumbnailUrl) { phase in
                     Group {
                         if let image = phase.image {
@@ -16,12 +16,12 @@ struct ChannelInfoView: View {
                             Color.gray.opacity(0.2)
                         }
                     }
-                    .frame(width: 30, height: 30)
+                    .frame(width: 40, height: 40)
                     .clipShape(Circle())
                 }
             }
                 
-            Text(channel.name ?? "")
+            Text(channel?.name ?? "")
                 .fontWeight(.medium)
         }
     }

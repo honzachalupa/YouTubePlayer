@@ -26,14 +26,37 @@ struct VideoPlayerView: View {
     var body: some View {
         Group {
             if playerManager.isLoading && playerManager.selectedVideo?.videoId == video.videoId {
-                Color.gray.opacity(0.2)
-                    .overlay {
-                        ProgressView()
-                            .controlSize(.large)
+                if let thumbnailURL = video.thumbnails.last?.url {
+                    AsyncImage(url: thumbnailURL) { phase in
+                        if let image = phase.image {
+                            image
+                                .resizable()
+                                .aspectRatio(16/9, contentMode: .fit)
+                                .overlay {
+                                    Color.black.opacity(0.3)
+                                    ProgressView()
+                                        .controlSize(.large)
+                                }
+                        } else {
+                            Color.gray.opacity(0.2)
+                                .aspectRatio(16/9, contentMode: .fit)
+                                .overlay {
+                                    ProgressView()
+                                        .controlSize(.large)
+                                }
+                        }
                     }
+                } else {
+                    Color.gray.opacity(0.2)
+                        .aspectRatio(16/9, contentMode: .fit)
+                        .overlay {
+                            ProgressView()
+                                .controlSize(.large)
+                        }
+                }
             } else if let error = playerManager.error, playerManager.selectedVideo?.videoId == video.videoId {
                 ContentUnavailableView(error, systemImage: "exclamationmark.triangle.fill")
-            } else if let player = playerManager.player, playerManager.selectedVideo?.videoId == video.videoId {
+            } else if let player = playerManager.player {
                 ZStack(alignment: .top) {
                     VideoPlayer(player: player)
                         .onAppear {
@@ -55,6 +78,7 @@ struct VideoPlayerView: View {
                 }
             } else {
                 Color.gray.opacity(0.2)
+                    .aspectRatio(16/9, contentMode: .fit)
                     .overlay {
                         ProgressView()
                             .controlSize(.large)

@@ -49,7 +49,6 @@ struct ContentView: View {
                 SearchVideosView()
             }
         }
-        .tabViewStyle(.sidebarAdaptable)
         .sheet(isPresented: $playerManager.isVideoSheetPresented) {
             if playerManager.selectedVideo != nil {
                 VideoView()

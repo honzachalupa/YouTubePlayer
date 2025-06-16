@@ -4,7 +4,6 @@ import YouTubeKit
 
 @MainActor
 class PlayerManager: ObservableObject {
-    // MARK: - Published Properties
     @Published var selectedVideo: YTVideo?
     @Published var isVideoSheetPresented = false
     @Published private(set) var player: AVPlayer?
@@ -15,17 +14,14 @@ class PlayerManager: ObservableObject {
     @Published var likeStatus: YTLikeStatus = .nothing
     @Published var availablePlaylists: [(playlist: YTPlaylist, isVideoPresentInside: Bool)] = []
     
-    // MARK: - Private Properties
     private var playerTimeObserver: Any?
     private let authService: YouTubeAuthService
     
-    // MARK: - Initialization
     init() {
         self.authService = .shared
         configureAudioSession()
     }
     
-    // MARK: - Public Methods
     func selectVideo(_ video: YTVideo) {
         // Only update if it's a different video
         if selectedVideo?.videoId != video.videoId {

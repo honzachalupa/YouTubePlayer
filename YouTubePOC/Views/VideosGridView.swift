@@ -69,17 +69,12 @@ struct VideoRowView: View {
                 }
             }
             
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 10) {
                 Text(video.title ?? "")
                     .font(.headline)
                     .lineLimit(2)
                 
-                if let channel = video.channel {
-                    Text(channel.name ?? "")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                
+                ChannelInfoView(channel: video.channel)
                 VideoStatsView(video: video)
             }
             .padding(20)
