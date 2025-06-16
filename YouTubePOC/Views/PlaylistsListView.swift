@@ -40,6 +40,9 @@ struct PlaylistsListView: View {
             }
             .task { await fetchPlaylists() }
             .refreshable { await fetchPlaylists() }
+            .toolbar {
+                AccountToolbarItem()
+            }
             .navigationTitle("Playlists")
         }
     }

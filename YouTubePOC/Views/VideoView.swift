@@ -34,22 +34,22 @@ struct VideoView: View {
                     VideoPlayerView(video: video)
                         .id(video.videoId) // Force recreation when video changes
                     
-                    VStack(alignment: .leading, spacing: 15) {
-                        Text(video.title ?? "")
-                            .font(.title)
-                        
-                        if let channelInfo = video.channel {
-                            NavigationLink(value: channelInfo) {
-                                ChannelInfoView(channel: channelInfo)
+                    ScrollView(.vertical) {
+                        VStack(alignment: .leading, spacing: 15) {
+                            Text(video.title ?? "")
+                                .font(.title)
+                            
+                            if let channelInfo = video.channel {
+                                NavigationLink(value: channelInfo) {
+                                    ChannelInfoView(channel: channelInfo)
+                                }
+                                .foregroundStyle(.foreground)
                             }
-                            .foregroundStyle(.foreground)
-                        }
-                        
-                        VideoStatsView(video: video)
-                        VideoActionsView(video: video)
-                        
-                        if let description {
-                            ScrollView(.vertical) {
+                            
+                            VideoStatsView(video: video)
+                            VideoActionsView(video: video)
+                            
+                            if let description {
                                 Text(.init(description))
                             }
                         }

@@ -31,6 +31,9 @@ struct SubscriptionsVideosView: View {
             VideosGridView(videos: videos, error: fetchError) {
                 await fetchVideos()
             }
+            .toolbar {
+                AccountToolbarItem()
+            }
             .navigationTitle("Subscriptions")
         }
     }

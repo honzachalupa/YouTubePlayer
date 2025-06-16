@@ -67,18 +67,11 @@ class PlayerManager: ObservableObject {
         
         Task {
             do {
+                // Ensure we have fresh visitor data and authentication
                 await getVisitorData()
+                
+                // First get the streaming URL and set up the player
                 let streamingInfos = try await video.fetchStreamingInfosThrowing(youtubeModel: YTM.model)
-                
-                // Fetch more info to get like status
-                let moreInfos = try await video.fetchMoreInfosThrowing(youtubeModel: YTM.model, useCookies: true)
-                if let status = moreInfos.authenticatedInfos?.likeStatus {
-                    likeStatus = status
-                }
-                
-                // Fetch available playlists
-                let playlistsResponse = try await video.fetchAllPossibleHostPlaylistsThrowing(youtubeModel: YTM.model)
-                availablePlaylists = playlistsResponse.playlistsAndStatus
                 
                 guard let streamingURL = streamingInfos.streamingURL else {
                     error = "Failed to get video streaming URL"
@@ -93,10 +86,35 @@ class PlayerManager: ObservableObject {
                 self.isPlaying = true
                 self.isLoading = false
                 
+                // Then fetch additional info in the background
+                Task {
+                    do {
+                        // Fetch more info to get like status
+                        let moreInfos = try await video.fetchMoreInfosThrowing(youtubeModel: YTM.model)
+                        if let status = moreInfos.authenticatedInfos?.likeStatus {
+                            likeStatus = status
+                        }
+                        
+                        // Fetch available playlists
+                        let playlistsResponse = try await video.fetchAllPossibleHostPlaylistsThrowing(youtubeModel: YTM.model)
+                        availablePlaylists = playlistsResponse.playlistsAndStatus
+                    } catch {
+                        // Don't show errors for additional info - it's not critical
+                        print("Failed to fetch additional info: \(error.localizedDescription)")
+                    }
+                }
+                
             } catch let error as ResponseExtractionError {
-                self.error = error.stepDescription.contains("Login is required") ?
-                    "Authentication required. Please sign in." :
-                    "Failed to load video: \(error.localizedDescription)"
+                if error.stepDescription.contains("Login is required") {
+                    // Check if we're actually authenticated
+                    if authService.isAuthenticated {
+                        self.error = "Failed to load video: Authentication error. Please try signing out and signing in again."
+                    } else {
+                        self.error = "Authentication required. Please sign in."
+                    }
+                } else {
+                    self.error = "Failed to load video: \(error.localizedDescription)"
+                }
                 self.isLoading = false
                 
             } catch {
@@ -167,12 +185,15 @@ class PlayerManager: ObservableObject {
         
         Task {
             do {
+                await getVisitorData()
+                
                 let response = try await AddVideoToPlaylistResponse.sendThrowingRequest(
                     youtubeModel: YTM.model,
                     data: [
                         .movingVideoId: video.videoId,
                         .browseId: playlist.playlistId.hasPrefix("VL") ? String(playlist.playlistId.dropFirst(2)) : playlist.playlistId
-                    ]
+                    ],
+                    useCookies: true
                 )
                 
                 if response.isDisconnected {
@@ -195,12 +216,15 @@ class PlayerManager: ObservableObject {
         
         Task {
             do {
+                await getVisitorData()
+                
                 let response = try await RemoveVideoByIdFromPlaylistResponse.sendThrowingRequest(
                     youtubeModel: YTM.model,
                     data: [
                         .movingVideoId: video.videoId,
                         .browseId: playlist.playlistId.hasPrefix("VL") ? String(playlist.playlistId.dropFirst(2)) : playlist.playlistId
-                    ]
+                    ],
+                    useCookies: true
                 )
                 
                 if response.isDisconnected {

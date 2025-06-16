@@ -87,6 +87,19 @@ struct AccountView: View {
     }
 }
 
+struct AccountToolbarItem: ToolbarContent {
+    var body: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            NavigationLink {
+                AccountView()
+            } label: {
+                Label("Account", systemImage: "person.fill")
+            }
+
+        }
+    }
+}
+
 #Preview {
     let service = YouTubeAuthService.shared
     service.userInfo = .init(

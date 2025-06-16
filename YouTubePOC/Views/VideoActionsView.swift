@@ -15,7 +15,7 @@ struct VideoActionsView: View {
                     Label("Like", systemImage: playerManager.likeStatus == .liked ? "hand.thumbsup.fill" : "hand.thumbsup")
                 }
                 .tint(playerManager.likeStatus == .liked ? .green : .none)
-                .symbolEffect(.bounce, value: playerManager.likeStatus)
+                .symbolEffect(.bounce, value: playerManager.likeStatus == .liked)
                 
                 Button {
                     playerManager.toggleDislike()
@@ -23,7 +23,7 @@ struct VideoActionsView: View {
                     Image(systemName: playerManager.likeStatus == .disliked ? "hand.thumbsdown.fill" : "hand.thumbsdown")
                 }
                 .tint(playerManager.likeStatus == .disliked ? .red : .none)
-                .symbolEffect(.bounce, value: playerManager.likeStatus)
+                .symbolEffect(.bounce, value: playerManager.likeStatus == .disliked)
                 
                 ShareLink(item: "https://www.youtube.com/watch?v=\(video.videoId)") {
                     Label("Share", systemImage: "arrowshape.turn.up.right.fill")
@@ -53,7 +53,7 @@ struct VideoActionsView: View {
                     Label("Save", systemImage: "square.and.arrow.down.fill")
                 }
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.glass)
         }
     }
 }

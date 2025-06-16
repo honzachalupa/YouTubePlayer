@@ -35,7 +35,8 @@ class YouTubeServiceWrapper: ObservableObject {
         if model.visitorData.isEmpty {
             if let visitorData = try? await SearchResponse.sendThrowingRequest(
                 youtubeModel: model,
-                data: [.query: "homefwhfjoifj"]
+                data: [.query: "homefwhfjoifj"],
+                useCookies: true
             ).visitorData {
                 model.visitorData = visitorData
             } else {
