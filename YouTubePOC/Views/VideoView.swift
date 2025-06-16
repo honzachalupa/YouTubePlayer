@@ -35,26 +35,30 @@ struct VideoView: View {
                         .id(video.videoId) // Force recreation when video changes
                     
                     ScrollView(.vertical) {
-                        VStack(alignment: .leading, spacing: 15) {
-                            Text(video.title ?? "")
-                                .font(.title)
-                            
-                            if let channelInfo = video.channel {
-                                NavigationLink(value: channelInfo) {
-                                    ChannelInfoView(channel: channelInfo)
+                        HStack {
+                            VStack(alignment: .leading, spacing: 15) {
+                                Text(video.title ?? "")
+                                    .font(.title)
+                                
+                                if let channelInfo = video.channel {
+                                    NavigationLink(value: channelInfo) {
+                                        ChannelInfoView(channel: channelInfo)
+                                    }
+                                    .foregroundStyle(.foreground)
                                 }
-                                .foregroundStyle(.foreground)
+                                
+                                VideoStatsView(video: video)
+                                VideoActionsView(video: video)
+                                
+                                if let description {
+                                    Text(.init(description))
+                                }
                             }
                             
-                            VideoStatsView(video: video)
-                            VideoActionsView(video: video)
-                            
-                            if let description {
-                                Text(.init(description))
-                            }
+                            Spacer()
                         }
+                        .padding(15)
                     }
-                    .padding(15)
                     
                     Spacer()
                 }

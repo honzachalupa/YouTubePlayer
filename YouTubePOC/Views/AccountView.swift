@@ -99,6 +99,8 @@ struct AccountView: View {
 
 struct AccountToolbarItem: ToolbarContent {
     var body: some ToolbarContent {
+        ToolbarSpacer(.fixed, placement: .topBarTrailing)
+        
         ToolbarItem(placement: .topBarTrailing) {
             NavigationLink {
                 AccountView()

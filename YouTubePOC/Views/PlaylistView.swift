@@ -29,8 +29,6 @@ struct PlaylistView: View {
             
             withAnimation {
                 videos = response.results
-                
-                print("videos", videos)
             }
         } catch {
             print(error.localizedDescription)
