@@ -49,6 +49,10 @@ struct ContentView: View {
                             PlaylistView(playlist: playlist)
                         }
                     }
+                    
+                    Tab("All...", systemImage: "list.bullet") {
+                        PlaylistsListView()
+                    }
                 }
             } else {
                 Tab("Playlists", systemImage: "play.square.stack.fill") {
@@ -60,6 +64,7 @@ struct ContentView: View {
                 SearchVideosView()
             }
         }
+        .accentColor(Color("AccentColor"))
         .tabViewStyle(.sidebarAdaptable)
         .sheet(isPresented: $playerManager.isVideoSheetPresented) {
             if playerManager.selectedVideo != nil {

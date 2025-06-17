@@ -102,46 +102,16 @@ struct PlaylistRowView: View {
     
     var body: some View {
         HStack {
-            if let thumbnailURL = playlist.thumbnails.last?.url {
-                AsyncImage(url: thumbnailURL) { phase in
-                    if let image = phase.image {
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } else {
-                        Color.gray.opacity(0.2)
-                    }
-                }
-                .frame(width: 60, height: 60)
-                .cornerRadius(8)
-            } else {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.gray.opacity(0.2))
-                    .frame(width: 60, height: 60)
-            }
+            Text(playlist.title ?? "")
             
-            VStack(alignment: .leading, spacing: 4) {
-                Text(playlist.title ?? "")
-                    .font(.headline)
-                    .lineLimit(1)
-                
-                HStack {
-                    if let videoCount = playlist.videoCount {
-                        Text(videoCount)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    
-                    switch playlist.privacy {
-                        case .private: Image(systemName: "lock.fill").foregroundStyle(.red)
-                        case .unlisted: Image(systemName: "link").foregroundStyle(.orange)
-                        case .public: Image(systemName: "globe").foregroundStyle(.green)
-                        case .none: EmptyView()
-                    }
-                }
+            switch playlist.privacy {
+                case .private: Image(systemName: "lock.fill").foregroundStyle(.red)
+                case .unlisted: Image(systemName: "link").foregroundStyle(.orange)
+                case .public: Image(systemName: "globe").foregroundStyle(.green)
+                case .none: EmptyView()
             }
         }
-        .padding(.vertical, 4)
+        .badge(playlist.videoCount ?? "")
     }
 }
 
