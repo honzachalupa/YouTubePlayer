@@ -122,7 +122,7 @@ final class YTM {
     
     static func setup() {
         // Initialize with default settings
-        instance.selectedLocale = "en-US"
+        instance.selectedLocale = Bundle.main.preferredLocalizations.first ?? "en"
         
         // Restore cookies if available
         if let savedCookies = UserDefaults.standard.string(forKey: "ytm_cookies") {
