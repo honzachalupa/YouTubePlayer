@@ -2,6 +2,7 @@ import SwiftUI
 import YouTubeKit
 
 struct ContentView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSize
     @EnvironmentObject private var playerManager: PlayerManager
     @EnvironmentObject private var youtubeService: YouTubeServiceWrapper
     @State private var playlists: [YTPlaylist] = []
@@ -37,18 +38,29 @@ struct ContentView: View {
                 RecommendedVideosView()
             }
             
-            Tab("Playlists", systemImage: "play.square.stack.fill") {
-                PlaylistsListView()
-            }
-            
             /* Tab("Trending", systemImage: "play.house.fill") {
                 TrendingVideosView()
             } */
+            
+            if horizontalSize == .regular {
+                TabSection("Playlists") {
+                    ForEach(playlists, id: \.playlistId) { playlist in
+                        Tab(playlist.title ?? "", systemImage: getPlaylistIcon(playlist.title)) {
+                            PlaylistView(playlist: playlist)
+                        }
+                    }
+                }
+            } else {
+                Tab("Playlists", systemImage: "play.square.stack.fill") {
+                    PlaylistsListView()
+                }
+            }
             
             Tab("Search", systemImage: "magnifyingglass", role: .search) {
                 SearchVideosView()
             }
         }
+        .tabViewStyle(.sidebarAdaptable)
         .sheet(isPresented: $playerManager.isVideoSheetPresented) {
             if playerManager.selectedVideo != nil {
                 VideoView()

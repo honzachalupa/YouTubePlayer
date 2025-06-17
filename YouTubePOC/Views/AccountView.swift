@@ -45,7 +45,7 @@ struct AccountView: View {
                         Text("Sign in to access your YouTube account")
                             .font(.headline)
                         
-                        Button("Sign In") {
+                        Button("Sign in") {
                             isShowingLoginView = true
                         }
                         .buttonStyle(.borderedProminent)
@@ -67,7 +67,7 @@ struct AccountView: View {
                         Button {
                             showSignOutConfirmation = true
                         } label: {
-                            Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
+                            Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
                         }
                         .tint(.red)
                         .confirmationDialog(
@@ -75,7 +75,7 @@ struct AccountView: View {
                             isPresented: $showSignOutConfirmation,
                             titleVisibility: .visible
                         ) {
-                            Button("Sign Out", role: .destructive) {
+                            Button("Sign out", role: .destructive) {
                                 authService.signOut()
                             }
                             Button("Cancel", role: .cancel) { }

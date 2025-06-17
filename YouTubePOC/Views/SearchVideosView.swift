@@ -2,7 +2,7 @@ import SwiftUI
 import YouTubeKit
 
 struct SearchVideosView: View {
-    @State private var query: String = "Jon Olson"
+    @State private var query: String = ""
     @State private var videos: [YTVideo] = []
     @State private var channels: [YTChannel] = []
     @State private var fetchError: Error? = nil

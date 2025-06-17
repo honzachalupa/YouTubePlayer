@@ -1,6 +1,17 @@
 import SwiftUI
 import YouTubeKit
 
+func getPlaylistIcon(_ playlistTitle: String?) -> String {
+    switch playlistTitle {
+        case "Liked videos":
+            return "heart.fill"
+        case "Watch later":
+            return "star.fill"
+        default:
+            return "play.fill"
+    }
+}
+
 struct PlaylistView: View {
     public var playlist: YTPlaylist
     

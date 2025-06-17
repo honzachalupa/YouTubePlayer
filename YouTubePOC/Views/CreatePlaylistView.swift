@@ -19,7 +19,7 @@ struct CreatePlaylistView: View {
                     }
                 }
             }
-            .navigationTitle("Create Playlist")
+            .navigationTitle("Create playlist")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

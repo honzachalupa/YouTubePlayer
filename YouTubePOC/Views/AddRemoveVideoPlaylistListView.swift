@@ -20,13 +20,13 @@ struct AddRemoveVideoPlaylistListView: View {
                     Button(role: .destructive) {
                         playlistsViewModel.removeFromPlaylist(item.playlist)
                     } label: {
-                        Label("Remove from \(item.playlist.title ?? "")", systemImage: "minus.circle")
+                        Label("Remove from \"\(item.playlist.title ?? "")\" playlist", systemImage: "minus.circle")
                     }
                 } else {
                     Button {
                         playlistsViewModel.addToPlaylist(item.playlist)
                     } label: {
-                        Label("Add to \(item.playlist.title ?? "")", systemImage: "plus.circle")
+                        Label("Add to \"\(item.playlist.title ?? "")\" playlist", systemImage: "plus.circle")
                     }
                 }
             }
