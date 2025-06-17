@@ -36,7 +36,15 @@ struct CreatePlaylistView: View {
                             }
                         }
                     }
-                    .disabled(name.isEmpty)
+                    .disabled(name.isEmpty || playlistService.isLoading)
+                }
+            }
+            .overlay {
+                if playlistService.isLoading {
+                    ProgressView()
+                        .controlSize(.large)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(.ultraThinMaterial)
                 }
             }
         }
