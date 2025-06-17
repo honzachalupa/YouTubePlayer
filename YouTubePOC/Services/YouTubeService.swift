@@ -8,7 +8,6 @@ class YouTubeServiceWrapper: ObservableObject {
     
     @Published var cookies: String {
         didSet {
-            // print("YouTubeServiceWrapper: Setting cookies to: \(cookies)")
             model.cookies = cookies
             UserDefaults.standard.set(cookies, forKey: "ytm_cookies")
             model.alwaysUseCookies = !cookies.isEmpty
@@ -18,80 +17,74 @@ class YouTubeServiceWrapper: ObservableObject {
     
     @Published var alwaysUseCookies: Bool {
         didSet {
-            // print("YouTubeServiceWrapper: Setting alwaysUseCookies to: \(alwaysUseCookies)")
             model.alwaysUseCookies = alwaysUseCookies
             UserDefaults.standard.set(alwaysUseCookies, forKey: "ytm_always_use_cookies")
         }
     }
     
-    @Published var accessToken: String? {
-        didSet {
-            // print("YouTubeServiceWrapper: Setting accessToken to: \(accessToken ?? "nil")")
-            // If YouTubeKit supports setting a token, set it here. Otherwise, store for use in API calls.
-        }
-    }
+    @Published var accessToken: String?
     
     func getVisitorData() async {
         if model.visitorData.isEmpty {
-            if let visitorData = try? await SearchResponse.sendThrowingRequest(
-                youtubeModel: model,
-                data: [.query: "homefwhfjoifj"],
-                useCookies: true
-            ).visitorData {
-                model.visitorData = visitorData
-            } else {
-                print("Couldn't get visitorData, request may fail.")
+            do {
+                let response = try await HomeScreenResponse.sendThrowingRequest(
+                    youtubeModel: model,
+                    data: [:],
+                    useCookies: true
+                )
+                
+                if let visitorData = response.visitorData {
+                    model.visitorData = visitorData
+                } else {
+                    print("Couldn't get visitorData, request may fail.")
+                }
+            } catch {
+                print("Error getting visitor data:", error.localizedDescription)
             }
         }
     }
     
     init(model: YouTubeModel) {
-        // print("YouTubeServiceWrapper: Initializing with model")
         self.model = model
         self.cookies = UserDefaults.standard.string(forKey: "ytm_cookies") ?? ""
         self.alwaysUseCookies = UserDefaults.standard.bool(forKey: "ytm_always_use_cookies")
+        
         model.cookies = self.cookies
         model.alwaysUseCookies = self.alwaysUseCookies
-        // print("YouTubeServiceWrapper: Initial state:")
-        // print("- Cookies: \(self.cookies)")
-        // print("- Always use cookies: \(self.alwaysUseCookies)")
     }
     
     func generateSAPISIDHASH(forCookies cookies: String, time: Int? = nil) -> String? {
-        // Extract SAPISID from cookies
         guard let SAPISID = cookies.ytkFirstGroupMatch(for: "SAPISID=([^\\s|;]*)") else {
-            // If no SAPISID in cookies, check if it's an OAuth token
             if cookies.contains("OAUTH_TOKEN=") {
-                // Use part of the OAuth token as SAPISID
                 guard let token = cookies.ytkFirstGroupMatch(for: "OAUTH_TOKEN=([^\\s|;]*)") else {
                     return nil
                 }
+                
                 let sapisidValue = String(token.prefix(40))
                 let currentTime = time ?? Int(Date().timeIntervalSince1970)
                 let hashInput = "\(currentTime) \(sapisidValue) https://www.youtube.com"
                 let inputData = Data(hashInput.utf8)
                 let hashed = Insecure.SHA1.hash(data: inputData)
                 let hashString = hashed.map { String(format: "%02hhx", $0) }.joined()
+                
                 return "SAPISIDHASH \(currentTime)_\(hashString)"
             }
             return nil
         }
         
-        // Generate hash using SAPISID
         let currentTime = time ?? Int(Date().timeIntervalSince1970)
         let hashInput = "\(currentTime) \(SAPISID) https://www.youtube.com"
         let inputData = Data(hashInput.utf8)
         let hashed = Insecure.SHA1.hash(data: inputData)
         let hashString = hashed.map { String(format: "%02hhx", $0) }.joined()
+        
         return "SAPISIDHASH \(currentTime)_\(hashString)"
     }
 }
 
 final class YTM {
-    // Private initializer to enforce singleton pattern
     private init() {}
     
-    // The single shared instance
     private static let instance = YouTubeModel()
     private static let wrapper = YouTubeServiceWrapper(model: instance)
     
@@ -101,18 +94,12 @@ final class YTM {
     
     static var cookies: String {
         get { shared.cookies }
-        set { 
-            // print("YTM: Setting cookies to: \(newValue)")
-            shared.cookies = newValue
-        }
+        set { shared.cookies = newValue }
     }
     
     static var alwaysUseCookies: Bool {
         get { shared.alwaysUseCookies }
-        set { 
-            // print("YTM: Setting alwaysUseCookies to: \(newValue)")
-            shared.alwaysUseCookies = newValue
-        }
+        set { shared.alwaysUseCookies = newValue }
     }
     
     static var accessToken: String? {
@@ -121,32 +108,19 @@ final class YTM {
     }
     
     static func setup() {
-        // Initialize with default settings
         instance.selectedLocale = Bundle.main.preferredLocalizations.first ?? "en"
         
-        // Restore cookies if available
         if let savedCookies = UserDefaults.standard.string(forKey: "ytm_cookies") {
-            // print("YTM: Found saved cookies: \(savedCookies)")
             cookies = savedCookies
             alwaysUseCookies = UserDefaults.standard.bool(forKey: "ytm_always_use_cookies")
-            // print("YTM: Restored settings:")
-            // print("- Cookies: \(cookies)")
-            // print("- Always use cookies: \(alwaysUseCookies)")
         } else {
             print("YTM: No saved cookies found during setup")
         }
-        
-        // Verify the setup
-        // print("YTM: Setup complete. Current state:")
-        // print("- Model cookies: \(model.cookies)")
-        // print("- Wrapper cookies: \(shared.cookies)")
-        // print("- Stored cookies: \(UserDefaults.standard.string(forKey: "ytm_cookies") ?? "nil")")
     }
     
     static func reset() {
         print("YTM: Starting reset...")
         
-        // Clear the model state
         cookies = ""
         alwaysUseCookies = false
         
@@ -155,14 +129,7 @@ final class YTM {
         UserDefaults.standard.removeObject(forKey: "ytm_always_use_cookies")
         UserDefaults.standard.removeObject(forKey: "youtube_access_token")
         UserDefaults.standard.removeObject(forKey: "youtube_user_info")
-        
-        // Force UserDefaults to save immediately
         UserDefaults.standard.synchronize()
-        
-        // print("YTM: Reset complete. Current state:")
-        // print("- Model cookies: \(model.cookies)")
-        // print("- Wrapper cookies: \(shared.cookies)")
-        // print("- Stored cookies: \(UserDefaults.standard.string(forKey: "ytm_cookies") ?? "nil")")
     }
     
     static var model: YouTubeModel {

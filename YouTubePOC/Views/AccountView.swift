@@ -88,8 +88,10 @@ struct AccountView: View {
             .navigationTitle(authService.isAuthenticated ? "Account" : "Sign in")
             .sheet(isPresented: $isShowingLoginView) {
                 YouTubeLoginWebView { cookies in
-                    authService.handleSignIn(cookies: cookies)
-                    isShowingLoginView = false
+                    Task {
+                        await authService.handleSignIn(cookies: cookies)
+                        isShowingLoginView = false
+                    }
                 }
             }
         }
@@ -98,6 +100,19 @@ struct AccountView: View {
 }
 
 struct AccountToolbarItem: ToolbarContent {
+    @StateObject private var authService = YouTubeAuthService.shared
+    
+    private var userInitials: String {
+        guard let name = authService.userInfo?.name else { return "" }
+        let components = name.components(separatedBy: .whitespacesAndNewlines)
+        if components.count >= 2 {
+            return "\(components[0].prefix(1))\(components[1].prefix(1))"
+        } else if let first = components.first {
+            return String(first.prefix(2))
+        }
+        return ""
+    }
+    
     var body: some ToolbarContent {
         ToolbarSpacer(.fixed, placement: .topBarTrailing)
         
@@ -105,19 +120,23 @@ struct AccountToolbarItem: ToolbarContent {
             NavigationLink {
                 AccountView()
             } label: {
-                Label("Account", systemImage: "person.fill")
+                if authService.isAuthenticated && !userInitials.isEmpty {
+                    Text(userInitials)
+                } else {
+                    Label("Account", systemImage: "person.fill")
+                }
             }
-
         }
     }
 }
 
 #Preview {
     let service = YouTubeAuthService.shared
-    service.userInfo = .init(
+    service.userInfo = YouTubeAuthService.UserInfo(
         name: "John Doe",
         picture: "https://picsum.photos/200"
     )
+    service.isAuthenticated = true
     
     return AccountView()
 }

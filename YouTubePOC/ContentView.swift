@@ -5,9 +5,17 @@ struct ContentView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSize
     @EnvironmentObject private var playerManager: PlayerManager
     @EnvironmentObject private var youtubeService: YouTubeServiceWrapper
+    @StateObject private var authService = YouTubeAuthService.shared
     @State private var playlists: [YTPlaylist] = []
     
     func fetchPlaylists() async {
+        guard authService.isAuthenticated else {
+            withAnimation {
+                playlists = []
+            }
+            return
+        }
+        
         do {
             await youtubeService.getVisitorData()
             
@@ -42,21 +50,23 @@ struct ContentView: View {
                 TrendingVideosView()
             } */
             
-            if horizontalSize == .regular {
-                TabSection("Playlists") {
-                    ForEach(playlists, id: \.playlistId) { playlist in
-                        Tab(playlist.title ?? "", systemImage: getPlaylistIcon(playlist.title)) {
-                            PlaylistView(playlist: playlist)
+            if authService.isAuthenticated {
+                if horizontalSize == .regular {
+                    TabSection("Playlists") {
+                        ForEach(playlists, id: \.playlistId) { playlist in
+                            Tab(playlist.title ?? "", systemImage: getPlaylistIcon(playlist.title)) {
+                                PlaylistView(playlist: playlist)
+                            }
+                        }
+                        
+                        Tab("All...", systemImage: "list.bullet") {
+                            PlaylistsListView()
                         }
                     }
-                    
-                    Tab("All...", systemImage: "list.bullet") {
+                } else {
+                    Tab("Playlists", systemImage: "play.square.stack.fill") {
                         PlaylistsListView()
                     }
-                }
-            } else {
-                Tab("Playlists", systemImage: "play.square.stack.fill") {
-                    PlaylistsListView()
                 }
             }
             
@@ -83,6 +93,11 @@ struct ContentView: View {
         }
         .tabBarMinimizeBehavior(.onScrollDown)
         .task { await fetchPlaylists() }
+        .onChange(of: authService.isAuthenticated) { _, _ in
+            Task {
+                await fetchPlaylists()
+            }
+        }
         .messageOverlay()
     }
 }
