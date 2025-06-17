@@ -21,16 +21,6 @@
         }
       }
     },
-    "Add to \"%@\" playlist" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Přidat do playlistu \"%@\""
-          }
-        }
-      }
-    },
     "Add to playlist" : {
       "localizations" : {
         "cs" : {
@@ -251,16 +241,6 @@
         }
       }
     },
-    "Remove from \"%@\" playlist" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Smazat z  \"%@\" playlistu"
-          }
-        }
-      }
-    },
     "Save" : {
       "localizations" : {
         "cs" : {
@@ -352,10 +332,17 @@
       }
     },
     "TrendingVideosView" : {
-
+      "shouldTranslate" : false
     },
     "You will need to sign in again to access your account." : {
-
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Budete se muset znovu přihlásit, abyste získali přístup ke svému účtu."
+          }
+        }
+      }
     }
   },
   "version" : "1.1"

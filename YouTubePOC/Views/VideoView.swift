@@ -59,8 +59,6 @@ struct VideoView: View {
                         }
                         .padding(15)
                     }
-                    
-                    Spacer()
                 }
                 .navigationDestination(for: YTLittleChannelInfos.self) { channelInfo in
                     ChannelView(channelInfo: channelInfo)
