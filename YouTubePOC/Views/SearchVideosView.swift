@@ -58,11 +58,6 @@ struct SearchVideosView: View {
                 Task { await searchVideos() }
             }
             .searchable(text: $query, prompt: "Search videos or channels...")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    AccountLinkView()
-                }
-            }
             .navigationTitle("Search")
         }
     }

@@ -32,7 +32,14 @@
       }
     },
     "All..." : {
-
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Všechny…"
+          }
+        }
+      }
     },
     "Are you sure you want to delete \"%@\" playlist?" : {
       "localizations" : {
@@ -40,16 +47,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Opravdu chcete smazat playlist \"%@\"?"
-          }
-        }
-      }
-    },
-    "Are you sure you want to sign out?" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Opravdu se chcete odhlásit?"
           }
         }
       }
@@ -294,36 +291,6 @@
         }
       }
     },
-    "Sign in" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Přihlásit se"
-          }
-        }
-      }
-    },
-    "Sign in to access your YouTube account" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Přihlaste se do vašeho YouTube účtu"
-          }
-        }
-      }
-    },
-    "Sign out" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Odhlásit se"
-          }
-        }
-      }
-    },
     "Subscriptions" : {
       "localizations" : {
         "cs" : {
@@ -336,16 +303,6 @@
     },
     "TrendingVideosView" : {
       "shouldTranslate" : false
-    },
-    "You will need to sign in again to access your account." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Budete se muset znovu přihlásit, abyste získali přístup ke svému účtu."
-          }
-        }
-      }
     }
   },
   "version" : "1.1"
