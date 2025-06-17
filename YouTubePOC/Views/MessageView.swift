@@ -25,7 +25,7 @@ struct MessageView: View {
         }
         .padding(.horizontal, 15)
         .glassEffect(.regular.tint(tint.opacity(0.1)))
-        .padding(.top)
+        .padding()
     }
 }
 

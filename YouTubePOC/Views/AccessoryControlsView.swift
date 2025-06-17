@@ -2,6 +2,7 @@ import SwiftUI
 import YouTubeKit
 
 struct AccessoryControlsView: View {
+    @Environment(\.tabViewBottomAccessoryPlacement) private var accessoryPlacement
     @EnvironmentObject private var playerManager: PlayerManager
     @State private var isPlaying = false
     private let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
@@ -13,21 +14,14 @@ struct AccessoryControlsView: View {
     var body: some View {
         HStack {
             if let video = playerManager.selectedVideo {
-                if let thumbnailUrl = video.thumbnails.first?.url {
+                if let thumbnailUrl = video.channel?.thumbnails.first?.url, accessoryPlacement != .inline {
                     AsyncImage(url: thumbnailUrl) { phase in
-                        Group {
-                            if let image = phase.image {
-                                image.resizable()
-                            } else {
-                                Color.gray.opacity(0.2)
-                                    .overlay {
-                                        ProgressView()
-                                    }
-                            }
+                        if let image = phase.image {
+                            image.resizable()
+                                .frame(width: 40, height: 40)
+                                .clipShape(Circle())
+                                .padding(.leading, 0)
                         }
-                        .aspectRatio(16/9, contentMode: .fill)
-                        .frame(width: 60, height: 40)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
                     }
                 }
                 
