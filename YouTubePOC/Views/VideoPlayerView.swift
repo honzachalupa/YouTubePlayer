@@ -6,7 +6,6 @@ struct VideoPlayerView: View {
     public let video: YTVideo
     
     @EnvironmentObject private var playerManager: PlayerManager
-    @State private var isFullscreen: Bool = false
     
     private struct CustomVideoPlayer: UIViewControllerRepresentable {
         let player: AVPlayer
@@ -19,21 +18,6 @@ struct VideoPlayerView: View {
         }
         
         func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) { }
-    }
-    
-    @ViewBuilder
-    func FullScreenButton() -> some View {
-        Button {
-            isFullscreen.toggle()
-        } label: {
-            if isFullscreen {
-                Image(systemName: "arrow.down.right.and.arrow.up.left")
-            } else {
-                Label("Enter fullscreen", systemImage: "arrow.up.left.and.arrow.down.right")
-            }
-        }
-        .buttonStyle(.glass)
-        .padding()
     }
     
     var body: some View {
@@ -67,31 +51,20 @@ struct VideoPlayerView: View {
             } else if let error = playerManager.error, playerManager.selectedVideo?.videoId == video.videoId {
                 ContentUnavailableView(error, systemImage: "exclamationmark.triangle.fill")
             } else if let player = playerManager.player {
-                ZStack(alignment: .top) {
-                    CustomVideoPlayer(player: player)
-                        .onAppear {
-                            // Only play if not already playing
-                            if !playerManager.isPlaying {
-                                player.play()
-                                playerManager.isPlaying = true
-                            }
+                CustomVideoPlayer(player: player)
+                    .onAppear {
+                        // Only play if not already playing
+                        if !playerManager.isPlaying {
+                            player.play()
+                            playerManager.isPlaying = true
                         }
-                        .onDisappear {
-                            // Don't stop playback when view disappears to support background playback
-                            if !playerManager.isPlaying {
-                                player.pause()
-                            }
-                        }
-                    
-                    FullScreenButton()
-                }
-                .fullScreenCover(isPresented: $isFullscreen) {
-                    ZStack(alignment: .top) {
-                        CustomVideoPlayer(player: player)
-                        
-                        FullScreenButton()
                     }
-                }
+                    .onDisappear {
+                        // Don't stop playback when view disappears to support background playback
+                        if !playerManager.isPlaying {
+                            player.pause()
+                        }
+                    }
             } else {
                 Color.gray.opacity(0.2)
                     .overlay {

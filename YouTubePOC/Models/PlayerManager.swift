@@ -11,7 +11,6 @@ class PlayerManager: ObservableObject {
     @Published var isPlaying = false
     @Published var isLoading = false
     @Published var error: String?
-    @Published var isFullscreen = false
     @Published var likeStatus: YTLikeStatus = .nothing
     @Published var availablePlaylists: [(playlist: YTPlaylist, isVideoPresentInside: Bool)] = []
     @Published var temporaryPlaylistStates: [String: [(playlist: YTPlaylist, isVideoPresentInside: Bool)]] = [:]
@@ -365,12 +364,6 @@ class PlayerManager: ObservableObject {
                 self.error = "Error loading video: \(error.localizedDescription)"
                 isLoading = false
             }
-        }
-    }
-    
-    func toggleFullscreen() {
-        withAnimation {
-            isFullscreen.toggle()
         }
     }
     
