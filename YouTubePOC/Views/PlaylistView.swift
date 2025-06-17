@@ -14,6 +14,7 @@ struct PlaylistView: View {
     
     @EnvironmentObject private var youtubeService: YouTubeServiceWrapper
     @State private var videos: [YTVideo] = []
+    @State private var fetchError: Error? = nil
     @State private var searchText: String = ""
     
     var filteredVideos: [YTVideo] {
@@ -39,9 +40,8 @@ struct PlaylistView: View {
                 videos = response.results
             }
         } catch {
-            print(error.localizedDescription)
-            
             withAnimation {
+                fetchError = error
                 videos = []
             }
         }
@@ -49,7 +49,7 @@ struct PlaylistView: View {
     
     var body: some View {
         NavigationStack {
-            VideosGridView(videos: filteredVideos) {
+            VideosGridView(videos: filteredVideos, error: fetchError) {
                 await fetchVideos()
             }
             .searchable(text: $searchText, prompt: "Search videos in playlist")

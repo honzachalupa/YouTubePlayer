@@ -6,6 +6,7 @@ struct VideosGridView: View {
     public var error: Error?
     public var fetchVideos: () async -> Void
     
+    @ObservedObject private var messageService = MessageService.shared
     @State private var selectedVideo: YTVideo? = nil
     @State private var isLoading: Bool = false
     
@@ -36,8 +37,6 @@ struct VideosGridView: View {
             if isLoading && videos.isEmpty {
                 ProgressView()
                     .controlSize(.large)
-            } else if let error = error {
-                ContentUnavailableView(error.localizedDescription, systemImage: "exclamationmark.triangle.fill")
             } else if videos.isEmpty {
                 ContentUnavailableView("No videos found", systemImage: "play.slash.fill")
             } else {
@@ -56,6 +55,11 @@ struct VideosGridView: View {
             }
         }
         .task { await fetch() }
+        .onChange(of: error?.localizedDescription) {
+            if let error {
+                messageService.show(message: error.localizedDescription, type: .error)
+            }
+        }
     }
 }
 

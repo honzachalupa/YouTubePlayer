@@ -5,6 +5,7 @@ import AVKit
 struct VideoPlayerView: View {
     public let video: YTVideo
     
+    @ObservedObject private var messageService = MessageService.shared
     @EnvironmentObject private var playerManager: PlayerManager
     
     private struct CustomVideoPlayer: UIViewControllerRepresentable {
@@ -48,8 +49,6 @@ struct VideoPlayerView: View {
                                 .controlSize(.large)
                         }
                 }
-            } else if let error = playerManager.error, playerManager.selectedVideo?.videoId == video.videoId {
-                ContentUnavailableView(error, systemImage: "exclamationmark.triangle.fill")
             } else if let player = playerManager.player {
                 CustomVideoPlayer(player: player)
                     .onAppear {
@@ -88,6 +87,11 @@ struct VideoPlayerView: View {
             // Only load if it's a different video
             if playerManager.selectedVideo?.videoId != video.videoId {
                 playerManager.loadVideo(video)
+            }
+        }
+        .onChange(of: playerManager.error) {
+            if let errorMessage = playerManager.error {
+                messageService.show(message: errorMessage, type: .error)
             }
         }
     }

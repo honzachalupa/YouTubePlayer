@@ -83,6 +83,7 @@ struct ContentView: View {
         }
         .tabBarMinimizeBehavior(.onScrollDown)
         .task { await fetchPlaylists() }
+        .messageOverlay()
     }
 }
 
