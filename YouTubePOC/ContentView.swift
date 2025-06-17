@@ -66,6 +66,7 @@ struct ContentView: View {
                 VideoView()
                     .environmentObject(playerManager)
                     .presentationSizing(.page)
+                    .presentationDragIndicator(.visible)
             }
         }
         .tabViewBottomAccessory {

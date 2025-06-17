@@ -3,12 +3,9 @@ import YouTubeKit
 
 func getPlaylistIcon(_ playlistTitle: String?) -> String {
     switch playlistTitle {
-        case "Liked videos":
-            return "heart.fill"
-        case "Watch later":
-            return "star.fill"
-        default:
-            return "play.fill"
+        case "Liked videos": "heart.fill"
+        case "Watch later": "star.fill"
+        default: "play.fill"
     }
 }
 

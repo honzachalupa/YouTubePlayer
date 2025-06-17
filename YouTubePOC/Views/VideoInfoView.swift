@@ -29,13 +29,12 @@ struct VideoInfoView: View {
             VStack(alignment: .leading, spacing: 5) {
                 Group {
                     switch mainLabel {
-                        case .videoTitle:
-                            Text(video.title ?? "")
-                        case .channelName:
-                            Text(video.channel?.name ?? "")
+                        case .videoTitle: Text(video.title ?? "")
+                        case .channelName: Text(video.channel?.name ?? "")
                     }
                 }
                 .fontWeight(.medium)
+                .lineLimit(2)
                 
                 let info = ([
                     mainLabel == .channelName ? nil : video.channel?.name,

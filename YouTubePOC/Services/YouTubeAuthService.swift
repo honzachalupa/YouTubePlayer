@@ -13,12 +13,9 @@ enum YouTubeAuthError: LocalizedError {
     
     var errorDescription: String? {
         switch self {
-        case .invalidCallbackURL:
-            return "Invalid callback URL received"
-        case .authenticationFailed:
-            return "Authentication verification failed after multiple attempts"
-        case .tokenVerificationFailed:
-            return "Failed to verify access token"
+            case .invalidCallbackURL: "Invalid callback URL received"
+            case .authenticationFailed: "Authentication verification failed after multiple attempts"
+            case .tokenVerificationFailed: "Failed to verify access token"
         }
     }
 }

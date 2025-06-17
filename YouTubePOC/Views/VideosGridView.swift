@@ -9,14 +9,26 @@ struct VideosGridView: View {
     @State private var selectedVideo: YTVideo? = nil
     @State private var isLoading: Bool = false
     
-    private let columns = [
-        GridItem(.adaptive(minimum: 600, maximum: 1200), spacing: 20, alignment: .top)
-    ]
-    
     func fetch() async {
         isLoading = true
         await fetchVideos()
         isLoading = false
+    }
+    
+    func getColumns() -> [GridItem] {
+        if UIScreen.main.bounds.width > 1500 {
+            return [GridItem(
+                .adaptive(minimum: 500, maximum: 1200),
+                spacing: 20,
+                alignment: .top
+            )]
+        } else {
+            return [GridItem(
+                .adaptive(minimum: 320, maximum: 1200),
+                spacing: 20,
+                alignment: .top
+            )]
+        }
     }
     
     var body: some View {
@@ -30,7 +42,7 @@ struct VideosGridView: View {
                 ContentUnavailableView("No videos found", systemImage: "play.slash.fill")
             } else {
                 ScrollView {
-                    LazyVGrid(columns: columns, spacing: 20) {
+                    LazyVGrid(columns: getColumns(), spacing: 20) {
                         ForEach(videos, id: \.videoId) { video in
                             VideoGridItemView(video: video)
                         }

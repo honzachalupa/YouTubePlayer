@@ -133,17 +133,10 @@ struct PlaylistRowView: View {
                     }
                     
                     switch playlist.privacy {
-                        case .private:
-                            Image(systemName: "lock.fill")
-                                .foregroundStyle(.red)
-                        case .unlisted:
-                            Image(systemName: "link")
-                                .foregroundStyle(.orange)
-                        case .public:
-                            Image(systemName: "globe")
-                                .foregroundStyle(.green)
-                        case .none:
-                            EmptyView()
+                        case .private: Image(systemName: "lock.fill").foregroundStyle(.red)
+                        case .unlisted: Image(systemName: "link").foregroundStyle(.orange)
+                        case .public: Image(systemName: "globe").foregroundStyle(.green)
+                        case .none: EmptyView()
                     }
                 }
             }
