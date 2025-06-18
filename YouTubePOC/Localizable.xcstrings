@@ -51,6 +51,9 @@
         }
       }
     },
+    "Are you sure you want to delete this playlist?" : {
+
+    },
     "Cancel" : {
       "localizations" : {
         "cs" : {
@@ -90,6 +93,9 @@
           }
         }
       }
+    },
+    "Delete playlist" : {
+
     },
     "Failed to delete playlist \"%@\"." : {
       "localizations" : {

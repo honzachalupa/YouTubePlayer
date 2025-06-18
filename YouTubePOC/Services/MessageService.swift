@@ -38,6 +38,10 @@ class MessageService: ObservableObject {
     func show(message: String, type: MessageType) {
         let newMessage = Message(text: message, type: type)
         
+        if type == .error {
+            print(message)
+        }
+        
         if isShowingMessage {
             messageQueue.append(newMessage)
         } else {

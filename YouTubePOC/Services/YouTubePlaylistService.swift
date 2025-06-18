@@ -15,6 +15,10 @@ class YouTubePlaylistService: ObservableObject {
     // Default video ID to use when creating playlists - using a test video that we know works
     private let defaultVideoId = "peIBCNTY8hA"  // Test video from YouTubeKit test case
     
+    init() {
+        Task { await fetchPlaylists() }
+    }
+    
     func clearData() {
         playlists = []
         error = nil

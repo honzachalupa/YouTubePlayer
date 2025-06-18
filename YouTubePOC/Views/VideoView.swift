@@ -4,6 +4,7 @@ import YouTubeKit
 struct VideoView: View {
     @EnvironmentObject private var youtubeService: YouTubeServiceWrapper
     @EnvironmentObject private var playerManager: PlayerManager
+    @StateObject private var messageService = MessageService.shared
     @State private var description: String? = nil
     
     func fetchDetails() async {
@@ -21,10 +22,10 @@ struct VideoView: View {
                     }.joined()
                 }
             } catch {
-                print(error.localizedDescription)
+                messageService.show(message: error.localizedDescription, type: .error)
             }
         } else {
-            print("Video ID not provided.")
+            messageService.show(message: "Error: Video ID not provided.", type: .error)
         }
     }
     

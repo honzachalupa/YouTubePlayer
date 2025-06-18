@@ -13,10 +13,14 @@ struct PlaylistView: View {
     public var playlist: YTPlaylist
     
     @EnvironmentObject private var youtubeService: YouTubeServiceWrapper
+    @StateObject private var messageService = MessageService.shared
+    @StateObject private var playlistService = YouTubePlaylistService.shared
     @State private var videos: [YTVideo] = []
     @State private var fetchError: Error? = nil
     @State private var searchText: String = ""
     @State private var isLoading = false
+    @State private var showingDeleteConfirmation = false
+    @State private var isDeletingPlaylist = false
     
     var filteredVideos: [YTVideo] {
         if searchText.isEmpty {
@@ -96,23 +100,25 @@ struct PlaylistView: View {
             )
             
             await MainActor.run {
-                withAnimation(.easeInOut(duration: 0.3)) {
+                withAnimation {
                     videos = response.results
                     fetchError = nil
                 }
             }
         } catch {
             print("PlaylistView: Error fetching videos: \(error)")
+            
             await MainActor.run {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    fetchError = error
+                messageService.show(message: error.localizedDescription, type: .error)
+                
+                withAnimation {
                     videos = []
                 }
             }
         }
         
         await MainActor.run {
-            withAnimation(.easeInOut(duration: 0.3)) {
+            withAnimation {
                 isLoading = false
             }
         }
@@ -123,16 +129,40 @@ struct PlaylistView: View {
             VideosGridView(videos: filteredVideos, error: fetchError) {
                 await fetchVideos()
             }
-            .searchable(text: $searchText, prompt: "Search videos in playlist")
-            .overlay {
-                if isLoading && videos.isEmpty {
-                    ProgressView()
-                        .controlSize(.large)
+            .toolbar {
+                ToolbarItem(placement: .destructiveAction) {
+                    Button(role: .destructive) {
+                        showingDeleteConfirmation = true
+                    } label: {
+                        if isDeletingPlaylist {
+                            ProgressView()
+                        } else {
+                            Label("Delete playlist", systemImage: "trash.fill")
+                        }
+                    }
+                    .tint(.red)
+                    .disabled(isDeletingPlaylist)
+                    .confirmationDialog(
+                        "Are you sure you want to delete this playlist?",
+                        isPresented: $showingDeleteConfirmation,
+                        titleVisibility: .visible
+                    ) {
+                        Button("Delete", role: .destructive) {
+                            isDeletingPlaylist = true
+                            Task {
+                                let success = await playlistService.deletePlaylist(playlist)
+                                isDeletingPlaylist = false
+                                if !success {
+                                    messageService.show(message: playlistService.error ?? "Failed to delete playlist.", type: .error)
+                                }
+                            }
+                        }
+                        Button("Cancel", role: .cancel) {}
+                    }
                 }
             }
+            .searchable(text: $searchText, prompt: "Search videos in playlist")
             .navigationTitle(playlist.title != nil ? "\(playlist.title ?? "") playlist" : "Playlist")
-            .animation(.easeInOut, value: isLoading)
-            .animation(.easeInOut, value: videos)
         }
         .task { await fetchVideos() }
     }
