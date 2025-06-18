@@ -16,6 +16,7 @@ struct PlaylistView: View {
     @State private var videos: [YTVideo] = []
     @State private var fetchError: Error? = nil
     @State private var searchText: String = ""
+    @State private var isLoading = false
     
     var filteredVideos: [YTVideo] {
         if searchText.isEmpty {
@@ -29,20 +30,90 @@ struct PlaylistView: View {
     }
     
     func fetchVideos() async {
+        guard !isLoading else { return }  // Prevent multiple simultaneous fetches
+        
+        isLoading = true
+        
         do {
-            await youtubeService.getVisitorData()
-            
-            let response = try await playlist.fetchVideosThrowing(
-                youtubeModel: YTM.model
+            // First get the home screen response to ensure we have proper context
+            let homeResponse = try await HomeScreenResponse.sendThrowingRequest(
+                youtubeModel: YTM.model,
+                data: [:],
+                useCookies: true
             )
             
-            withAnimation {
-                videos = response.results
+            // Update visitor data if available
+            if let visitorData = homeResponse.visitorData {
+                YTM.model.visitorData = visitorData
+            }
+            
+            // Get the current locale
+            let locale = Bundle.main.preferredLocalizations.first ?? "en"
+            let localeComponents = locale.components(separatedBy: "_")
+            let languageCode = localeComponents[0]
+            let countryCode = localeComponents.count > 1 ? localeComponents[1] : "US"
+            
+            // Set up the context data
+            let contextData: [String: Any] = [
+                "context": [
+                    "client": [
+                        "hl": languageCode,
+                        "gl": countryCode,
+                        "clientName": "WEB",
+                        "clientVersion": "2.20240101",
+                        "platform": "DESKTOP"
+                    ]
+                ],
+                "browseId": playlist.playlistId.hasPrefix("VL") ? playlist.playlistId : "VL\(playlist.playlistId)"
+            ]
+            
+            // Convert to JSON data
+            let jsonData = try JSONSerialization.data(withJSONObject: contextData)
+            
+            // Set up headers
+            let headers = [
+                HeadersList.Header(name: "Content-Type", content: "application/json"),
+                HeadersList.Header(name: "Accept", content: "*/*"),
+                HeadersList.Header(name: "Origin", content: "https://www.youtube.com"),
+                HeadersList.Header(name: "Referer", content: "https://www.youtube.com/"),
+                HeadersList.Header(name: "Accept-Language", content: "\(languageCode)_\(countryCode)")
+            ]
+            
+            // Set up the request in YouTubeKit
+            YTM.model.customHeaders[.playlistHeaders] = HeadersList(
+                url: URL(string: "https://www.youtube.com/youtubei/v1/browse")!,
+                method: .POST,
+                headers: headers,
+                addQueryAfterParts: [],
+                httpBody: [String(data: jsonData, encoding: .utf8)!],
+                parameters: []
+            )
+            
+            // Now fetch the playlist videos
+            let response = try await playlist.fetchVideosThrowing(
+                youtubeModel: YTM.model,
+                useCookies: true
+            )
+            
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    videos = response.results
+                    fetchError = nil
+                }
             }
         } catch {
-            withAnimation {
-                fetchError = error
-                videos = []
+            print("PlaylistView: Error fetching videos: \(error)")
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    fetchError = error
+                    videos = []
+                }
+            }
+        }
+        
+        await MainActor.run {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                isLoading = false
             }
         }
     }
@@ -53,8 +124,17 @@ struct PlaylistView: View {
                 await fetchVideos()
             }
             .searchable(text: $searchText, prompt: "Search videos in playlist")
+            .overlay {
+                if isLoading && videos.isEmpty {
+                    ProgressView()
+                        .controlSize(.large)
+                }
+            }
             .navigationTitle(playlist.title != nil ? "\(playlist.title ?? "") playlist" : "Playlist")
+            .animation(.easeInOut, value: isLoading)
+            .animation(.easeInOut, value: videos)
         }
+        .task { await fetchVideos() }
     }
 }
 

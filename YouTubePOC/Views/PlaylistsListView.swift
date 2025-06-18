@@ -3,14 +3,24 @@ import YouTubeKit
 
 struct PlaylistsListView: View {
     @StateObject private var playlistService = YouTubePlaylistService.shared
+    @StateObject private var authService = YouTubeAuthService.shared
     @State private var showingCreatePlaylistSheet = false
     @State private var playlistToDelete: YTPlaylist?
     @State private var showingDeleteError = false
     
+    private func fetchIfNeeded() async {
+        // Only fetch if we're authenticated and don't have playlists yet
+        if authService.isAuthenticated && playlistService.playlists.isEmpty && !playlistService.isLoading {
+            await playlistService.fetchPlaylists()
+        }
+    }
+    
     var body: some View {
         NavigationStack {
             Group {
-                if playlistService.isLoading && playlistService.playlists.isEmpty {
+                if !authService.isAuthenticated {
+                    ContentUnavailableView("Sign in to view playlists", systemImage: "person.crop.circle.badge.exclamationmark")
+                } else if playlistService.isLoading {
                     ProgressView()
                         .controlSize(.large)
                 } else if let error = playlistService.error {
@@ -43,14 +53,16 @@ struct PlaylistsListView: View {
                     }
                 }
             }
-            .task { await playlistService.fetchPlaylists() }
+            .task { await fetchIfNeeded() }
             .refreshable { await playlistService.fetchPlaylists() }
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showingCreatePlaylistSheet = true
-                    } label: {
-                        Label("Create playlist", systemImage: "plus")
+                if authService.isAuthenticated {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            showingCreatePlaylistSheet = true
+                        } label: {
+                            Label("Create playlist", systemImage: "plus")
+                        }
                     }
                 }
                 
@@ -91,6 +103,13 @@ struct PlaylistsListView: View {
             } message: {
                 if let error = playlistService.error {
                     Text(error)
+                }
+            }
+            .onChange(of: authService.isAuthenticated) { _, isAuthenticated in
+                if isAuthenticated {
+                    Task {
+                        await fetchIfNeeded()
+                    }
                 }
             }
         }
