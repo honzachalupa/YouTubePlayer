@@ -2,6 +2,37 @@ import Foundation
 import SwiftUI
 import AVKit
 
+private final class PlayerResourceManager {
+    private var player: AVPlayer?
+    private var timeObserver: Any?
+    
+    func setPlayer(_ newPlayer: AVPlayer?) {
+        cleanup()
+        player = newPlayer
+    }
+    
+    func addTimeObserver(for player: AVPlayer, queue: DispatchQueue = .main, block: @escaping (CMTime) -> Void) {
+        timeObserver = player.addPeriodicTimeObserver(
+            forInterval: CMTime(seconds: 1, preferredTimescale: 1),
+            queue: queue,
+            using: block
+        )
+    }
+    
+    func cleanup() {
+        if let observer = timeObserver {
+            player?.removeTimeObserver(observer)
+            timeObserver = nil
+        }
+        player?.pause()
+        player = nil
+    }
+    
+    deinit {
+        cleanup()
+    }
+}
+
 @MainActor
 class YouTubeVideoService: ObservableObject {
     static let shared: YouTubeVideoService = {
@@ -15,14 +46,14 @@ class YouTubeVideoService: ObservableObject {
     @Published var error: String?
     @Published var videos: [YouTubeVideo] = []
     @Published var nextPageToken: String?
-    @Published var player: AVPlayer?
-    @Published var isPlaying = false
+    @Published private(set) var player: AVPlayer?
+    @Published private(set) var isPlaying = false
     @Published var likeStatus: String = "none" // "none", "like", "dislike"
     
     private let apiKey: String
     private let baseURL = "https://www.googleapis.com/youtube/v3"
     private let authService: YouTubeAuthService
-    private var playerTimeObserver: Any?
+    private let playerManager = PlayerResourceManager()
     
     init(apiKey: String, authService: YouTubeAuthService) {
         self.apiKey = apiKey
@@ -74,7 +105,7 @@ class YouTubeVideoService: ObservableObject {
         error = nil
         
         do {
-            var path = "search?part=snippet&type=video&maxResults=50&q=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
+            var path = "search?part=snippet&type=video&maxResults=5&q=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
             if let pageToken = pageToken {
                 path += "&pageToken=\(pageToken)"
             }
@@ -115,7 +146,7 @@ class YouTubeVideoService: ObservableObject {
         
         do {
             let request = makeRequest(
-                path: "videos?part=snippet,contentDetails,statistics&chart=mostPopular&maxResults=50&regionCode=US"
+                path: "videos?part=snippet,contentDetails,statistics&chart=mostPopular&maxResults=5&regionCode=US"
             )
             
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -156,7 +187,7 @@ class YouTubeVideoService: ObservableObject {
         
         do {
             let request = makeRequest(
-                path: "subscriptions?part=snippet&mine=true&maxResults=50"
+                path: "subscriptions?part=snippet&mine=true&maxResults=5"
             )
             
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -191,10 +222,13 @@ class YouTubeVideoService: ObservableObject {
         var allVideos: [YouTubeVideo] = []
         var errors: [String] = []
         
+        // Take only first 3 channels to reduce API calls
+        let limitedChannelIds = Array(channelIds.prefix(3))
+        
         // Get latest videos from each channel individually
-        for channelId in channelIds {
+        for channelId in limitedChannelIds {
             do {
-                let path = "search?part=snippet&type=video&maxResults=10&order=date&channelId=\(channelId)"
+                let path = "search?part=snippet&type=video&maxResults=2&order=date&channelId=\(channelId)"
                 let request = makeRequest(path: path)
                 
                 let (data, response) = try await URLSession.shared.data(for: request)
@@ -272,6 +306,15 @@ class YouTubeVideoService: ObservableObject {
     
     // MARK: - Video Playback
     
+    private func setPlayer(_ newPlayer: AVPlayer?) {
+        playerManager.setPlayer(newPlayer)
+        player = newPlayer
+    }
+
+    private func setIsPlaying(_ value: Bool) {
+        isPlaying = value
+    }
+
     func loadVideo(_ video: YouTubeVideo) async {
         isLoading = true
         error = nil
@@ -300,9 +343,9 @@ class YouTubeVideoService: ObservableObject {
                 
                 let newPlayer = AVPlayer(url: streamingURL)
                 setupPlayerObservation(for: newPlayer)
-                self.player = newPlayer
-                self.player?.play()
-                isPlaying = true
+                setPlayer(newPlayer)
+                newPlayer.play()
+                setIsPlaying(true)
             } else {
                 let errorResponse = try JSONDecoder().decode(YouTubeErrorResponse.self, from: data)
                 error = errorResponse.error.message
@@ -315,16 +358,7 @@ class YouTubeVideoService: ObservableObject {
     }
     
     private func setupPlayerObservation(for player: AVPlayer) {
-        // Remove existing observer
-        if let observer = playerTimeObserver {
-            self.player?.removeTimeObserver(observer)
-        }
-        
-        // Add new observer
-        playerTimeObserver = player.addPeriodicTimeObserver(
-            forInterval: CMTime(seconds: 1, preferredTimescale: 1),
-            queue: .main
-        ) { _ in
+        playerManager.addTimeObserver(for: player) { _ in
             // Update playback progress if needed
         }
         
@@ -342,26 +376,30 @@ class YouTubeVideoService: ObservableObject {
     }
     
     func togglePlayPause() {
+        guard let currentPlayer = player else { return }
+        
         if isPlaying {
-            player?.pause()
+            currentPlayer.pause()
+            setIsPlaying(false)
         } else {
-            player?.play()
+            currentPlayer.play()
+            setIsPlaying(true)
         }
-        isPlaying.toggle()
     }
     
-    nonisolated func cleanup() {
-        Task { @MainActor in
-            if let observer = playerTimeObserver {
-                player?.removeTimeObserver(observer)
-                playerTimeObserver = nil
-            }
-            player = nil
-            isPlaying = false
-        }
+    func getStreamURL(for videoId: String) async throws -> URL {
+        // For now, return a direct YouTube watch URL
+        // In a production app, you would use a proper video streaming solution
+        return URL(string: "https://www.youtube.com/watch?v=\(videoId)")!
+    }
+    
+    func cleanup() {
+        playerManager.cleanup()
+        player = nil
+        isPlaying = false
     }
     
     deinit {
-        cleanup()
+        playerManager.cleanup()
     }
 } 

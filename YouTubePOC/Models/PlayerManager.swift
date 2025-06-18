@@ -17,17 +17,12 @@ class PlayerManager: ObservableObject {
     @Published var temporaryPlaylistStates: [String: [(playlist: YouTubePlaylist, isVideoPresentInside: Bool)]] = [:]
     
     private var playerTimeObserver: Any?
-    private let authService: YouTubeAuthService
+    private let videoService: YouTubeVideoService
     private let playlistService = YouTubePlaylistService.shared
     private var thumbnailImage: UIImage?
     
-    func clearPlaylistData() {
-        availablePlaylists = []
-        temporaryPlaylistStates = [:]
-    }
-    
     init() {
-        self.authService = .shared
+        self.videoService = .shared
         
         configureAudioSession()
         setupRemoteTransportControls()
@@ -211,8 +206,16 @@ class PlayerManager: ObservableObject {
         player = nil
         thumbnailImage = nil
         isPlaying = false
+        selectedVideo = nil
+        error = nil
+        likeStatus = "none"
         
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+    }
+    
+    func clearPlaylistData() {
+        availablePlaylists = []
+        temporaryPlaylistStates = [:]
     }
     
     func getPlaylistStates(for video: YouTubeVideo) async -> [(playlist: YouTubePlaylist, isVideoPresentInside: Bool)] {
@@ -279,47 +282,32 @@ class PlayerManager: ObservableObject {
     }
     
     func selectVideo(_ video: YouTubeVideo) {
-        if selectedVideo?.id != video.id {
-            cleanup()
-            selectedVideo = video
-        }
-        
-        isVideoSheetPresented = true
-        loadVideo(video)
-        
-        Task {
-            if let thumbnailUrl = URL(string: video.snippet.thumbnails.maxres?.url ?? 
-                                    video.snippet.thumbnails.standard?.url ??
-                                    video.snippet.thumbnails.high?.url ??
-                                    video.snippet.thumbnails.medium?.url ??
-                                    video.snippet.thumbnails.default?.url ?? "") {
-                await loadThumbnailImage(from: thumbnailUrl)
-            }
-            
-            availablePlaylists = await getPlaylistStates(for: video)
-        }
-    }
-    
-    func loadVideo(_ video: YouTubeVideo) {
+        selectedVideo = video
         isLoading = true
         error = nil
         
         Task {
-            guard let videoURL = URL(string: "https://www.youtube.com/watch?v=\(video.id)") else {
-                error = "Invalid video URL"
+            do {
+                let streamURL = try await videoService.getStreamURL(for: video.id)
+                player = AVPlayer(url: streamURL)
+                setupPlayerObservation(for: player!)
+                
+                // Load thumbnail for now playing info
+                if let thumbnailURL = URL(string: video.snippet.thumbnails.maxres?.url ?? 
+                                        video.snippet.thumbnails.standard?.url ??
+                                        video.snippet.thumbnails.high?.url ??
+                                        video.snippet.thumbnails.medium?.url ??
+                                        video.snippet.thumbnails.default?.url ?? "") {
+                    await loadThumbnailImage(from: thumbnailURL)
+                }
+                
                 isLoading = false
-                return
+                isPlaying = true
+                updateNowPlayingInfo()
+            } catch {
+                self.error = error.localizedDescription
+                isLoading = false
             }
-            
-            let player = AVPlayer(url: videoURL)
-            self.player = player
-            setupPlayerObservation(for: player)
-            
-            player.play()
-            isPlaying = true
-            
-            updateNowPlayingInfo()
-            isLoading = false
         }
     }
     

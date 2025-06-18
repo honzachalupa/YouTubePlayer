@@ -29,7 +29,7 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
     @Published private(set) var isLoading = false
     
     private var authSession: ASWebAuthenticationSession?
-    private let clientID = "1078839058958-f8aaiu3kbdkcjspf6ji93ve86he0ejvn.apps.googleusercontent.com"
+    private let clientID = "906870749753-14abvoosv6lq9inqb0p4rb4jfq765mjp.apps.googleusercontent.com"
     private let redirectURI = "com.janchalupa.YouTubePOC://"
     private let scope = "https://www.googleapis.com/auth/youtube"
     private weak var presentationWindow: UIWindow?

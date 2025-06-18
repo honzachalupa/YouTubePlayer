@@ -30,17 +30,17 @@ struct YouTubeVideo: Codable, Identifiable, Equatable {
         let thumbnails: YouTubeThumbnails
         let channelTitle: String
         let tags: [String]?
-        let categoryId: String
-        let liveBroadcastContent: String
+        let categoryId: String?
+        let liveBroadcastContent: String?
     }
     
     struct ContentDetails: Codable, Equatable {
-        let duration: String
-        let dimension: String
-        let definition: String
-        let caption: String
-        let licensedContent: Bool
-        let projection: String
+        let duration: String?
+        let dimension: String?
+        let definition: String?
+        let caption: String?
+        let licensedContent: Bool?
+        let projection: String?
     }
     
     struct Statistics: Codable, Equatable {
@@ -175,12 +175,12 @@ struct YouTubePlaylistItem: Codable, Identifiable, Equatable {
 
 // MARK: - Search Result
 struct YouTubeSearchResult: Codable, Equatable {
-    let kind: String
+    let kind: String?
     let id: SearchResultId
     let snippet: SearchResultSnippet
     
     struct SearchResultId: Codable, Equatable {
-        let kind: String
+        let kind: String?
         let videoId: String?
         let channelId: String?
         let playlistId: String?
@@ -193,22 +193,22 @@ struct YouTubeSearchResult: Codable, Equatable {
         let description: String
         let thumbnails: YouTubeThumbnails
         let channelTitle: String
-        let liveBroadcastContent: String
+        let liveBroadcastContent: String?
     }
 }
 
 // MARK: - API Responses
 struct YouTubeListResponse<T: Codable & Equatable>: Codable, Equatable {
-    let kind: String
-    let etag: String
+    let kind: String?
+    let etag: String?
     let nextPageToken: String?
     let prevPageToken: String?
-    let pageInfo: PageInfo
+    let pageInfo: PageInfo?
     let items: [T]
     
     struct PageInfo: Codable, Equatable {
-        let totalResults: Int
-        let resultsPerPage: Int
+        let totalResults: Int?
+        let resultsPerPage: Int?
     }
 }
 
@@ -219,13 +219,24 @@ struct YouTubeErrorResponse: Codable, Equatable {
     struct APIError: Codable, Equatable {
         let code: Int
         let message: String
-        let errors: [ErrorDetail]
-        let status: String
+        let errors: [ErrorDetail]?
+        let status: String?
+        let details: [ErrorDetail]?
         
         struct ErrorDetail: Codable, Equatable {
-            let message: String
-            let domain: String
-            let reason: String
+            let message: String?
+            let domain: String?
+            let reason: String?
+            let location: String?
+            let locationType: String?
+            
+            enum CodingKeys: String, CodingKey {
+                case message
+                case domain
+                case reason
+                case location
+                case locationType = "location_type"
+            }
         }
     }
 }
@@ -237,13 +248,13 @@ struct YouTubeSubscription: Codable, Identifiable, Equatable {
     
     struct SubscriptionSnippet: Codable, Equatable {
         let title: String
-        let description: String
+        let description: String?
         let resourceId: ResourceId
         let channelId: String
         let thumbnails: YouTubeThumbnails
         
         struct ResourceId: Codable, Equatable {
-            let kind: String
+            let kind: String?
             let channelId: String
         }
     }

@@ -2,215 +2,170 @@ import SwiftUI
 import AVKit
 
 struct VideoView: View {
-    let video: YouTubeVideo
-    @StateObject private var viewModel = PlayerViewModel()
-    @Environment(\.dismiss) private var dismiss
+    @StateObject private var videoService = YouTubeVideoService.shared
+    var video: YouTubeVideo
     
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                Color.black.edgesIgnoringSafeArea(.all)
+        NavigationStack {
+            VStack {
+                VideoPlayerView(video: video)
                 
-                VStack(spacing: 0) {
-                    // Video Player
-                    ZStack {
-                        if let player = viewModel.player {
-                            VideoPlayer(player: player)
-                                .aspectRatio(16/9, contentMode: .fit)
-                                .overlay(
-                                    viewModel.isLoading ? loadingOverlay : nil
-                                )
-                                .overlay(
-                                    viewModel.showControls ? controlsOverlay : nil
-                                )
-                                .onTapGesture {
-                                    withAnimation {
-                                        viewModel.toggleControls()
-                                    }
-                                }
-                        } else {
-                            // Thumbnail
-                            AsyncImage(url: URL(string: viewModel.thumbnailURL)) { image in
+                VStack(alignment: .leading, spacing: 15) {
+                    Text(video.snippet.title)
+                        .font(.title)
+                    
+                    NavigationLink(value: video.snippet.channelId) {
+                        HStack {
+                            AsyncImage(url: URL(string: video.snippet.thumbnails.default?.url ?? "")) { image in
                                 image
                                     .resizable()
-                                    .aspectRatio(contentMode: .fit)
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 40, height: 40)
+                                    .clipShape(Circle())
                             } placeholder: {
-                                Rectangle()
+                                Circle()
                                     .foregroundColor(.gray.opacity(0.3))
+                                    .frame(width: 40, height: 40)
                             }
-                            .aspectRatio(16/9, contentMode: .fit)
-                            .overlay(
-                                viewModel.isLoading ? loadingOverlay : nil
-                            )
+                            
+                            Text(video.snippet.channelTitle)
+                                .font(.headline)
                         }
                     }
-                    .frame(height: viewModel.isFullScreen ? geometry.size.height : geometry.size.width * 9/16)
+                    .foregroundStyle(.foreground)
                     
-                    if !viewModel.isFullScreen && viewModel.showVideoInfo {
-                        // Video Info
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text(viewModel.videoTitle)
-                                    .font(.headline)
-                                    .lineLimit(2)
-                                
-                                HStack {
-                                    Text(viewModel.channelTitle)
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                    
-                                    Spacer()
-                                    
-                                    HStack(spacing: 16) {
-                                        Label(viewModel.viewCount, systemImage: "eye")
-                                        Label(viewModel.likeCount, systemImage: "hand.thumbsup")
-                                    }
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                                }
+                    Text("Posted: \(formatDate(video.snippet.publishedAt)), views: \(formatCount(video.statistics?.viewCount ?? "0"))")
+                        .font(.caption)
+                    
+                    HStack {
+                        ControlGroup {
+                            Button {
+                                // TODO: Like video
+                            } label: {
+                                Label("Like", systemImage: "hand.thumbsup.fill")
                             }
-                            .padding()
+                            .buttonStyle(.glass)
+                            
+                            Button {
+                                // TODO: Dislike video
+                            } label: {
+                                Label("Dislike", systemImage: "hand.thumbsdown.fill")
+                            }
+                            .buttonStyle(.glass)
                         }
-                    }
-                }
-            }
-        }
-        .statusBar(hidden: viewModel.isFullScreen)
-        .alert("Error", isPresented: $viewModel.showError) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text(viewModel.error ?? "Unknown error")
-        }
-        .task {
-            await viewModel.loadVideo(video)
-        }
-        .onDisappear {
-            viewModel.cleanup()
-        }
-    }
-    
-    private var loadingOverlay: some View {
-        ZStack {
-            Color.black.opacity(0.5)
-            ProgressView()
-                .progressViewStyle(.circular)
-                .tint(.white)
-        }
-    }
-    
-    private var controlsOverlay: some View {
-        ZStack {
-            // Background gradient
-            LinearGradient(
-                gradient: Gradient(colors: [.clear, .black.opacity(0.5)]),
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            
-            VStack {
-                // Top bar
-                HStack {
-                    Button {
-                        if viewModel.isFullScreen {
-                            viewModel.toggleFullScreen()
-                        } else {
-                            dismiss()
+                        
+                        Button {
+                            // TODO: Save video
+                        } label: {
+                            Label("Save", systemImage: "bookmark.fill")
                         }
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .imageScale(.large)
-                            .foregroundColor(.white)
-                            .padding()
-                    }
-                    
-                    Spacer()
-                    
-                    Button {
-                        viewModel.toggleFullScreen()
-                    } label: {
-                        Image(systemName: viewModel.isFullScreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
-                            .imageScale(.large)
-                            .foregroundColor(.white)
-                            .padding()
+                        .buttonStyle(.glass)
+                        
+                        Button {
+                            // TODO: Share video
+                        } label: {
+                            Label("Share", systemImage: "square.and.arrow.up.fill")
+                        }
+                        .buttonStyle(.glass)
                     }
                 }
-                
-                Spacer()
-                
-                // Play/Pause button
-                Button {
-                    viewModel.togglePlayPause()
-                } label: {
-                    Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
-                        .imageScale(.large)
-                        .foregroundColor(.white)
-                        .padding(20)
-                        .background(.black.opacity(0.5))
-                        .clipShape(Circle())
-                }
+                .padding()
                 
                 Spacer()
             }
+            .navigationDestination(for: String.self) { channelId in
+                ChannelView(channelId: channelId)
+            }
+        }
+    }
+    
+    private func formatDate(_ dateString: String) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+        
+        guard let date = formatter.date(from: dateString) else {
+            return dateString
+        }
+        
+        let now = Date()
+        let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: date, to: now)
+        
+        if let years = components.year, years > 0 {
+            return "\(years) years ago"
+        } else if let months = components.month, months > 0 {
+            return "\(months) months ago"
+        } else if let days = components.day, days > 0 {
+            return "\(days) days ago"
+        } else if let hours = components.hour, hours > 0 {
+            return "\(hours) hours ago"
+        } else if let minutes = components.minute, minutes > 0 {
+            return "\(minutes) minutes ago"
+        } else {
+            return "Just now"
+        }
+    }
+    
+    private func formatCount(_ count: String) -> String {
+        guard let number = Double(count) else { return "0" }
+        
+        switch number {
+        case 0..<1000:
+            return String(format: "%.0f", number)
+        case 1000..<1_000_000:
+            return String(format: "%.1fK", number / 1000)
+        case 1_000_000..<1_000_000_000:
+            return String(format: "%.1fM", number / 1_000_000)
+        default:
+            return String(format: "%.1fB", number / 1_000_000_000)
         }
     }
 }
 
 #Preview {
-    VStack {}
-        .sheet(isPresented: .constant(true)) {
-            VideoView(video: YouTubeVideo(
-                id: "dQw4w9WgXcQ",
-                snippet: .init(
-                    publishedAt: "2009-10-25T06:57:33Z",
-                    channelId: "UC-9-kyTW8ZkZNDHQJ6F4Y5A",
-                    title: "Rick Astley - Never Gonna Give You Up (Official Music Video)",
-                    description: "The official music video for \"Never Gonna Give You Up\" by Rick Astley",
-                    thumbnails: .init(
-                        default: .init(
-                            url: "https://i.ytimg.com/vi/dQw4w9WgXcQ/default.jpg",
-                            width: 120,
-                            height: 90
-                        ),
-                        medium: .init(
-                            url: "https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg",
-                            width: 320,
-                            height: 180
-                        ),
-                        high: .init(
-                            url: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
-                            width: 480,
-                            height: 360
-                        ),
-                        standard: .init(
-                            url: "https://i.ytimg.com/vi/dQw4w9WgXcQ/sddefault.jpg",
-                            width: 640,
-                            height: 480
-                        ),
-                        maxres: .init(
-                            url: "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
-                            width: 1280,
-                            height: 720
-                        )
-                    ),
-                    channelTitle: "Rick Astley",
-                    tags: ["Rick Astley", "Never Gonna Give You Up", "Music Video"],
-                    categoryId: "10",
-                    liveBroadcastContent: "none"
+    VideoView(video: YouTubeVideo(
+        id: "cETgTtu6atM",
+        snippet: .init(
+            publishedAt: "2024-03-15T10:00:00Z",
+            channelId: "UC9M3-PXEcXzwZGEWY46VNTw",
+            title: "WWDC25: What's new in SwiftUI",
+            description: "A preview of the new SwiftUI features announced at WWDC25",
+            thumbnails: .init(
+                default: .init(
+                    url: "https://i.ytimg.com/vi/cETgTtu6atM/default.jpg",
+                    width: 120,
+                    height: 90
                 ),
-                contentDetails: .init(
-                    duration: "PT3M33S",
-                    dimension: "2d",
-                    definition: "hd",
-                    caption: "true",
-                    licensedContent: true,
-                    projection: "rectangular"
+                medium: .init(
+                    url: "https://i.ytimg.com/vi/cETgTtu6atM/mqdefault.jpg",
+                    width: 320,
+                    height: 180
                 ),
-                statistics: .init(
-                    viewCount: "1400000000",
-                    likeCount: "15000000",
-                    favoriteCount: "0",
-                    commentCount: "1200000"
-                )
-            ))
-        }
+                high: .init(
+                    url: "https://i.ytimg.com/vi/cETgTtu6atM/hqdefault.jpg",
+                    width: 480,
+                    height: 360
+                ),
+                standard: nil,
+                maxres: nil
+            ),
+            channelTitle: "MacRumors",
+            tags: ["WWDC25", "SwiftUI", "iOS"],
+            categoryId: "28",
+            liveBroadcastContent: "none"
+        ),
+        contentDetails: .init(
+            duration: "PT6M31S",
+            dimension: "2d",
+            definition: "hd",
+            caption: "false",
+            licensedContent: true,
+            projection: "rectangular"
+        ),
+        statistics: .init(
+            viewCount: "64000",
+            likeCount: "1200",
+            favoriteCount: "0",
+            commentCount: "150"
+        )
+    ))
 }

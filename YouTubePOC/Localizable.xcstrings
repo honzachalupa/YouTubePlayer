@@ -12,6 +12,9 @@
         }
       }
     },
+    "%@ subscribers" : {
+
+    },
     "%@ views" : {
 
     },
@@ -98,6 +101,9 @@
           }
         }
       }
+    },
+    "Dislike" : {
+
     },
     "Error" : {
 
@@ -214,6 +220,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Playlisty"
+          }
+        }
+      }
+    },
+    "Posted: %@, views: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Posted: %1$@, views: %2$@"
           }
         }
       }
