@@ -1,19 +1,16 @@
 import SwiftUI
-import YouTubeKit
 
 @main
 struct YouTubePOCApp: App {
-    @StateObject private var youtubeService = YTM.shared
-    @StateObject private var playerManager = PlayerManager()
-    
-    init() {
-        YTM.setup()
-    }
+    @StateObject private var authService = YouTubeAuthService.shared
+    @StateObject private var videoService = YouTubeVideoService.shared
+    @StateObject private var playerManager = PlayerManager.shared
     
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(youtubeService)
+                .environmentObject(authService)
+                .environmentObject(videoService)
                 .environmentObject(playerManager)
         }
     }

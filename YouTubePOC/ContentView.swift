@@ -1,40 +1,11 @@
 import SwiftUI
-import YouTubeKit
 
 struct ContentView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSize
     @EnvironmentObject private var playerManager: PlayerManager
     @EnvironmentObject private var youtubeService: YouTubeServiceWrapper
     @StateObject private var authService = YouTubeAuthService.shared
-    @State private var playlists: [YTPlaylist] = []
-    
-    func fetchPlaylists() async {
-        guard authService.isAuthenticated else {
-            withAnimation {
-                playlists = []
-            }
-            return
-        }
-        
-        do {
-            await youtubeService.getVisitorData()
-            
-            let response = try await AccountPlaylistsResponse.sendThrowingRequest(
-                youtubeModel: YTM.model,
-                data: [:]
-            )
-            
-            withAnimation {
-                playlists = response.results
-            }
-        } catch {
-            print(error.localizedDescription)
-            
-            withAnimation {
-                playlists = []
-            }
-        }
-    }
+    @StateObject private var playlistService = YouTubePlaylistService.shared
     
     var body: some View {
         TabView {
@@ -53,8 +24,8 @@ struct ContentView: View {
             if authService.isAuthenticated {
                 if horizontalSize == .regular {
                     TabSection("Playlists") {
-                        ForEach(playlists, id: \.playlistId) { playlist in
-                            Tab(playlist.title ?? "", systemImage: getPlaylistIcon(playlist.title)) {
+                        ForEach(playlistService.playlists) { playlist in
+                            Tab(playlist.snippet.title, systemImage: getPlaylistIcon(playlist.snippet.title)) {
                                 PlaylistView(playlist: playlist)
                             }
                         }
@@ -77,8 +48,8 @@ struct ContentView: View {
         .accentColor(Color("AccentColor"))
         .tabViewStyle(.sidebarAdaptable)
         .sheet(isPresented: $playerManager.isVideoSheetPresented) {
-            if playerManager.selectedVideo != nil {
-                VideoView()
+            if let video = playerManager.selectedVideo {
+                VideoView(video: video)
                     .environmentObject(playerManager)
                     .presentationSizing(.page)
                     .presentationDragIndicator(.visible)
@@ -92,10 +63,26 @@ struct ContentView: View {
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
-        .task { await fetchPlaylists() }
-        .onChange(of: authService.isAuthenticated) { _, _ in
-            Task {
-                await fetchPlaylists()
+        .task {
+            if authService.isAuthenticated {
+                do {
+                    _ = try await playlistService.fetchPlaylists()
+                } catch {
+                    // Error is handled by the service
+                }
+            }
+        }
+        .onChange(of: authService.isAuthenticated) { _, isAuthenticated in
+            if isAuthenticated {
+                Task {
+                    do {
+                        _ = try await playlistService.fetchPlaylists()
+                    } catch {
+                        // Error is handled by the service
+                    }
+                }
+            } else {
+                playlistService.clearData()
             }
         }
         .messageOverlay()
@@ -105,5 +92,5 @@ struct ContentView: View {
 #Preview {
     ContentView()
         .environmentObject(PlayerManager())
-        .environmentObject(YTM.shared)
+        .environmentObject(YouTubeServiceWrapper())
 }

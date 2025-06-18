@@ -1,9 +1,8 @@
 import SwiftUI
-import YouTubeKit
 import AVKit
 
 struct VideoPlayerView: View {
-    public let video: YTVideo
+    public let video: YouTubeVideo
     
     @ObservedObject private var messageService = MessageService.shared
     @EnvironmentObject private var playerManager: PlayerManager
@@ -23,8 +22,12 @@ struct VideoPlayerView: View {
     
     var body: some View {
         Group {
-            if playerManager.isLoading && playerManager.selectedVideo?.videoId == video.videoId {
-                if let thumbnailURL = video.thumbnails.last?.url {
+            if playerManager.isLoading && playerManager.selectedVideo?.id == video.id {
+                if let thumbnailURL = URL(string: video.snippet.thumbnails.maxres?.url ?? 
+                                        video.snippet.thumbnails.standard?.url ??
+                                        video.snippet.thumbnails.high?.url ??
+                                        video.snippet.thumbnails.medium?.url ??
+                                        video.snippet.thumbnails.default?.url ?? "") {
                     AsyncImage(url: thumbnailURL) { phase in
                         if let image = phase.image {
                             image
@@ -75,8 +78,8 @@ struct VideoPlayerView: View {
         .aspectRatio(16/9, contentMode: .fit)
         .onAppear {
             // Only load the video if it's different from the currently selected one
-            if playerManager.selectedVideo?.videoId != video.videoId {
-                playerManager.loadVideo(video)
+            if playerManager.selectedVideo?.id != video.id {
+                playerManager.selectVideo(video)
             } else if !playerManager.isPlaying {
                 // If it's the same video but not playing, ensure it plays
                 playerManager.player?.play()
@@ -85,8 +88,8 @@ struct VideoPlayerView: View {
         }
         .onChange(of: video) {
             // Only load if it's a different video
-            if playerManager.selectedVideo?.videoId != video.videoId {
-                playerManager.loadVideo(video)
+            if playerManager.selectedVideo?.id != video.id {
+                playerManager.selectVideo(video)
             }
         }
         .onChange(of: playerManager.error) {
@@ -98,21 +101,39 @@ struct VideoPlayerView: View {
 }
 
 #Preview {
-    let video = YTVideo(
-        videoId: "cETgTtu6atM",
-        title: "WWDC25: What's new in SwiftUI",
-        channel: YTLittleChannelInfos(
-            channelId: "",
-            name: "MacRumors"
+    VideoPlayerView(video: YouTubeVideo(
+        id: "cETgTtu6atM",
+        snippet: .init(
+            publishedAt: "2024-03-15T10:00:00Z",
+            channelId: "UC9M3-PXEcXzwZGEWY46VNTw",
+            title: "WWDC25: What's new in SwiftUI",
+            description: "A preview of the new SwiftUI features announced at WWDC25",
+            thumbnails: .init(
+                default: .init(
+                    url: "https://i.ytimg.com/vi/cETgTtu6atM/default.jpg",
+                    width: 120,
+                    height: 90
+                ),
+                medium: .init(
+                    url: "https://i.ytimg.com/vi/cETgTtu6atM/mqdefault.jpg",
+                    width: 320,
+                    height: 180
+                ),
+                high: .init(
+                    url: "https://i.ytimg.com/vi/cETgTtu6atM/hqdefault.jpg",
+                    width: 480,
+                    height: 360
+                ),
+                standard: nil,
+                maxres: nil
+            ),
+            channelTitle: "MacRumors",
+            tags: ["WWDC25", "SwiftUI", "iOS"],
+            categoryId: "28",
+            liveBroadcastContent: "none"
         ),
-        viewCount: "64K views",
-        timeLength: "6:31",
-        thumbnails: [
-            YTThumbnail(
-                url: URL(string: "https://i.ytimg.com/vi/cETgTtu6atM/hq720.jpg?sqp=-oaymwEjCOgCEMoBSFryq4qpAxUIARUAAAAAGAElAADIQj0AgKJDeAE=&rs=AOn4CLCewFWvccdDn7llqNJmmFRGHeOCIQ")!
-            )
-        ]
-    )
-    
-    VideoPlayerView(video: video)
+        contentDetails: nil,
+        statistics: nil
+    ))
+    .environmentObject(PlayerManager())
 }

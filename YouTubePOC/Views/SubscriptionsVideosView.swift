@@ -1,54 +1,44 @@
 import SwiftUI
-import YouTubeKit
 
 struct SubscriptionsVideosView: View {
-    @State private var videos: [YTVideo] = []
-    @State private var fetchError: Error? = nil
-
-    func fetchVideos() async {
-        do {
-            // First ensure we have visitor data
-            await YTM.shared.getVisitorData()
-            
-            // Set proper locale format (language_COUNTRY)
-            let locale = Bundle.main.preferredLocalizations.first ?? "en"
-            YTM.model.selectedLocale = locale
-            
-            // Create request data
-            let data: [HeadersList.AddQueryInfo.ContentTypes: String] = [
-                .visitorData: YTM.model.visitorData
-            ]
-            
-            let response = try await AccountSubscriptionsFeedResponse.sendThrowingRequest(
-                youtubeModel: YTM.model,
-                data: data,
-                useCookies: true
-            )
-            
-            withAnimation {
-                // Filter out shorts
-                videos = response.results.filter {
-                    $0.channel?.thumbnails != nil
-                }
-            }
-        } catch {
-            print("Failed to fetch subscription videos: \(error)")
-            withAnimation {
-                fetchError = error
-                videos = []
-            }
-        }
-    }
+    @StateObject private var videoService = YouTubeVideoService.shared
+    @StateObject private var authService = YouTubeAuthService.shared
     
     var body: some View {
-        NavigationStack {
-            VideosGridView(videos: videos, error: fetchError) {
-                await fetchVideos()
+        Group {
+            if authService.accessToken == nil {
+                ContentUnavailableView {
+                    Label("Sign in required", systemImage: "person.crop.circle.badge.exclamationmark")
+                } description: {
+                    Text("Sign in to view your subscriptions")
+                } actions: {
+                    Button("Sign in") {
+                        Task {
+                            await authService.signIn()
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                }
+            } else {
+                VideosGridView(
+                    videos: videoService.videos,
+                    title: "Subscriptions",
+                    isLoading: videoService.isLoading,
+                    onLoadMore: {
+                        await videoService.fetchSubscriptionVideos()
+                    }
+                )
+                .alert(
+                    "Error",
+                    isPresented: .constant(videoService.error != nil),
+                    actions: {
+                        Button("OK", role: .cancel) { }
+                    },
+                    message: {
+                        Text(videoService.error ?? "Unknown error")
+                    }
+                )
             }
-            .toolbar {
-                AccountToolbarItem()
-            }
-            .navigationTitle("Subscriptions")
         }
     }
 }

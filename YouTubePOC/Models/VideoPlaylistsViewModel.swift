@@ -1,14 +1,13 @@
 import SwiftUI
-import YouTubeKit
 
 @MainActor
 class VideoPlaylistsViewModel: ObservableObject {
-    @Published var playlistStates: [(playlist: YTPlaylist, isVideoPresentInside: Bool)] = []
+    @Published var playlistStates: [(playlist: YouTubePlaylist, isVideoPresentInside: Bool)] = []
     
-    private let video: YTVideo
+    private let video: YouTubeVideo
     private var playerManager: PlayerManager
     
-    init(video: YTVideo, playerManager: PlayerManager) {
+    init(video: YouTubeVideo, playerManager: PlayerManager) {
         self.video = video
         self.playerManager = playerManager
         
@@ -30,14 +29,14 @@ class VideoPlaylistsViewModel: ObservableObject {
         playlistStates = await playerManager.getPlaylistStates(for: video)
     }
     
-    func addToPlaylist(_ playlist: YTPlaylist) {
+    func addToPlaylist(_ playlist: YouTubePlaylist) {
         playerManager.addToPlaylist(video, playlist)
         Task {
             await fetchPlaylistStates()
         }
     }
     
-    func removeFromPlaylist(_ playlist: YTPlaylist) {
+    func removeFromPlaylist(_ playlist: YouTubePlaylist) {
         playerManager.removeFromPlaylist(video, playlist)
         Task {
             await fetchPlaylistStates()

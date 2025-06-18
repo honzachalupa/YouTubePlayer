@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>YouTubeAPIKey</key>
+	<string>AIzaSyBEa3pw6ooqNpZmw3Vib-AIYBAx2sYCL6w</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

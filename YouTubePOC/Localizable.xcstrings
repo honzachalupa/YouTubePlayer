@@ -2,6 +2,7 @@
   "sourceLanguage" : "en",
   "strings" : {
     "%@ playlist" : {
+      "extractionState" : "stale",
       "localizations" : {
         "cs" : {
           "stringUnit" : {
@@ -10,6 +11,12 @@
           }
         }
       }
+    },
+    "%@ views" : {
+
+    },
+    "•" : {
+
     },
     "Account" : {
       "localizations" : {
@@ -22,6 +29,7 @@
       }
     },
     "Add to playlist" : {
+      "extractionState" : "stale",
       "localizations" : {
         "cs" : {
           "stringUnit" : {
@@ -91,7 +99,14 @@
         }
       }
     },
+    "Error" : {
+
+    },
+    "Failed to delete playlist" : {
+
+    },
     "Failed to delete playlist \"%@\"." : {
+      "extractionState" : "stale",
       "localizations" : {
         "cs" : {
           "stringUnit" : {
@@ -142,6 +157,7 @@
       }
     },
     "No videos found" : {
+      "extractionState" : "stale",
       "localizations" : {
         "cs" : {
           "stringUnit" : {
@@ -182,6 +198,7 @@
       }
     },
     "Playlist" : {
+      "extractionState" : "stale",
       "localizations" : {
         "cs" : {
           "stringUnit" : {
@@ -261,6 +278,9 @@
         }
       }
     },
+    "Search videos" : {
+
+    },
     "Search videos in playlist" : {
       "localizations" : {
         "cs" : {
@@ -272,6 +292,7 @@
       }
     },
     "Search videos or channels..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "cs" : {
           "stringUnit" : {
@@ -291,6 +312,21 @@
         }
       }
     },
+    "Sign in" : {
+
+    },
+    "Sign In" : {
+
+    },
+    "Sign in required" : {
+
+    },
+    "Sign in to view your subscriptions" : {
+
+    },
+    "Sign in with Google" : {
+
+    },
     "Subscriptions" : {
       "localizations" : {
         "cs" : {
@@ -300,9 +336,6 @@
           }
         }
       }
-    },
-    "TrendingVideosView" : {
-      "shouldTranslate" : false
     }
   },
   "version" : "1.1"

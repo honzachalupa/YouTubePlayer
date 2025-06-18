@@ -6,10 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		21795FB92DFB3C3A00482B97 /* YouTubeKit in Frameworks */ = {isa = PBXBuildFile; productRef = 21795FB82DFB3C3A00482B97 /* YouTubeKit */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXFileReference section */
 		216CD24D2DD24C2900E3F397 /* YouTubePOC.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YouTubePOC.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -40,7 +36,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				21795FB92DFB3C3A00482B97 /* YouTubeKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -83,7 +78,6 @@
 			);
 			name = YouTubePOC;
 			packageProductDependencies = (
-				21795FB82DFB3C3A00482B97 /* YouTubeKit */,
 			);
 			productName = YouTubePOC;
 			productReference = 216CD24D2DD24C2900E3F397 /* YouTubePOC.app */;
@@ -115,7 +109,6 @@
 			mainGroup = 216CD2442DD24C2900E3F397;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				21795FB72DFB3C3A00482B97 /* XCRemoteSwiftPackageReference "YouTubeKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 216CD24E2DD24C2900E3F397 /* Products */;
@@ -357,25 +350,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		21795FB72DFB3C3A00482B97 /* XCRemoteSwiftPackageReference "YouTubeKit" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/b5i/YouTubeKit/";
-			requirement = {
-				branch = main;
-				kind = branch;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		21795FB82DFB3C3A00482B97 /* YouTubeKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 21795FB72DFB3C3A00482B97 /* XCRemoteSwiftPackageReference "YouTubeKit" */;
-			productName = YouTubeKit;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 216CD2452DD24C2900E3F397 /* Project object */;
 }

@@ -1,64 +1,27 @@
 import SwiftUI
-import YouTubeKit
 
 struct SearchVideosView: View {
-    @State private var query: String = ""
-    @State private var videos: [YTVideo] = []
-    @State private var channels: [YTChannel] = []
-    @State private var fetchError: Error? = nil
-
-    func searchVideos() async {
-        guard !query.isEmpty else {
-            withAnimation {
-                videos = []
-            }
-            
-            return
-        }
-        
-        do {
-            let response = try await SearchResponse.sendThrowingRequest(
-                youtubeModel: YTM.model,
-                data: [.query: query]
-            )
-            
-            withAnimation {
-                videos = response.results.compactMap { $0 as? YTVideo }
-                channels = response.results.compactMap { $0 as? YTChannel }
-            }
-        } catch {
-            withAnimation {
-                fetchError = error
-                videos = []
-            }
-        }
-    }
+    @StateObject private var videoService = YouTubeVideoService.shared
+    @State private var searchText = ""
+    @State private var isSearching = false
     
     var body: some View {
-        NavigationStack {
-            ScrollView(.horizontal) {
-                HStack(spacing: 10) {
-                    ForEach(channels, id: \.channelId) { channel in
-                        NavigationLink {
-                            ChannelView(channel: channel)
-                        } label: {
-                            Text(channel.name ?? "")
-                                .frame(width: 150, height: 150)
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                }
-                .padding(20)
+        VideosGridView(
+            videos: videoService.videos,
+            title: "Search",
+            isLoading: videoService.isLoading,
+            onLoadMore: nil
+        )
+        .searchable(text: $searchText, prompt: "Search videos")
+        .onSubmit(of: .search) {
+            Task {
+                await videoService.searchVideos(query: searchText)
             }
-            
-            VideosGridView(videos: videos, error: fetchError) {
-                await searchVideos()
-            }
-            .onChange(of: query) {
-                Task { await searchVideos() }
-            }
-            .searchable(text: $query, prompt: "Search videos or channels...")
-            .navigationTitle("Search")
+        }
+        .alert("Error", isPresented: .constant(videoService.error != nil)) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(videoService.error ?? "Unknown error")
         }
     }
 }

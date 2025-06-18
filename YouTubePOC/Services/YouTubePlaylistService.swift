@@ -1,284 +1,379 @@
 import Foundation
-import YouTubeKit
 import SwiftUI
+
+// 1078839058958-f8aaiu3kbdkcjspf6ji93ve86he0ejvn.apps.googleusercontent.com
+
+enum YouTubePlaylistError: LocalizedError {
+    case invalidResponse
+    case notAuthenticated
+    case apiError(String)
+    case networkError(Error)
+    
+    var errorDescription: String? {
+        switch self {
+        case .invalidResponse: return "Invalid response from YouTube API"
+        case .notAuthenticated: return "Not authenticated. Please sign in."
+        case .apiError(let message): return message
+        case .networkError(let error): return error.localizedDescription
+        }
+    }
+}
+
+// MARK: - Request Models
+
+private struct CreatePlaylistRequest: Codable {
+    let snippet: Snippet
+    let status: Status
+    
+    struct Snippet: Codable {
+        let title: String
+        let description: String
+    }
+    
+    struct Status: Codable {
+        let privacyStatus: String
+    }
+}
+
+private struct AddPlaylistItemRequest: Codable {
+    let snippet: Snippet
+    
+    struct Snippet: Codable {
+        let playlistId: String
+        let resourceId: ResourceId
+        
+        struct ResourceId: Codable {
+            let kind: String
+            let videoId: String
+        }
+    }
+}
 
 @MainActor
 class YouTubePlaylistService: ObservableObject {
-    static let shared = YouTubePlaylistService()
+    static let shared: YouTubePlaylistService = {
+        guard let apiKey = Bundle.main.infoDictionary?["YouTubeAPIKey"] as? String else {
+            fatalError("YouTube API Key not found in Info.plist. Add 'YouTubeAPIKey' to your Info.plist file.")
+        }
+        return YouTubePlaylistService(apiKey: apiKey, authService: YouTubeAuthService.shared)
+    }()
     
-    @Published var playlists: [YTPlaylist] = []
     @Published var isLoading = false
     @Published var error: String?
+    @Published var playlists: [YouTubePlaylist] = []
+    @Published var playlistItems: [YouTubePlaylistItem] = []
+    @Published var nextPageToken: String?
     
-    // Default video ID to use when creating playlists - using a test video that we know works
-    private let defaultVideoId = "peIBCNTY8hA"  // Test video from YouTubeKit test case
+    private let apiKey: String
+    private let baseURL = "https://www.googleapis.com/youtube/v3"
+    private let authService: YouTubeAuthService
     
-    func clearData() {
-        playlists = []
-        error = nil
+    init(apiKey: String, authService: YouTubeAuthService) {
+        self.apiKey = apiKey
+        self.authService = authService
     }
     
-    private func setupHeaders(url: String, queryParts: [HeadersList.AddQueryInfo] = [], httpBody: [String]) -> HeadersList {
-        // Set up locale for request
-        let locale = Bundle.main.preferredLocalizations.first ?? "en"
-        let localeComponents = locale.components(separatedBy: "_")
-        let languageCode = localeComponents[0]
-        let countryCode = localeComponents.count > 1 ? localeComponents[1] : "US"
-        YTM.model.selectedLocale = "\(languageCode)_\(countryCode)"
+    private func makeRequest(path: String, method: String = "GET", body: Data? = nil) -> URLRequest {
+        var components = URLComponents(string: "\(baseURL)/\(path)")!
         
-        return HeadersList(
-            url: URL(string: url)!,
-            method: .POST,
-            headers: [
-                .init(name: "Accept", content: "*/*"),
-                .init(name: "Accept-Encoding", content: "gzip, deflate, br"),
-                .init(name: "Host", content: "www.youtube.com"),
-                .init(name: "User-Agent", content: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.1 Safari/605.1.15"),
-                .init(name: "Accept-Language", content: "\(YTM.model.selectedLocale);q=0.9"),
-                .init(name: "Origin", content: "https://www.youtube.com/"),
-                .init(name: "Referer", content: "https://www.youtube.com/"),
-                .init(name: "Content-Type", content: "application/json"),
-                .init(name: "X-Origin", content: "https://www.youtube.com")
-            ],
-            addQueryAfterParts: queryParts,
-            httpBody: httpBody
-        )
-    }
-    
-    private func getRequestContext(languageCode: String, countryCode: String) -> [String: Any] {
-        return [
-            "context": [
-                "client": [
-                    "hl": languageCode,
-                    "gl": countryCode,
-                    "visitorData": YTM.model.visitorData,
-                    "deviceMake": "Apple",
-                    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Safari/605.1.15,gzip(gfe)",
-                    "clientName": "WEB",
-                    "clientVersion": "2.20221220.09.00",
-                    "osName": "Macintosh",
-                    "osVersion": "10_15_7",
-                    "platform": "DESKTOP",
-                    "clientFormFactor": "UNKNOWN_FORM_FACTOR",
-                    "userInterfaceTheme": "USER_INTERFACE_THEME_DARK",
-                    "timeZone": "Europe/Zurich",
-                    "browserName": "Safari",
-                    "browserVersion": "16.2",
-                    "acceptHeader": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                    "utcOffsetMinutes": 60,
-                    "mainAppWebInfo": [
-                        "webDisplayMode": "WEB_DISPLAY_MODE_BROWSER",
-                        "isWebNativeShareAvailable": true
-                    ]
-                ],
-                "user": [
-                    "lockedSafetyMode": false
-                ],
-                "request": [
-                    "useSsl": true,
-                    "internalExperimentFlags": [],
-                    "consistencyTokenJars": []
-                ]
-            ]
-        ]
-    }
-    
-    private func jsonString(from dict: [String: Any]) -> String {
-        let data = try! JSONSerialization.data(withJSONObject: dict, options: [])
-        return String(data: data, encoding: .utf8)!
-    }
-    
-    func fetchPlaylists() async {
-        isLoading = true
-        error = nil
+        // Add API key to all requests
+        var queryItems = [URLQueryItem(name: "key", value: apiKey)]
         
-        do {
-            // First ensure we have visitor data
-            if YTM.model.visitorData.isEmpty {
-                print("YouTubePlaylistService: No visitor data, fetching...")
-                await YTM.shared.getVisitorData()
-                
-                if YTM.model.visitorData.isEmpty {
-                    print("YouTubePlaylistService: Failed to get visitor data")
-                    error = "Failed to get visitor data"
-                    isLoading = false
-                    return
-                }
-            }
-            
-            print("YouTubePlaylistService: Fetching playlists...")
-            
-            // Set up locale for request
-            let locale = Bundle.main.preferredLocalizations.first ?? "en"
-            let localeComponents = locale.components(separatedBy: "_")
-            let languageCode = localeComponents[0]
-            let countryCode = localeComponents.count > 1 ? localeComponents[1] : "US"
-            
-            // Create request body
-            var requestBody = getRequestContext(languageCode: languageCode, countryCode: countryCode)
-            requestBody["browseId"] = "FEplaylist_aggregation"
-            
-            // Add required headers
-            let customHeaders = setupHeaders(
-                url: "https://www.youtube.com/youtubei/v1/browse",
-                httpBody: [jsonString(from: requestBody)]
-            )
-            
-            YTM.model.customHeaders[.usersPlaylistsHeaders] = customHeaders
-            
-            let response = try await AccountPlaylistsResponse.sendThrowingRequest(
-                youtubeModel: YTM.model,
-                data: [:],
-                useCookies: true
-            )
-            
-            if response.isDisconnected {
-                error = "Not authenticated. Please sign in."
-            } else {
-                playlists = response.results
-                print("YouTubePlaylistService: Found \(playlists.count) playlists")
-            }
-        } catch {
-            print("YouTubePlaylistService: Error fetching playlists: \(error)")
-            
-            self.error = error.localizedDescription
+        // If there are existing query items, append them
+        if let existingItems = components.queryItems {
+            queryItems.append(contentsOf: existingItems)
+        }
+        components.queryItems = queryItems
+        
+        var request = URLRequest(url: components.url!)
+        request.httpMethod = method
+        
+        // Add auth token if available
+        if let token = authService.accessToken {
+            request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         
-        isLoading = false
+        if let body = body {
+            request.httpBody = body
+            request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
+        
+        return request
     }
     
-    func createPlaylist(name: String, privacy: YTPrivacy = .private) async -> Bool {
+    func fetchPlaylists() async throws -> [YouTubePlaylist] {
+        isLoading = true
+        error = nil
+        
+        guard authService.accessToken != nil else {
+            error = "Not authenticated. Please sign in."
+            isLoading = false
+            throw YouTubePlaylistError.notAuthenticated
+        }
+        
+        do {
+            let request = makeRequest(
+                path: "playlists?part=snippet,status,contentDetails&mine=true&maxResults=50"
+            )
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                error = "Invalid response"
+                isLoading = false
+                throw YouTubePlaylistError.invalidResponse
+            }
+            
+            if httpResponse.statusCode == 200 {
+                let playlistResponse = try JSONDecoder().decode(YouTubeListResponse<YouTubePlaylist>.self, from: data)
+                playlists = playlistResponse.items
+                nextPageToken = playlistResponse.nextPageToken
+                isLoading = false
+                return playlistResponse.items
+            } else {
+                let errorResponse = try JSONDecoder().decode(YouTubeErrorResponse.self, from: data)
+                error = errorResponse.error.message
+                isLoading = false
+                throw YouTubePlaylistError.apiError(errorResponse.error.message)
+            }
+        } catch {
+            self.error = error.localizedDescription
+            isLoading = false
+            throw YouTubePlaylistError.networkError(error)
+        }
+    }
+    
+    func fetchPlaylistItems(playlistId: String, pageToken: String? = nil) async throws -> [YouTubePlaylistItem] {
         isLoading = true
         error = nil
         
         do {
-            // First ensure we have visitor data
-            if YTM.model.visitorData.isEmpty {
-                print("YouTubePlaylistService: No visitor data, fetching...")
-                await YTM.shared.getVisitorData()
-                
-                if YTM.model.visitorData.isEmpty {
-                    print("YouTubePlaylistService: Failed to get visitor data")
-                    error = "Failed to get visitor data"
-                    isLoading = false
-                    return false
+            var path = "playlistItems?part=snippet,contentDetails&maxResults=50&playlistId=\(playlistId)"
+            if let pageToken = pageToken {
+                path += "&pageToken=\(pageToken)"
+            }
+            
+            let request = makeRequest(path: path)
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                error = "Invalid response"
+                isLoading = false
+                throw YouTubePlaylistError.invalidResponse
+            }
+            
+            if httpResponse.statusCode == 200 {
+                let itemsResponse = try JSONDecoder().decode(YouTubeListResponse<YouTubePlaylistItem>.self, from: data)
+                if pageToken == nil {
+                    playlistItems = itemsResponse.items
+                } else {
+                    playlistItems.append(contentsOf: itemsResponse.items)
                 }
-            }
-            
-            print("YouTubePlaylistService: Creating playlist '\(name)'...")
-            
-            // Validate inputs
-            guard !name.isEmpty else {
-                error = "Playlist name cannot be empty"
+                nextPageToken = itemsResponse.nextPageToken
                 isLoading = false
-                return false
+                return itemsResponse.items
+            } else {
+                let errorResponse = try JSONDecoder().decode(YouTubeErrorResponse.self, from: data)
+                error = errorResponse.error.message
+                isLoading = false
+                throw YouTubePlaylistError.apiError(errorResponse.error.message)
             }
-            
-            // Set up locale for request
-            let locale = Bundle.main.preferredLocalizations.first ?? "en"
-            let localeComponents = locale.components(separatedBy: "_")
-            let languageCode = localeComponents[0]
-            let countryCode = localeComponents.count > 1 ? localeComponents[1] : "US"
-            
-            // Create request body parts
-            let baseContext = getRequestContext(languageCode: languageCode, countryCode: countryCode)
-            let part1 = """
-            {
-                "context": \(jsonString(from: baseContext["context"] as! [String: Any])),
-                "title": "
-            """
-            
-            let part2 = """
-            ",
-                "privacyStatus": "
-            """
-            
-            let part3 = """
-            ",
-                "videoIds": ["
-            """
-            
-            let part4 = """
-            "]}
-            """
-            
-            // Add required headers with body parts
-            let customHeaders = setupHeaders(
-                url: "https://www.youtube.com/youtubei/v1/playlist/create",
-                queryParts: [
-                    .init(index: 0, encode: false, content: .query),      // For playlist name
-                    .init(index: 1, encode: false, content: .params),     // For privacy status
-                    .init(index: 2, encode: false, content: .movingVideoId)  // For video ID
-                ],
-                httpBody: [part1, part2, part3, part4]
+        } catch {
+            self.error = error.localizedDescription
+            isLoading = false
+            throw YouTubePlaylistError.networkError(error)
+        }
+    }
+    
+    func createPlaylist(name: String, privacy: String) async throws -> Bool {
+        isLoading = true
+        error = nil
+        
+        guard authService.accessToken != nil else {
+            error = "Not authenticated. Please sign in."
+            isLoading = false
+            throw YouTubePlaylistError.notAuthenticated
+        }
+        
+        do {
+            let playlist = CreatePlaylistRequest(
+                snippet: .init(
+                    title: name,
+                    description: ""
+                ),
+                status: .init(
+                    privacyStatus: privacy
+                )
             )
             
-            YTM.model.customHeaders[.createPlaylistHeaders] = customHeaders
+            let encoder = JSONEncoder()
+            let body = try encoder.encode(playlist)
             
-            // Create playlist with required parameters
-            let response = try await CreatePlaylistResponse.sendThrowingRequest(
-                youtubeModel: YTM.model,
-                data: [
-                    .query: name,                    // Used as title in request body
-                    .params: privacy.rawValue,       // Used as privacyStatus in request body
-                    .movingVideoId: defaultVideoId   // Used in videoIds array in request body
-                ],
-                useCookies: true
-            )
+            var request = makeRequest(path: "playlists?part=snippet,status", method: "POST")
+            request.httpBody = body
             
-            if response.isDisconnected {
-                print("YouTubePlaylistService: Not authenticated")
-                error = "Not authenticated. Please sign in."
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                error = "Invalid response"
                 isLoading = false
-                return false
+                throw YouTubePlaylistError.invalidResponse
             }
             
-            if let playlistId = response.createdPlaylistId {
-                print("YouTubePlaylistService: Created playlist with ID '\(playlistId)'")
-                await fetchPlaylists()
+            if httpResponse.statusCode == 200 {
+                let newPlaylist = try JSONDecoder().decode(YouTubePlaylist.self, from: data)
+                playlists.append(newPlaylist)
                 isLoading = false
                 return true
             } else {
-                print("YouTubePlaylistService: Failed to get playlist ID from response")
-                error = "Failed to get playlist ID from response"
+                let errorResponse = try JSONDecoder().decode(YouTubeErrorResponse.self, from: data)
+                error = errorResponse.error.message
                 isLoading = false
-                return false
+                throw YouTubePlaylistError.apiError(errorResponse.error.message)
             }
         } catch {
-            print("YouTubePlaylistService: Error creating playlist: \(error)")
             self.error = error.localizedDescription
             isLoading = false
-            return false
+            throw YouTubePlaylistError.networkError(error)
         }
     }
     
-    func deletePlaylist(_ playlist: YTPlaylist) async -> Bool {
+    func addVideoToPlaylist(playlistId: String, videoId: String) async throws -> YouTubePlaylistItem {
         isLoading = true
         error = nil
         
+        guard authService.accessToken != nil else {
+            error = "Not authenticated. Please sign in."
+            isLoading = false
+            throw YouTubePlaylistError.notAuthenticated
+        }
+        
         do {
-            let response = try await DeletePlaylistResponse.sendThrowingRequest(
-                youtubeModel: YTM.model,
-                data: [
-                    .browseId: playlist.playlistId.hasPrefix("VL") ? String(playlist.playlistId.dropFirst(2)) : playlist.playlistId
-                ]
+            let playlistItem = AddPlaylistItemRequest(
+                snippet: .init(
+                    playlistId: playlistId,
+                    resourceId: .init(
+                        kind: "youtube#video",
+                        videoId: videoId
+                    )
+                )
             )
             
-            if response.isDisconnected {
-                error = "Not authenticated. Please sign in."
-                return false
+            let encoder = JSONEncoder()
+            let body = try encoder.encode(playlistItem)
+            
+            var request = makeRequest(path: "playlistItems?part=snippet", method: "POST")
+            request.httpBody = body
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                error = "Invalid response"
+                isLoading = false
+                throw YouTubePlaylistError.invalidResponse
             }
             
-            if response.success {
-                await fetchPlaylists()
+            if httpResponse.statusCode == 200 {
+                let newItem = try JSONDecoder().decode(YouTubePlaylistItem.self, from: data)
+                playlistItems.append(newItem)
+                isLoading = false
+                return newItem
+            } else {
+                let errorResponse = try JSONDecoder().decode(YouTubeErrorResponse.self, from: data)
+                error = errorResponse.error.message
+                isLoading = false
+                throw YouTubePlaylistError.apiError(errorResponse.error.message)
+            }
+        } catch {
+            self.error = error.localizedDescription
+            isLoading = false
+            throw YouTubePlaylistError.networkError(error)
+        }
+    }
+    
+    func removeVideoFromPlaylist(itemId: String) async throws {
+        isLoading = true
+        error = nil
+        
+        guard authService.accessToken != nil else {
+            error = "Not authenticated. Please sign in."
+            isLoading = false
+            throw YouTubePlaylistError.notAuthenticated
+        }
+        
+        do {
+            let request = makeRequest(path: "playlistItems?id=\(itemId)", method: "DELETE")
+            let (_, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                error = "Invalid response"
+                isLoading = false
+                throw YouTubePlaylistError.invalidResponse
+            }
+            
+            if httpResponse.statusCode == 204 {
+                // Remove the item from our local array
+                playlistItems.removeAll { $0.id == itemId }
+                isLoading = false
+            } else {
+                error = "Failed to remove video from playlist"
+                isLoading = false
+                throw YouTubePlaylistError.apiError("Failed to remove video from playlist")
+            }
+        } catch {
+            self.error = error.localizedDescription
+            isLoading = false
+            throw YouTubePlaylistError.networkError(error)
+        }
+    }
+    
+    func getPlaylistItemId(playlistId: String, videoId: String) async throws -> String? {
+        let items = try await fetchPlaylistItems(playlistId: playlistId)
+        return items.first { $0.snippet.resourceId.videoId == videoId }?.id
+    }
+    
+    func deletePlaylist(_ playlist: YouTubePlaylist) async throws -> Bool {
+        isLoading = true
+        error = nil
+        
+        guard authService.accessToken != nil else {
+            error = "Not authenticated. Please sign in."
+            isLoading = false
+            throw YouTubePlaylistError.notAuthenticated
+        }
+        
+        do {
+            let request = makeRequest(path: "playlists?id=\(playlist.id)", method: "DELETE")
+            let (_, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                error = "Invalid response"
+                isLoading = false
+                throw YouTubePlaylistError.invalidResponse
+            }
+            
+            if httpResponse.statusCode == 204 {
+                // Remove the playlist from our local array
+                playlists.removeAll { $0.id == playlist.id }
+                isLoading = false
                 return true
             } else {
                 error = "Failed to delete playlist"
-                return false
+                isLoading = false
+                throw YouTubePlaylistError.apiError("Failed to delete playlist")
             }
         } catch {
             self.error = error.localizedDescription
-            return false
+            isLoading = false
+            throw YouTubePlaylistError.networkError(error)
         }
+    }
+    
+    func clearData() {
+        playlists = []
+        playlistItems = []
+        nextPageToken = nil
+        error = nil
+        isLoading = false
     }
 } 

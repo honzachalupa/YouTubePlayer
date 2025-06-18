@@ -1,5 +1,4 @@
 import SwiftUI
-import YouTubeKit
 
 struct AccessoryControlsView: View {
     @Environment(\.tabViewBottomAccessoryPlacement) private var accessoryPlacement
@@ -14,7 +13,7 @@ struct AccessoryControlsView: View {
     var body: some View {
         HStack {
             if let video = playerManager.selectedVideo {
-                if let thumbnailUrl = video.channel?.thumbnails.first?.url, accessoryPlacement != .inline {
+                if let thumbnailUrl = URL(string: video.snippet.thumbnails.default?.url ?? ""), accessoryPlacement != .inline {
                     AsyncImage(url: thumbnailUrl) { phase in
                         if let image = phase.image {
                             image.resizable()
@@ -25,7 +24,7 @@ struct AccessoryControlsView: View {
                     }
                 }
                 
-                Text(video.title ?? "")
+                Text(video.snippet.title)
                     .font(.callout)
                     .fontWeight(.bold)
                     .lineLimit(1)
@@ -53,25 +52,43 @@ struct AccessoryControlsView: View {
 struct AccessoryControlsView_Previews: PreviewProvider {
     static var previews: some View {
         let playerManager = PlayerManager()
-        playerManager.selectedVideo = YTVideo(
-            videoId: "cETgTtu6atM",
-            title: "WWDC25: What's new in SwiftUI",
-            channel: YTLittleChannelInfos(
-                channelId: "",
-                name: "MacRumors",
-                thumbnails: [
-                    YTThumbnail(url: URL(string: "https://yt3.ggpht.com/QM10AqUfNyZxhp92xKOfs5PBnS5vCngEKlbiC--ZHTraiZRubULznnjh9lDWFiGYLkLTRf3g=s68-c-k-c0x00ffffff-no-rj")!)
-                ]
+        playerManager.selectedVideo = YouTubeVideo(
+            id: "cETgTtu6atM",
+            snippet: YouTubeVideo.VideoSnippet(
+                publishedAt: "2024-03-10T12:00:00Z",
+                channelId: "UC9M7-jzdU8CVrQo1JwmIdWA",
+                title: "WWDC25: What's new in SwiftUI",
+                description: "A preview of the new SwiftUI features announced at WWDC25",
+                thumbnails: YouTubeThumbnails(
+                    default: YouTubeThumbnail(
+                        url: "https://yt3.ggpht.com/QM10AqUfNyZxhp92xKOfs5PBnS5vCngEKlbiC--ZHTraiZRubULznnjh9lDWFiGYLkLTRf3g=s68-c-k-c0x00ffffff-no-rj",
+                        width: 120,
+                        height: 90
+                    ),
+                    medium: nil,
+                    high: nil,
+                    standard: nil,
+                    maxres: nil
+                ),
+                channelTitle: "MacRumors",
+                tags: ["WWDC25", "SwiftUI", "iOS"],
+                categoryId: "28",
+                liveBroadcastContent: "none"
             ),
-            viewCount: "64K views",
-            timeLength: "6:31",
-            thumbnails: [
-                YTThumbnail(
-                    width: 480,
-                    height: 360,
-                    url: URL(string: "https://i.ytimg.com/vi/cETgTtu6atM/hq720.jpg?sqp=-oaymwEjCOgCEMoBSFryq4qpAxUIARUAAAAAGAElAADIQj0AgKJDeAE=&rs=AOn4CLCewFWvccdDn7llqNJmmFRGHeOCIQ")!
-                )
-            ]
+            contentDetails: YouTubeVideo.ContentDetails(
+                duration: "PT6M31S",
+                dimension: "2d",
+                definition: "hd",
+                caption: "false",
+                licensedContent: true,
+                projection: "rectangular"
+            ),
+            statistics: YouTubeVideo.Statistics(
+                viewCount: "64000",
+                likeCount: "1200",
+                favoriteCount: "0",
+                commentCount: "150"
+            )
         )
         
         return AccessoryControlsView()

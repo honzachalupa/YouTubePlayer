@@ -1,5 +1,4 @@
 import SwiftUI
-import YouTubeKit
 
 func getPlaylistIcon(_ playlistTitle: String?) -> String {
     switch playlistTitle {
@@ -10,65 +9,76 @@ func getPlaylistIcon(_ playlistTitle: String?) -> String {
 }
 
 struct PlaylistView: View {
-    public var playlist: YTPlaylist
+    public var playlist: YouTubePlaylist
     
     @EnvironmentObject private var youtubeService: YouTubeServiceWrapper
-    @State private var videos: [YTVideo] = []
+    @State private var videos: [YouTubeVideo] = []
+    @State private var isLoading = false
     @State private var fetchError: Error? = nil
     @State private var searchText: String = ""
     
-    var filteredVideos: [YTVideo] {
+    var filteredVideos: [YouTubeVideo] {
         if searchText.isEmpty {
             return videos
         }
         
         return videos.filter { video in
-            guard let title = video.title else { return false }
-            return title.lowercased().contains(searchText.lowercased())
-        }
-    }
-    
-    func fetchVideos() async {
-        do {
-            await youtubeService.getVisitorData()
-            
-            let response = try await playlist.fetchVideosThrowing(
-                youtubeModel: YTM.model
-            )
-            
-            withAnimation {
-                videos = response.results
-            }
-        } catch {
-            withAnimation {
-                fetchError = error
-                videos = []
-            }
+            video.snippet.title.lowercased().contains(searchText.lowercased())
         }
     }
     
     var body: some View {
         NavigationStack {
-            VideosGridView(videos: filteredVideos, error: fetchError) {
-                await fetchVideos()
-            }
+            VideosGridView(
+                videos: filteredVideos,
+                title: "\(playlist.snippet.title) playlist",
+                isLoading: isLoading,
+                onLoadMore: {
+                    await fetchVideos()
+                }
+            )
             .searchable(text: $searchText, prompt: "Search videos in playlist")
-            .navigationTitle(playlist.title != nil ? "\(playlist.title ?? "") playlist" : "Playlist")
+        }
+    }
+    
+    func fetchVideos() async {
+        isLoading = true
+        do {
+            let items = try await YouTubePlaylistService.shared.fetchPlaylistItems(playlistId: playlist.id)
+            withAnimation {
+                videos = items.map { item in
+                    YouTubeVideo(
+                        id: item.contentDetails?.videoId ?? item.snippet.resourceId.videoId,
+                        snippet: .init(
+                            publishedAt: item.snippet.publishedAt,
+                            channelId: item.snippet.channelId,
+                            title: item.snippet.title,
+                            description: item.snippet.description,
+                            thumbnails: item.snippet.thumbnails,
+                            channelTitle: item.snippet.channelTitle,
+                            tags: nil,
+                            categoryId: "",
+                            liveBroadcastContent: ""
+                        ),
+                        contentDetails: nil,
+                        statistics: nil
+                    )
+                }
+                isLoading = false
+            }
+        } catch {
+            withAnimation {
+                fetchError = error
+                videos = []
+                isLoading = false
+            }
         }
     }
 }
 
 #Preview {
-    let playlist = YTPlaylist(
-        id: 123,
-        playlistId: "123",
-        title: "Title",
-        thumbnails: [],
-        videoCount: "videoCount",
-        channel: nil,
-        timePosted: "timePosted",
-        frontVideos: []
-    )
-    
-    PlaylistView(playlist: playlist)
+    NavigationStack {
+        PlaylistView(playlist: YouTubePlaylist.example)
+    }
+    .environmentObject(YouTubeServiceWrapper())
 }

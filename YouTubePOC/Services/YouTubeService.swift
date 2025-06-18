@@ -1,62 +1,49 @@
 import Foundation
-import YouTubeKit
 import SwiftUI
 import CryptoKit
 
+extension String {
+    func firstMatch(for pattern: String) -> String? {
+        do {
+            let regex = try NSRegularExpression(pattern: pattern)
+            if let match = regex.firstMatch(in: self, range: NSRange(self.startIndex..., in: self)) {
+                if match.numberOfRanges > 1, // Ensure there's at least one capture group
+                   let range = Range(match.range(at: 1), in: self) {
+                    return String(self[range])
+                }
+            }
+        } catch {
+            print("Regex error: \(error)")
+        }
+        return nil
+    }
+}
+
 class YouTubeServiceWrapper: ObservableObject {
-    let model: YouTubeModel
-    
     @Published var cookies: String {
         didSet {
-            model.cookies = cookies
             UserDefaults.standard.set(cookies, forKey: "ytm_cookies")
-            model.alwaysUseCookies = !cookies.isEmpty
-            UserDefaults.standard.set(!cookies.isEmpty, forKey: "ytm_always_use_cookies")
         }
     }
     
     @Published var alwaysUseCookies: Bool {
         didSet {
-            model.alwaysUseCookies = alwaysUseCookies
             UserDefaults.standard.set(alwaysUseCookies, forKey: "ytm_always_use_cookies")
         }
     }
     
     @Published var accessToken: String?
+    @Published var visitorData: String = ""
     
-    func getVisitorData() async {
-        if model.visitorData.isEmpty {
-            do {
-                let response = try await HomeScreenResponse.sendThrowingRequest(
-                    youtubeModel: model,
-                    data: [:],
-                    useCookies: true
-                )
-                
-                if let visitorData = response.visitorData {
-                    model.visitorData = visitorData
-                } else {
-                    print("Couldn't get visitorData, request may fail.")
-                }
-            } catch {
-                print("Error getting visitor data:", error.localizedDescription)
-            }
-        }
-    }
-    
-    init(model: YouTubeModel) {
-        self.model = model
+    init() {
         self.cookies = UserDefaults.standard.string(forKey: "ytm_cookies") ?? ""
         self.alwaysUseCookies = UserDefaults.standard.bool(forKey: "ytm_always_use_cookies")
-        
-        model.cookies = self.cookies
-        model.alwaysUseCookies = self.alwaysUseCookies
     }
     
     func generateSAPISIDHASH(forCookies cookies: String, time: Int? = nil) -> String? {
-        guard let SAPISID = cookies.ytkFirstGroupMatch(for: "SAPISID=([^\\s|;]*)") else {
+        guard let SAPISID = cookies.firstMatch(for: "SAPISID=([^\\s|;]*)") else {
             if cookies.contains("OAUTH_TOKEN=") {
-                guard let token = cookies.ytkFirstGroupMatch(for: "OAUTH_TOKEN=([^\\s|;]*)") else {
+                guard let token = cookies.firstMatch(for: "OAUTH_TOKEN=([^\\s|;]*)") else {
                     return nil
                 }
                 
@@ -85,8 +72,7 @@ class YouTubeServiceWrapper: ObservableObject {
 final class YTM {
     private init() {}
     
-    private static let instance = YouTubeModel()
-    private static let wrapper = YouTubeServiceWrapper(model: instance)
+    private static let wrapper = YouTubeServiceWrapper()
     
     static var shared: YouTubeServiceWrapper {
         return wrapper
@@ -108,8 +94,6 @@ final class YTM {
     }
     
     static func setup() {
-        instance.selectedLocale = Bundle.main.preferredLocalizations.first ?? "en"
-        
         if let savedCookies = UserDefaults.standard.string(forKey: "ytm_cookies") {
             cookies = savedCookies
             alwaysUseCookies = UserDefaults.standard.bool(forKey: "ytm_always_use_cookies")
@@ -130,9 +114,5 @@ final class YTM {
         UserDefaults.standard.removeObject(forKey: "youtube_access_token")
         UserDefaults.standard.removeObject(forKey: "youtube_user_info")
         UserDefaults.standard.synchronize()
-    }
-    
-    static var model: YouTubeModel {
-        return instance
     }
 } 

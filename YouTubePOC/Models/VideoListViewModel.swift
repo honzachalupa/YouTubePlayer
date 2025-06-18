@@ -1,21 +1,20 @@
 import Foundation
-import YouTubeKit
 
 @MainActor
 class VideoListViewModel: ObservableObject {
-    @Published var videos: [YTVideo] = []
+    @Published var videos: [YouTubeVideo] = []
     @Published var error: String?
     @Published var isFetching = false
 
     // A closure that performs the actual network request and returns the videos.
-    private let videoFetcher: () async throws -> [YTVideo]
+    private let videoFetcher: () async throws -> [YouTubeVideo]
 
-    init(videoFetcher: @escaping () async throws -> [YTVideo]) {
+    init(videoFetcher: @escaping () async throws -> [YouTubeVideo]) {
         self.videoFetcher = videoFetcher
     }
     
     // Convenience initializer for SwiftUI Previews with static data
-    convenience init(staticVideos: [YTVideo]) {
+    convenience init(staticVideos: [YouTubeVideo]) {
         self.init(videoFetcher: { return staticVideos })
         self.videos = staticVideos
     }

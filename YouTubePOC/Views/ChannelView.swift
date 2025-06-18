@@ -1,49 +1,12 @@
 import SwiftUI
-import YouTubeKit
 
 struct ChannelView: View {
-    var YTM = YouTubeModel()
-    public var channel: YTChannel? = nil
-    public var channelInfo: YTLittleChannelInfos? = nil
-    
-    @State private var isLoading: Bool = false
-    
-    /* func fetchChannelInfo() {
-        isLoading = true
-        
-        Task {
-            do {
-                await self.getVisitorData()
-                let response = try await ChannelInfosResponse.sendThrowingRequest(youtubeModel: YTM, data: [.browseId: channel.channelId])
-                
-                
-                await MainActor.run {
-                    self.avatarURL = response.avatarThumbnails.first!.url
-                }
-            } catch {
-                print("Error loading video: \(error)")
-
-                await MainActor.run {
-                    self.isLoading = false
-                }
-            }
-        }
-    }
-    
-    func getVisitorData() async {
-        if YTM.visitorData.isEmpty {
-            if let visitorData = try? await SearchResponse.sendThrowingRequest(youtubeModel: YTM, data: [.query: "homefwhfjoifj"]).visitorData {
-                YTM.visitorData = visitorData
-            } else {
-                print("Couldn't get visitorData, request may fail.")
-            }
-        }
-    } */
+    public var channel: YouTubeChannel
     
     var body: some View {
         HStack(spacing: 10) {
-            if let thumbnailUrl = channel?.thumbnails.first?.url {
-                AsyncImage(url: thumbnailUrl) { phase in
+            if let thumbnailUrl = channel.snippet.thumbnails.default?.url {
+                AsyncImage(url: URL(string: thumbnailUrl)) { phase in
                     if let image = phase.image {
                         image.resizable()
                             .aspectRatio(contentMode: .fit)
@@ -55,25 +18,32 @@ struct ChannelView: View {
                 }
             }
                 
-            Text(channel?.name ?? "")
+            Text(channel.snippet.title)
                 .font(.subheadline)
-        }
-        .onAppear {
-            // fetchChannelInfo()
-        }
-        .onChange(of: channel) {
-            // fetchChannelInfo()
         }
     }
 }
 
 #Preview {
-    let channel = YTChannel(
-        name: "Channel Name",
-        channelId: "UCtcmk_u_kqeibnHqxTSNitg",
-        thumbnails: [
-            YTThumbnail(url: URL(string: "https://yt3.ggpht.com/QM10AqUfNyZxhp92xKOfs5PBnS5vCngEKlbiC--ZHTraiZRubULznnjh9lDWFiGYLkLTRf3g=s68-c-k-c0x00ffffff-no-rj")!)
-        ]
+    let channel = YouTubeChannel(
+        id: "UCtcmk_u_kqeibnHqxTSNitg",
+        snippet: .init(
+            title: "Channel Name",
+            description: "",
+            thumbnails: .init(
+                default: .init(
+                    url: "https://yt3.ggpht.com/QM10AqUfNyZxhp92xKOfs5PBnS5vCngEKlbiC--ZHTraiZRubULznnjh9lDWFiGYLkLTRf3g=s68-c-k-c0x00ffffff-no-rj",
+                    width: 68,
+                    height: 68
+                ),
+                medium: nil,
+                high: nil,
+                standard: nil,
+                maxres: nil
+            ),
+            customUrl: nil
+        ),
+        statistics: nil
     )
     
     ChannelView(channel: channel)

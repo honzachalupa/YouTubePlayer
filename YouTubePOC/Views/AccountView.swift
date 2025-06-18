@@ -1,5 +1,4 @@
 import SwiftUI
-import YouTubeKit
 
 struct AccountToolbarItem: ToolbarContent {
     @StateObject private var authService = YouTubeAuthService.shared
@@ -71,10 +70,31 @@ struct AccountToolbarItem: ToolbarContent {
                     Label("Account", systemImage: "person.fill")
                 }
                 .sheet(isPresented: $isShowingLoginView) {
-                    YouTubeLoginWebView { cookies in
-                        Task {
-                            await authService.handleSignIn(cookies: cookies)
-                            isShowingLoginView = false
+                    NavigationStack {
+                        VStack {
+                            Spacer()
+                            
+                            Button {
+                                Task {
+                                    await authService.signIn()
+                                    isShowingLoginView = false
+                                }
+                            } label: {
+                                Label("Sign in with Google", systemImage: "person.fill")
+                                    .font(.headline)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            
+                            Spacer()
+                        }
+                        .navigationTitle("Sign In")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .topBarTrailing) {
+                                Button("Cancel") {
+                                    isShowingLoginView = false
+                                }
+                            }
                         }
                     }
                 }

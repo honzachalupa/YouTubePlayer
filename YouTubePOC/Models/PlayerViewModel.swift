@@ -1,105 +1,97 @@
+import Foundation
 import SwiftUI
-import YouTubeKit
 import AVKit
 
 @MainActor
 class PlayerViewModel: ObservableObject {
-    @Published var player: AVPlayer?
+    @Published var currentVideo: YouTubeVideo?
+    @Published var isPlaying = false
     @Published var isLoading = false
     @Published var error: String?
+    @Published var showError = false
+    @Published var showVideoInfo = true
+    @Published var showControls = true
+    @Published var isFullScreen = false
     
-    private var playerTimeObserver: Any?
-    private let authService: YouTubeAuthService
+    private let videoService: YouTubeVideoService
     
     init() {
-        self.authService = .shared
-        configureAudioSession()
+        self.videoService = YouTubeVideoService.shared
     }
     
-    @MainActor
-deinit {
-        if let observer = playerTimeObserver, let currentPlayer = player {
-            currentPlayer.removeTimeObserver(observer)
+    var player: AVPlayer? {
+        videoService.player
+    }
+    
+    var videoTitle: String {
+        currentVideo?.snippet.title ?? ""
+    }
+    
+    var channelTitle: String {
+        currentVideo?.snippet.channelTitle ?? ""
+    }
+    
+    var viewCount: String {
+        guard let count = currentVideo?.statistics?.viewCount else { return "0" }
+        return formatCount(count)
+    }
+    
+    var likeCount: String {
+        guard let count = currentVideo?.statistics?.likeCount else { return "0" }
+        return formatCount(count)
+    }
+    
+    var thumbnailURL: String {
+        currentVideo?.bestThumbnail ?? ""
+    }
+    
+    private func formatCount(_ count: String) -> String {
+        guard let number = Double(count) else { return "0" }
+        
+        switch number {
+        case 0..<1000:
+            return String(format: "%.0f", number)
+        case 1000..<1_000_000:
+            return String(format: "%.1fK", number / 1000)
+        case 1_000_000..<1_000_000_000:
+            return String(format: "%.1fM", number / 1_000_000)
+        default:
+            return String(format: "%.1fB", number / 1_000_000_000)
         }
     }
     
-    func loadVideo(video: YTVideo) {
+    func loadVideo(_ video: YouTubeVideo) async {
+        currentVideo = video
         isLoading = true
         error = nil
         
-        Task {
-            do {
-                await getVisitorData()
-                let streamingInfos = try await video.fetchStreamingInfosThrowing(youtubeModel: YTM.model)
-                
-                guard let streamingURL = streamingInfos.streamingURL else {
-                    error = "Failed to get video streaming URL"
-                    isLoading = false
-                    return
-                }
-                
-                let newPlayer = AVPlayer(url: streamingURL)
-                setupPlayerObservation(for: newPlayer)
-                self.player = newPlayer
-                self.player?.play()
-                self.isLoading = false
-                
-            } catch let error as ResponseExtractionError {
-                self.error = error.stepDescription.contains("Login is required") ?
-                    "Authentication required. Please sign in." :
-                    "Failed to load video: \(error.localizedDescription)"
-                self.isLoading = false
-                
-            } catch {
-                self.error = "Failed to load video: \(error.localizedDescription)"
-                self.isLoading = false
-            }
-        }
+        await videoService.loadVideo(video)
+        
+        isLoading = videoService.isLoading
+        error = videoService.error
+        showError = error != nil
+        isPlaying = videoService.isPlaying
+    }
+    
+    func togglePlayPause() {
+        videoService.togglePlayPause()
+        isPlaying = videoService.isPlaying
+    }
+    
+    func toggleFullScreen() {
+        isFullScreen.toggle()
+    }
+    
+    func toggleControls() {
+        showControls.toggle()
     }
     
     func cleanup() {
-        player?.pause()
-        if let observer = playerTimeObserver, let player = player {
-            player.removeTimeObserver(observer)
-            playerTimeObserver = nil
-        }
-        player = nil
-    }
-    
-    private func configureAudioSession() {
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-            try AVAudioSession.sharedInstance().setActive(true)
-        } catch {
-            print("Failed to configure audio session: \(error)")
-        }
-    }
-    
-    private func setupPlayerObservation(for player: AVPlayer) {
-        // Remove previous observer if any
-        if let observer = playerTimeObserver, let oldPlayer = self.player {
-            oldPlayer.removeTimeObserver(observer)
-            playerTimeObserver = nil
-        }
-        
-        // Add new observer
-        let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
-        playerTimeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] _ in
-            // Handle time updates if needed
-            _ = self  // Silence the 'never read' warning
-        }
-    }
-    
-    private func getVisitorData() async {
-        if YTM.model.visitorData.isEmpty {
-            if let visitorData = try? await SearchResponse.sendThrowingRequest(
-                youtubeModel: YTM.model,
-                data: [.query: "homefwhfjoifj"]
-            ).visitorData {
-                YTM.model.visitorData = visitorData
-            } else {
-                print("Couldn't get visitorData, request may fail.")
-            }
-        }
+        videoService.cleanup()
+        currentVideo = nil
+        isPlaying = false
+        isLoading = false
+        error = nil
+        showError = false
     }
 }

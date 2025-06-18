@@ -1,21 +1,20 @@
 import SwiftUI
 import AVKit
-import YouTubeKit
 import MediaPlayer
 
 @MainActor
 class PlayerManager: ObservableObject {
     static let shared = PlayerManager()
     
-    @Published var selectedVideo: YTVideo?
+    @Published var selectedVideo: YouTubeVideo?
     @Published var isVideoSheetPresented = false
     @Published private(set) var player: AVPlayer?
     @Published var isPlaying = false
     @Published var isLoading = false
     @Published var error: String?
-    @Published var likeStatus: YTLikeStatus = .nothing
-    @Published var availablePlaylists: [(playlist: YTPlaylist, isVideoPresentInside: Bool)] = []
-    @Published var temporaryPlaylistStates: [String: [(playlist: YTPlaylist, isVideoPresentInside: Bool)]] = [:]
+    @Published var likeStatus: String = "none"
+    @Published var availablePlaylists: [(playlist: YouTubePlaylist, isVideoPresentInside: Bool)] = []
+    @Published var temporaryPlaylistStates: [String: [(playlist: YouTubePlaylist, isVideoPresentInside: Bool)]] = [:]
     
     private var playerTimeObserver: Any?
     private let authService: YouTubeAuthService
@@ -124,14 +123,13 @@ class PlayerManager: ObservableObject {
     private func updateNowPlayingInfo() {
         guard let video = selectedVideo else {
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
-            
             return
         }
         
         var nowPlayingInfo = [String: Any]()
         
-        nowPlayingInfo[MPMediaItemPropertyTitle] = video.title ?? "Unknown Title"
-        nowPlayingInfo[MPMediaItemPropertyArtist] = video.channel?.name ?? "Unknown Channel"
+        nowPlayingInfo[MPMediaItemPropertyTitle] = video.snippet.title
+        nowPlayingInfo[MPMediaItemPropertyArtist] = video.snippet.channelTitle
         
         if let player = player {
             if let duration = player.currentItem?.duration.seconds, !duration.isNaN {
@@ -161,9 +159,7 @@ class PlayerManager: ObservableObject {
     private func loadThumbnailImage(from url: URL) async {
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
-            
             thumbnailImage = UIImage(data: data)
-            
             await MainActor.run {
                 updateNowPlayingInfo()
             }
@@ -219,27 +215,71 @@ class PlayerManager: ObservableObject {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
     
-    func getPlaylistStates(for video: YTVideo) async -> [(playlist: YTPlaylist, isVideoPresentInside: Bool)] {
-        if video.videoId == selectedVideo?.videoId {
+    func getPlaylistStates(for video: YouTubeVideo) async -> [(playlist: YouTubePlaylist, isVideoPresentInside: Bool)] {
+        if video.id == selectedVideo?.id {
             return availablePlaylists
         }
         
-        if let states = temporaryPlaylistStates[video.videoId] {
+        if let states = temporaryPlaylistStates[video.id] {
             return states
         }
         
         do {
-            let response = try await video.fetchAllPossibleHostPlaylistsThrowing(youtubeModel: YTM.model)
-            temporaryPlaylistStates[video.videoId] = response.playlistsAndStatus
-            return response.playlistsAndStatus
+            let playlists = try await playlistService.fetchPlaylists()
+            var states: [(playlist: YouTubePlaylist, isVideoPresentInside: Bool)] = []
+            
+            for playlist in playlists {
+                let items = try await playlistService.fetchPlaylistItems(playlistId: playlist.id)
+                let isPresent = items.contains { $0.snippet.resourceId.videoId == video.id }
+                states.append((playlist: playlist, isVideoPresentInside: isPresent))
+            }
+            
+            temporaryPlaylistStates[video.id] = states
+            return states
         } catch {
             print("Failed to fetch playlists for video:", error.localizedDescription)
             return []
         }
     }
     
-    func selectVideo(_ video: YTVideo) {
-        if selectedVideo?.videoId != video.videoId {
+    func addToPlaylist(_ video: YouTubeVideo, _ playlist: YouTubePlaylist) {
+        Task {
+            do {
+                _ = try await playlistService.addVideoToPlaylist(playlistId: playlist.id, videoId: video.id)
+                
+                // Update playlist states
+                let states = await getPlaylistStates(for: video)
+                if video.id == selectedVideo?.id {
+                    availablePlaylists = states
+                }
+                temporaryPlaylistStates[video.id] = states
+            } catch {
+                print("Failed to add video to playlist:", error.localizedDescription)
+            }
+        }
+    }
+    
+    func removeFromPlaylist(_ video: YouTubeVideo, _ playlist: YouTubePlaylist) {
+        Task {
+            do {
+                if let itemId = try await playlistService.getPlaylistItemId(playlistId: playlist.id, videoId: video.id) {
+                    try await playlistService.removeVideoFromPlaylist(itemId: itemId)
+                    
+                    // Update playlist states
+                    let states = await getPlaylistStates(for: video)
+                    if video.id == selectedVideo?.id {
+                        availablePlaylists = states
+                    }
+                    temporaryPlaylistStates[video.id] = states
+                }
+            } catch {
+                print("Failed to remove video from playlist:", error.localizedDescription)
+            }
+        }
+    }
+    
+    func selectVideo(_ video: YouTubeVideo) {
+        if selectedVideo?.id != video.id {
             cleanup()
             selectedVideo = video
         }
@@ -248,193 +288,80 @@ class PlayerManager: ObservableObject {
         loadVideo(video)
         
         Task {
-            await fetchPlaylists(for: video)
+            if let thumbnailUrl = URL(string: video.snippet.thumbnails.maxres?.url ?? 
+                                    video.snippet.thumbnails.standard?.url ??
+                                    video.snippet.thumbnails.high?.url ??
+                                    video.snippet.thumbnails.medium?.url ??
+                                    video.snippet.thumbnails.default?.url ?? "") {
+                await loadThumbnailImage(from: thumbnailUrl)
+            }
+            
+            availablePlaylists = await getPlaylistStates(for: video)
+        }
+    }
+    
+    func loadVideo(_ video: YouTubeVideo) {
+        isLoading = true
+        error = nil
+        
+        Task {
+            guard let videoURL = URL(string: "https://www.youtube.com/watch?v=\(video.id)") else {
+                error = "Invalid video URL"
+                isLoading = false
+                return
+            }
+            
+            let player = AVPlayer(url: videoURL)
+            self.player = player
+            setupPlayerObservation(for: player)
+            
+            player.play()
+            isPlaying = true
+            
+            updateNowPlayingInfo()
+            isLoading = false
         }
     }
     
     func togglePlayPause() {
-        if isPlaying {
-            player?.pause()
-        } else {
-            player?.play()
+        if let player = player {
+            if isPlaying {
+                player.pause()
+            } else {
+                player.play()
+            }
+            isPlaying.toggle()
+            updateNowPlayingInfo()
         }
-        
-        isPlaying.toggle()
     }
     
-    @MainActor
-    func loadVideo(_ video: YTVideo) {
-        if let currentVideo = selectedVideo, currentVideo.videoId == video.videoId, let existingPlayer = player {
-            if !isPlaying {
-                existingPlayer.play()
-                isPlaying = true
-                updateNowPlayingInfo()
-            }
-            
-            return
-        }
-        
-        cleanup()
-        selectedVideo = video
-        isLoading = true
-        error = nil
-        
-        if let thumbnailURLString = video.thumbnails.last?.url.absoluteString,
-           let thumbnailURL = URL(string: thumbnailURLString) {
-            Task {
-                await loadThumbnailImage(from: thumbnailURL)
-            }
-        }
-        
-        Task {
-            do {
-                if YTM.model.visitorData.isEmpty {
-                    if let visitorData = try? await SearchResponse.sendThrowingRequest(
-                        youtubeModel: YTM.model,
-                        data: [.query: "homefwhfjoifj"],
-                        useCookies: true
-                    ).visitorData {
-                        YTM.model.visitorData = visitorData
-                    }
-                }
-                
-                let _ = try await video.fetchMoreInfosThrowing(youtubeModel: YTM.model, useCookies: true)
-                let streamingInfos = try await video.fetchStreamingInfosThrowing(youtubeModel: YTM.model, useCookies: false)
-                
-                guard let streamingURL = streamingInfos.streamingURL else {
-                    error = "Failed to get video streaming URL"
-                    isLoading = false
-                    return
-                }
-                
-                // Create and configure player
-                let playerItem = AVPlayerItem(url: streamingURL)
-                let newPlayer = AVPlayer(playerItem: playerItem)
-                
-                // Enable background playback
-                newPlayer.preventsDisplaySleepDuringVideoPlayback = false
-                newPlayer.allowsExternalPlayback = true
-                
-                // Set up audio session again to ensure it's active
-                configureAudioSession()
-                
-                player = newPlayer
-                setupPlayerObservation(for: newPlayer)
-                
-                // Start playback
-                player?.play()
-                isPlaying = true
-                isLoading = false
-                
-                // Update now playing info
-                updateNowPlayingInfo()
-                
-            } catch {
-                self.error = "Error loading video: \(error.localizedDescription)"
-                isLoading = false
-            }
-        }
+    func toggleFullScreen() {
+        // This will be handled by the view
+    }
+    
+    func toggleControls() {
+        // This will be handled by the view
     }
     
     func toggleLike() {
-        Task {
-            do {
-                switch likeStatus {
-                    case .nothing:
-                        try await selectedVideo?.likeVideoThrowing(youtubeModel: YTM.model)
-                        likeStatus = .liked
-                    case .liked:
-                        try await selectedVideo?.removeLikeFromVideoThrowing(youtubeModel: YTM.model)
-                        likeStatus = .nothing
-                    case .disliked:
-                        try await selectedVideo?.likeVideoThrowing(youtubeModel: YTM.model)
-                        likeStatus = .liked
-                }
-            } catch {
-                self.error = "Failed to update like status: \(error.localizedDescription)"
-            }
+        switch likeStatus {
+            case "liked":
+                likeStatus = "none"
+            case "disliked":
+                likeStatus = "liked"
+            default:
+                likeStatus = "liked"
         }
     }
     
     func toggleDislike() {
-        Task {
-            do {
-                switch likeStatus {
-                    case .nothing:
-                        try await selectedVideo?.dislikeVideoThrowing(youtubeModel: YTM.model)
-                        likeStatus = .disliked
-                    case .liked:
-                        try await selectedVideo?.dislikeVideoThrowing(youtubeModel: YTM.model)
-                        likeStatus = .disliked
-                    case .disliked:
-                        try await selectedVideo?.removeLikeFromVideoThrowing(youtubeModel: YTM.model)
-                        likeStatus = .nothing
-                }
-            } catch {
-                self.error = "Failed to update like status: \(error.localizedDescription)"
-            }
-        }
-    }
-    
-    private func fetchPlaylists(for video: YTVideo) async {
-        do {
-            let response = try await video.fetchAllPossibleHostPlaylistsThrowing(youtubeModel: YTM.model)
-            
-            withAnimation {
-                availablePlaylists = response.playlistsAndStatus.map { item in
-                    (playlist: item.playlist, isVideoPresentInside: item.isVideoPresentInside)
-                }
-            }
-        } catch {
-            print("Failed to fetch playlists:", error.localizedDescription)
-            withAnimation {
-                availablePlaylists = []
-            }
-        }
-    }
-    
-    func addToPlaylist(_ video: YTVideo, _ playlist: YTPlaylist) {
-        Task {
-            do {
-                let response = try await AddVideoToPlaylistResponse.sendThrowingRequest(
-                    youtubeModel: YTM.model,
-                    data: [
-                        .movingVideoId: video.videoId,
-                        .browseId: playlist.playlistId.hasPrefix("VL") ? String(playlist.playlistId.dropFirst(2)) : playlist.playlistId
-                    ]
-                )
-                
-                if response.success {
-                    await fetchPlaylists(for: video)
-                } else {
-                    error = "Failed to add video to playlist"
-                }
-            } catch {
-                self.error = error.localizedDescription
-            }
-        }
-    }
-    
-    func removeFromPlaylist(_ video: YTVideo, _ playlist: YTPlaylist) {
-        Task {
-            do {
-                let response = try await RemoveVideoByIdFromPlaylistResponse.sendThrowingRequest(
-                    youtubeModel: YTM.model,
-                    data: [
-                        .movingVideoId: video.videoId,
-                        .browseId: playlist.playlistId.hasPrefix("VL") ? String(playlist.playlistId.dropFirst(2)) : playlist.playlistId
-                    ],
-                    useCookies: true
-                )
-                
-                if response.success {
-                    await fetchPlaylists(for: video)
-                } else {
-                    error = "Failed to remove video from playlist"
-                }
-            } catch {
-                self.error = error.localizedDescription
-            }
+        switch likeStatus {
+            case "liked":
+                likeStatus = "disliked"
+            case "disliked":
+                likeStatus = "none"
+            default:
+                likeStatus = "disliked"
         }
     }
 }
