@@ -24,55 +24,17 @@ class YouTubePlaylistService: ObservableObject {
         error = nil
     }
     
-    private func initializeYouTube() async -> Bool {
-        print("YouTubePlaylistService: Initializing YouTube...")
-        
-        // Ensure we're using cookies
-        youtubeService.alwaysUseCookies = true
-        
-        // Wait for visitor data
-        await youtubeService.getVisitorData()
-        
-        // Double check we have visitor data
-        if youtubeService.model.visitorData.isEmpty {
-            print("YouTubePlaylistService: Failed to get visitor data")
-            return false
-        }
-        
-        print("YouTubePlaylistService: Successfully initialized with visitor data")
-        return true
-    }
-    
     func fetchPlaylists() async {
         isLoading = true
         error = nil
         
         do {
-            // First ensure YouTube is initialized
-            guard await initializeYouTube() else {
-                error = "Failed to initialize YouTube"
-                isLoading = false
-                return
-            }
-            
             print("YouTubePlaylistService: Fetching playlists...")
             
-            // First get the home screen response to ensure we have proper context
-            let homeResponse = try await HomeScreenResponse.sendThrowingRequest(
-                youtubeModel: youtubeService.model,
-                data: [:],
-                useCookies: true
-            )
-            
-            // Update visitor data if available
-            if let visitorData = homeResponse.visitorData {
-                youtubeService.model.visitorData = visitorData
-            }
-            
-            // Now fetch playlists using the same context
+            // Get playlists directly
             let response = try await AccountPlaylistsResponse.sendThrowingRequest(
                 youtubeModel: youtubeService.model,
-                data: [.visitorData: youtubeService.model.visitorData],
+                data: [.browseId: "FEplaylists_aggregation"],
                 useCookies: true
             )
             
@@ -102,13 +64,6 @@ class YouTubePlaylistService: ObservableObject {
         error = nil
         
         do {
-            // First ensure YouTube is initialized
-            guard await initializeYouTube() else {
-                error = "Failed to initialize YouTube"
-                isLoading = false
-                return false
-            }
-            
             print("YouTubePlaylistService: Creating playlist '\(name)'...")
             
             // Validate inputs
@@ -159,13 +114,6 @@ class YouTubePlaylistService: ObservableObject {
         error = nil
         
         do {
-            // First ensure YouTube is initialized
-            guard await initializeYouTube() else {
-                error = "Failed to initialize YouTube"
-                isLoading = false
-                return false
-            }
-            
             let response = try await DeletePlaylistResponse.sendThrowingRequest(
                 youtubeModel: youtubeService.model,
                 data: [

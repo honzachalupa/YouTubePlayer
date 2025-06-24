@@ -89,7 +89,6 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
     func fetchUserInfo() async {
         guard !youtubeService.cookies.isEmpty else {
             print("YouTubeAuthService: No cookies available")
-            
             return
         }
         
@@ -101,9 +100,7 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
             
             if youtubeService.model.visitorData.isEmpty {
                 print("YouTubeAuthService: Failed to get visitor data")
-                
                 isLoading = false
-                
                 return
             }
         }
@@ -156,16 +153,14 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
                         picture: pictureURL?.absoluteString ?? ""
                     )
                 }
-            
+            } else {
                 print("YouTubeAuthService: Could not fetch user info, account may be disconnected. Response: \(response)")
-                
                 await MainActor.run {
                     self.userInfo = nil
                 }
             }
         } catch {
             print("YouTubeAuthService: Error fetching user info: \(error)")
-            
             await MainActor.run {
                 self.userInfo = nil
                 self.authError = error.localizedDescription

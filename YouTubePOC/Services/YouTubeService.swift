@@ -37,6 +37,13 @@ final class YouTubeService: ObservableObject {
         model.cookies = self.cookies
         model.alwaysUseCookies = self.alwaysUseCookies
         model.selectedLocale = Bundle.main.preferredLocalizations.first ?? "en"
+        
+        // Load cached visitor data
+        if let visitorData = UserDefaults.standard.string(forKey: "ytm_visitor_data") {
+            model.visitorData = visitorData
+        }
+        
+        setup()
     }
     
     func setup() {
@@ -55,32 +62,39 @@ final class YouTubeService: ObservableObject {
         
         cookies = ""
         alwaysUseCookies = false
+        model.visitorData = ""
         
         // Clear all stored data
         UserDefaults.standard.removeObject(forKey: "ytm_cookies")
         UserDefaults.standard.removeObject(forKey: "ytm_always_use_cookies")
         UserDefaults.standard.removeObject(forKey: "youtube_access_token")
         UserDefaults.standard.removeObject(forKey: "youtube_user_info")
+        UserDefaults.standard.removeObject(forKey: "ytm_visitor_data")
         UserDefaults.standard.synchronize()
     }
     
     func getVisitorData() async {
-        if model.visitorData.isEmpty {
-            do {
-                let response = try await HomeScreenResponse.sendThrowingRequest(
-                    youtubeModel: model,
-                    data: [:],
-                    useCookies: true
-                )
-                
-                if let visitorData = response.visitorData {
-                    model.visitorData = visitorData
-                } else {
-                    print("YouTubeService: Couldn't get visitorData, request may fail.")
-                }
-            } catch {
-                print("YouTubeService: Error getting visitor data:", error.localizedDescription)
+        // If we have cached visitor data and it's not empty, use it
+        if !model.visitorData.isEmpty {
+            return
+        }
+        
+        do {
+            let response = try await HomeScreenResponse.sendThrowingRequest(
+                youtubeModel: model,
+                data: [:],
+                useCookies: true
+            )
+            
+            if let visitorData = response.visitorData {
+                model.visitorData = visitorData
+                // Cache the visitor data
+                UserDefaults.standard.set(visitorData, forKey: "ytm_visitor_data")
+            } else {
+                print("YouTubeService: Couldn't get visitorData, request may fail.")
             }
+        } catch {
+            print("YouTubeService: Error getting visitor data:", error.localizedDescription)
         }
     }
     

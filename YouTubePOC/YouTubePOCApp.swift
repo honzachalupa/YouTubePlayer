@@ -1,5 +1,4 @@
 import SwiftUI
-import YouTubeKit
 
 @main
 struct YouTubePOCApp: App {
@@ -11,9 +10,6 @@ struct YouTubePOCApp: App {
             ContentView()
                 .environmentObject(youtubeService)
                 .environmentObject(playerManager)
-                .task {
-                    youtubeService.setup()
-                }
         }
     }
 }
