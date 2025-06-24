@@ -6,7 +6,7 @@ class VideoPlaylistsViewModel: ObservableObject {
     @Published var playlistStates: [(playlist: YTPlaylist, isVideoPresentInside: Bool)] = []
     
     private let video: YTVideo
-    private var playerManager: PlayerManager
+    private let playerManager: PlayerManager
     
     init(video: YTVideo, playerManager: PlayerManager) {
         self.video = video
@@ -14,15 +14,6 @@ class VideoPlaylistsViewModel: ObservableObject {
         
         Task {
             await fetchPlaylistStates()
-        }
-    }
-    
-    func updatePlayerManager(_ newPlayerManager: PlayerManager) {
-        if self.playerManager !== newPlayerManager {
-            self.playerManager = newPlayerManager
-            Task {
-                await fetchPlaylistStates()
-            }
         }
     }
     

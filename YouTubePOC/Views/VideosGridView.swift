@@ -16,12 +16,16 @@ struct VideosGridView: View {
     
     @ObservedObject private var messageService = MessageService.shared
     @State private var selectedVideo: YTVideo? = nil
-    @State private var isLoading: Bool = false
+    @State private var isLoading: Bool = true
+    @State private var isRefreshing: Bool = false
     
     func fetch() async {
-        isLoading = true    
+        if !isRefreshing {
+            isLoading = true
+        }
         await fetchVideos()
         isLoading = false
+        isRefreshing = false
     }
     
     func getColumns() -> [GridItem] {
@@ -42,7 +46,7 @@ struct VideosGridView: View {
     
     var body: some View {
         Group {
-            if isLoading && videos.isEmpty {
+            if isLoading && !isRefreshing {
                 ProgressView()
                     .controlSize(.large)
             } else if videos.isEmpty {
@@ -65,6 +69,7 @@ struct VideosGridView: View {
                     .animation(.easeInOut, value: videos)
                 }
                 .refreshable {
+                    isRefreshing = true
                     await fetch()
                 }
             }
@@ -90,7 +95,7 @@ struct VideoGridItemView: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading) {
+        VStack {
             Group {
                 if let thumbnailURL = video.thumbnails.last?.url {
                     AsyncImage(url: thumbnailURL) { image in
@@ -120,9 +125,6 @@ struct VideoGridItemView: View {
             Section("Add to playlist") {
                 AddRemoveVideoPlaylistListView(video: video)
             }
-        }
-        .onAppear {
-            playlistsViewModel.updatePlayerManager(playerManager)
         }
     }
 }

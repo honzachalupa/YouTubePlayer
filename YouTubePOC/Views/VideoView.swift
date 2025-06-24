@@ -32,7 +32,7 @@ struct VideoView: View {
     var body: some View {
         if let video = playerManager.selectedVideo {
             NavigationStack {
-                VStack {
+                VStack(spacing: 0) {
                     VideoPlayerView(video: video)
                         .id(video.videoId) // Force recreation when video changes
                     

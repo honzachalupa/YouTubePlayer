@@ -33,7 +33,10 @@ struct ContentView: View {
                     }
                 } else {
                     Tab("Playlists", systemImage: "play.square.stack.fill") {
-                        PlaylistsListView()
+                        NavigationStack {
+                            PlaylistsListView()
+                                .navigationTitle("Playlists")
+                        }
                     }
                 }
             }
