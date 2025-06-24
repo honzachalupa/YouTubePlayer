@@ -181,5 +181,4 @@ struct PlaylistView: View {
     )
     
     PlaylistView(playlist: playlist)
-        .environmentObject(YouTubeService.shared)
 }

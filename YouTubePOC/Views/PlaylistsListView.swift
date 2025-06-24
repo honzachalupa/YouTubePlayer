@@ -138,7 +138,6 @@ struct PlaylistRowView: View {
     NavigationStack {
         PlaylistsListView()
     }
-    .environmentObject(YouTubeService.shared)
 }
 
 #Preview("Playlist Row") {
@@ -151,5 +150,4 @@ struct PlaylistRowView: View {
         )
     )
     .padding()
-    .environmentObject(YouTubeService.shared)
 }

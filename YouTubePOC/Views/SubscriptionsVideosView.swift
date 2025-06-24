@@ -55,5 +55,4 @@ struct SubscriptionsVideosView: View {
 
 #Preview {
     SubscriptionsVideosView()
-        .environmentObject(YouTubeService.shared)
 }

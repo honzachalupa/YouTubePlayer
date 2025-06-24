@@ -2,7 +2,7 @@ import SwiftUI
 import YouTubeKit
 
 struct RecommendedVideosView: View {
-    @EnvironmentObject private var youtubeService: YouTubeService
+    private let youtubeService = YouTubeService.shared
     @State private var videos: [YTVideo] = []
     @State private var fetchError: Error? = nil
 
@@ -52,5 +52,4 @@ struct RecommendedVideosView: View {
 
 #Preview {
     RecommendedVideosView()
-        .environmentObject(YouTubeService.shared)
 }

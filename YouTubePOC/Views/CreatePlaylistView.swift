@@ -54,5 +54,4 @@ struct CreatePlaylistView: View {
 
 #Preview {
     CreatePlaylistView()
-        .environmentObject(YouTubeService.shared)
 } 
