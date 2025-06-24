@@ -31,7 +31,8 @@ struct CreatePlaylistView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Create") {
                         Task {
-                            if await playlistService.createPlaylist(name: name, privacy: privacy) {
+                            let success = await playlistService.createPlaylist(name: name, privacy: privacy)
+                            if success {
                                 dismiss()
                             }
                         }
@@ -53,5 +54,5 @@ struct CreatePlaylistView: View {
 
 #Preview {
     CreatePlaylistView()
-        .environmentObject(YouTubeServiceWrapper(model: YTM.model))
+        .environmentObject(YouTubeService.shared)
 } 

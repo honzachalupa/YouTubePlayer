@@ -32,6 +32,7 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
     private var authSession: ASWebAuthenticationSession?
     private let clientID = "906870749753-ajab2im3jtl2ecfqbp28lo27k2vv0v0t.apps.googleusercontent.com"
     private weak var presentationWindow: UIWindow?
+    private let youtubeService = YouTubeService.shared
     
     private var accessToken: String? {
         get { 
@@ -42,7 +43,7 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
         set {
             UserDefaults.standard.set(newValue, forKey: "youtube_access_token")
             
-            YTM.accessToken = newValue
+            youtubeService.accessToken = newValue
         }
     }
     
@@ -54,7 +55,7 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
     override private init() {
         super.init()
         
-        if !YTM.cookies.isEmpty {
+        if !youtubeService.cookies.isEmpty {
             self.isAuthenticated = true
             
             Task {
@@ -86,7 +87,7 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
     }
     
     func fetchUserInfo() async {
-        guard !YTM.cookies.isEmpty else {
+        guard !youtubeService.cookies.isEmpty else {
             print("YouTubeAuthService: No cookies available")
             
             return
@@ -94,11 +95,11 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
         
         isLoading = true
         
-        if YTM.model.visitorData.isEmpty {
+        if youtubeService.model.visitorData.isEmpty {
             print("YouTubeAuthService: No visitor data, fetching...")
-            await YTM.shared.getVisitorData()
+            await youtubeService.getVisitorData()
             
-            if YTM.model.visitorData.isEmpty {
+            if youtubeService.model.visitorData.isEmpty {
                 print("YouTubeAuthService: Failed to get visitor data")
                 
                 isLoading = false
@@ -113,7 +114,7 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
             let languageCode = localeComponents[0]
             let countryCode = localeComponents.count > 1 ? localeComponents[1] : "US"
             
-            YTM.model.selectedLocale = "\(languageCode)_\(countryCode)"
+            youtubeService.model.selectedLocale = "\(languageCode)_\(countryCode)"
             
             let customHeaders = HeadersList(
                 url: URL(string: "https://www.youtube.com/youtubei/v1/account/account_menu")!,
@@ -123,7 +124,7 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
                     .init(name: "Accept-Encoding", content: "gzip, deflate, br"),
                     .init(name: "Host", content: "www.youtube.com"),
                     .init(name: "User-Agent", content: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.1 Safari/605.1.15"),
-                    .init(name: "Accept-Language", content: "\(YTM.model.selectedLocale);q=0.9"),
+                    .init(name: "Accept-Language", content: "\(youtubeService.model.selectedLocale);q=0.9"),
                     .init(name: "Origin", content: "https://www.youtube.com/"),
                     .init(name: "Referer", content: "https://www.youtube.com/"),
                     .init(name: "Content-Type", content: "application/json"),
@@ -131,17 +132,17 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
                 ],
                 addQueryAfterParts: [],
                 httpBody: [
-                    "{\"context\":{\"client\":{\"hl\":\"\(languageCode)\",\"gl\":\"\(countryCode)\",\"visitorData\":\"\(YTM.model.visitorData)\",\"userAgent\":\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Safari/605.1.15,gzip(gfe)\",\"clientName\":\"WEB\",\"clientVersion\":\"2.20230201.01.00\",\"osName\":\"Macintosh\",\"osVersion\":\"10_15_7\",\"platform\":\"DESKTOP\",\"clientFormFactor\":\"UNKNOWN_FORM_FACTOR\",\"userInterfaceTheme\":\"USER_INTERFACE_THEME_DARK\",\"timeZone\":\"Europe/Zurich\",\"browserName\":\"Safari\",\"browserVersion\":\"16.2\",\"acceptHeader\":\"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\",\"utcOffsetMinutes\":60,\"mainAppWebInfo\":{\"webDisplayMode\":\"WEB_DISPLAY_MODE_BROWSER\",\"isWebNativeShareAvailable\":true}},\"user\":{\"lockedSafetyMode\":false},\"request\":{\"useSsl\":true,\"internalExperimentFlags\":[],\"consistencyTokenJars\":[]}},\"userInterfaceTheme\":\"USER_INTERFACE_THEME_DARK\",\"deviceTheme\":\"DEVICE_THEME_SELECTED\"}"
+                    "{\"context\":{\"client\":{\"hl\":\"\(languageCode)\",\"gl\":\"\(countryCode)\",\"visitorData\":\"\(youtubeService.model.visitorData)\",\"userAgent\":\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Safari/605.1.15,gzip(gfe)\",\"clientName\":\"WEB\",\"clientVersion\":\"2.20230201.01.00\",\"osName\":\"Macintosh\",\"osVersion\":\"10_15_7\",\"platform\":\"DESKTOP\",\"clientFormFactor\":\"UNKNOWN_FORM_FACTOR\",\"userInterfaceTheme\":\"USER_INTERFACE_THEME_DARK\",\"timeZone\":\"Europe/Zurich\",\"browserName\":\"Safari\",\"browserVersion\":\"16.2\",\"acceptHeader\":\"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\",\"utcOffsetMinutes\":60,\"mainAppWebInfo\":{\"webDisplayMode\":\"WEB_DISPLAY_MODE_BROWSER\",\"isWebNativeShareAvailable\":true}},\"user\":{\"lockedSafetyMode\":false},\"request\":{\"useSsl\":true,\"internalExperimentFlags\":[],\"consistencyTokenJars\":[]}},\"userInterfaceTheme\":\"USER_INTERFACE_THEME_DARK\",\"deviceTheme\":\"DEVICE_THEME_SELECTED\"}"
                 ],
                 parameters: [
                     .init(name: "prettyPrint", content: "false")
                 ]
             )
             
-            YTM.model.customHeaders[.userAccountHeaders] = customHeaders
+            youtubeService.model.customHeaders[.userAccountHeaders] = customHeaders
             
             let response = try await AccountInfosResponse.sendThrowingRequest(
-                youtubeModel: YTM.model,
+                youtubeModel: youtubeService.model,
                 data: [:],
                 useCookies: true
             )
@@ -155,7 +156,7 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
                         picture: pictureURL?.absoluteString ?? ""
                     )
                 }
-            } else {
+            
                 print("YouTubeAuthService: Could not fetch user info, account may be disconnected. Response: \(response)")
                 
                 await MainActor.run {
@@ -177,14 +178,14 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
     func handleSignIn(cookies: String) async {
         isLoading = true
         
-        YTM.cookies = cookies
-        YTM.alwaysUseCookies = true
+        youtubeService.cookies = cookies
+        youtubeService.alwaysUseCookies = true
         
         try? await Task.sleep(nanoseconds: 1_000_000_000) // Wait 1 second
         
-        await YTM.shared.getVisitorData()
+        await youtubeService.getVisitorData()
         
-        if YTM.model.visitorData.isEmpty {
+        if youtubeService.model.visitorData.isEmpty {
             print("YouTubeAuthService: Failed to get visitor data")
             
             isLoading = false
@@ -223,7 +224,7 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
         self.userInfo = nil
         self.authError = nil
         
-        YTM.reset()
+        youtubeService.reset()
         YouTubePlaylistService.shared.clearData()
         PlayerManager.shared.clearPlaylistData()
         

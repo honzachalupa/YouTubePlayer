@@ -10,7 +10,7 @@ class YouTubePlaylistService: ObservableObject {
     @Published var isLoading = false
     @Published var error: String?
     
-    private let youtubeService = YTM.shared
+    private let youtubeService = YouTubeService.shared
     
     // Default video ID to use when creating playlists - using a test video that we know works
     private let defaultVideoId = "peIBCNTY8hA"  // Test video from YouTubeKit test case
@@ -28,13 +28,13 @@ class YouTubePlaylistService: ObservableObject {
         print("YouTubePlaylistService: Initializing YouTube...")
         
         // Ensure we're using cookies
-        YTM.alwaysUseCookies = true
+        youtubeService.alwaysUseCookies = true
         
         // Wait for visitor data
         await youtubeService.getVisitorData()
         
         // Double check we have visitor data
-        if YTM.model.visitorData.isEmpty {
+        if youtubeService.model.visitorData.isEmpty {
             print("YouTubePlaylistService: Failed to get visitor data")
             return false
         }
@@ -59,20 +59,20 @@ class YouTubePlaylistService: ObservableObject {
             
             // First get the home screen response to ensure we have proper context
             let homeResponse = try await HomeScreenResponse.sendThrowingRequest(
-                youtubeModel: YTM.model,
+                youtubeModel: youtubeService.model,
                 data: [:],
                 useCookies: true
             )
             
             // Update visitor data if available
             if let visitorData = homeResponse.visitorData {
-                YTM.model.visitorData = visitorData
+                youtubeService.model.visitorData = visitorData
             }
             
             // Now fetch playlists using the same context
             let response = try await AccountPlaylistsResponse.sendThrowingRequest(
-                youtubeModel: YTM.model,
-                data: [.visitorData: YTM.model.visitorData],
+                youtubeModel: youtubeService.model,
+                data: [.visitorData: youtubeService.model.visitorData],
                 useCookies: true
             )
             
@@ -120,7 +120,7 @@ class YouTubePlaylistService: ObservableObject {
             
             // Create playlist with required parameters
             let response = try await CreatePlaylistResponse.sendThrowingRequest(
-                youtubeModel: YTM.model,
+                youtubeModel: youtubeService.model,
                 data: [
                     .query: name,
                     .params: privacy.rawValue
@@ -167,7 +167,7 @@ class YouTubePlaylistService: ObservableObject {
             }
             
             let response = try await DeletePlaylistResponse.sendThrowingRequest(
-                youtubeModel: YTM.model,
+                youtubeModel: youtubeService.model,
                 data: [
                     .browseId: playlist.playlistId.hasPrefix("VL") ? String(playlist.playlistId.dropFirst(2)) : playlist.playlistId
                 ],

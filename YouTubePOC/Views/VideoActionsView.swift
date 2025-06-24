@@ -10,7 +10,7 @@ struct VideoActionsView: View {
         HStack {
             Group {
                 Button {
-                    playerManager.toggleLike()
+                    Task { await playerManager.likeVideo() }
                 } label: {
                     Label("Like", systemImage: playerManager.likeStatus == .liked ? "hand.thumbsup.fill" : "hand.thumbsup")
                 }
@@ -18,7 +18,7 @@ struct VideoActionsView: View {
                 .symbolEffect(.bounce, value: playerManager.likeStatus == .liked)
                 
                 Button {
-                    playerManager.toggleDislike()
+                    Task { await playerManager.dislikeVideo() }
                 } label: {
                     Image(systemName: playerManager.likeStatus == .disliked ? "hand.thumbsdown.fill" : "hand.thumbsdown")
                 }

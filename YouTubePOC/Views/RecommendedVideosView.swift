@@ -2,25 +2,26 @@ import SwiftUI
 import YouTubeKit
 
 struct RecommendedVideosView: View {
+    @EnvironmentObject private var youtubeService: YouTubeService
     @State private var videos: [YTVideo] = []
     @State private var fetchError: Error? = nil
 
     func fetchVideos() async {
         do {
             // First ensure we have visitor data
-            await YTM.shared.getVisitorData()
+            await youtubeService.getVisitorData()
             
             // Set proper locale format (language_COUNTRY)
             let locale = Bundle.main.preferredLocalizations.first ?? "en"
-            YTM.model.selectedLocale = locale
+            youtubeService.model.selectedLocale = locale
             
             // Create request data
             let data: [HeadersList.AddQueryInfo.ContentTypes: String] = [
-                .visitorData: YTM.model.visitorData
+                .visitorData: youtubeService.model.visitorData
             ]
             
             let response = try await HomeScreenResponse.sendThrowingRequest(
-                youtubeModel: YTM.model,
+                youtubeModel: youtubeService.model,
                 data: data,
                 useCookies: true
             )
@@ -29,7 +30,6 @@ struct RecommendedVideosView: View {
                 videos = response.results
             }
         } catch {
-            print("Failed to fetch videos: \(error)")
             withAnimation {
                 fetchError = error
                 videos = []
@@ -52,4 +52,5 @@ struct RecommendedVideosView: View {
 
 #Preview {
     RecommendedVideosView()
+        .environmentObject(YouTubeService.shared)
 }

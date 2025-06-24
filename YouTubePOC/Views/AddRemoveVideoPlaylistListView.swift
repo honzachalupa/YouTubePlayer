@@ -18,13 +18,13 @@ struct AddRemoveVideoPlaylistListView: View {
             ForEach(playlistsViewModel.playlistStates, id: \.playlist.playlistId) { item in
                 if item.isVideoPresentInside {
                     Button(role: .destructive) {
-                        playlistsViewModel.removeFromPlaylist(item.playlist)
+                        Task { await playlistsViewModel.removeFromPlaylist(item.playlist) }
                     } label: {
                         Label(item.playlist.title ?? "", systemImage: "minus.circle")
                     }
                 } else {
                     Button {
-                        playlistsViewModel.addToPlaylist(item.playlist)
+                        Task { await playlistsViewModel.addToPlaylist(item.playlist) }
                     } label: {
                         Label(item.playlist.title ?? "", systemImage: "plus.circle")
                     }

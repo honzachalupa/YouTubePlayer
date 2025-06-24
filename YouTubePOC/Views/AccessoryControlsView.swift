@@ -37,8 +37,8 @@ struct AccessoryControlsView: View {
                     playerManager.togglePlayPause()
                 } label: {
                     Label(
-                        isPlaying ? "Pause" : "Play",
-                        systemImage: isPlaying ? "pause.fill" : "play.fill"
+                        playerManager.isPlaying ? "Pause" : "Play",
+                        systemImage: playerManager.isPlaying ? "pause.fill" : "play.fill"
                     )
                 }
                 .onReceive(timer) { _ in

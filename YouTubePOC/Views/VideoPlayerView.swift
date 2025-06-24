@@ -73,10 +73,10 @@ struct VideoPlayerView: View {
             }
         }
         .aspectRatio(16/9, contentMode: .fit)
-        .onAppear {
+        .task {
             // Only load the video if it's different from the currently selected one
             if playerManager.selectedVideo?.videoId != video.videoId {
-                playerManager.loadVideo(video)
+                await playerManager.loadVideo(video)
             } else if !playerManager.isPlaying {
                 // If it's the same video but not playing, ensure it plays
                 playerManager.player?.play()
@@ -86,7 +86,7 @@ struct VideoPlayerView: View {
         .onChange(of: video) {
             // Only load if it's a different video
             if playerManager.selectedVideo?.videoId != video.videoId {
-                playerManager.loadVideo(video)
+                Task { await playerManager.loadVideo(video) }
             }
         }
         .onChange(of: playerManager.error) {

@@ -1,17 +1,25 @@
 import SwiftUI
 import YouTubeKit
 
+struct ScrollViewOffsetPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 struct VideosGridView: View {
     public var videos: [YTVideo]
     public var error: Error?
     public var fetchVideos: () async -> Void
+    public var loadMoreIfNeeded: ((YTVideo) -> Void)?
     
     @ObservedObject private var messageService = MessageService.shared
     @State private var selectedVideo: YTVideo? = nil
     @State private var isLoading: Bool = false
     
     func fetch() async {
-        isLoading = true
+        isLoading = true    
         await fetchVideos()
         isLoading = false
     }
@@ -44,6 +52,13 @@ struct VideosGridView: View {
                     LazyVGrid(columns: getColumns(), spacing: 20) {
                         ForEach(videos, id: \.videoId) { video in
                             VideoGridItemView(video: video)
+                                .onAppear {
+                                    print("Video appeared: \(video.videoId)")
+                                    if let lastVideo = videos.last, video.videoId == lastVideo.videoId {
+                                        print("Last video appeared, triggering load more")
+                                        loadMoreIfNeeded?(video)
+                                    }
+                                }
                         }
                     }
                     .padding()
@@ -71,7 +86,7 @@ struct VideoGridItemView: View {
     
     init(video: YTVideo) {
         self.video = video
-        self._playlistsViewModel = StateObject(wrappedValue: VideoPlaylistsViewModel(video: video, playerManager: PlayerManager()))
+        self._playlistsViewModel = StateObject(wrappedValue: VideoPlaylistsViewModel(video: video, playerManager: PlayerManager.shared))
     }
     
     var body: some View {
@@ -132,7 +147,7 @@ struct VideoGridItemView: View {
         ]
     )
     
-    VideosGridView(videos: [video, video, video], fetchVideos: { Task.init { } })
+    VideosGridView(videos: [video, video, video], fetchVideos: { Task.init { } }, loadMoreIfNeeded: { _ in })
         .environmentObject(PlayerManager())
 }
 

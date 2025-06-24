@@ -12,7 +12,7 @@ func getPlaylistIcon(_ playlistTitle: String?) -> String {
 struct PlaylistView: View {
     public var playlist: YTPlaylist
     
-    @EnvironmentObject private var youtubeService: YouTubeServiceWrapper
+    @EnvironmentObject private var youtubeService: YouTubeService
     @StateObject private var messageService = MessageService.shared
     @StateObject private var playlistService = YouTubePlaylistService.shared
     @State private var videos: [YTVideo] = []
@@ -41,14 +41,14 @@ struct PlaylistView: View {
         do {
             // First get the home screen response to ensure we have proper context
             let homeResponse = try await HomeScreenResponse.sendThrowingRequest(
-                youtubeModel: YTM.model,
+                youtubeModel: youtubeService.model,
                 data: [:],
                 useCookies: true
             )
             
             // Update visitor data if available
             if let visitorData = homeResponse.visitorData {
-                YTM.model.visitorData = visitorData
+                youtubeService.model.visitorData = visitorData
             }
             
             // Get the current locale
@@ -84,7 +84,7 @@ struct PlaylistView: View {
             ]
             
             // Set up the request in YouTubeKit
-            YTM.model.customHeaders[.playlistHeaders] = HeadersList(
+            youtubeService.model.customHeaders[.playlistHeaders] = HeadersList(
                 url: URL(string: "https://www.youtube.com/youtubei/v1/browse")!,
                 method: .POST,
                 headers: headers,
@@ -95,7 +95,7 @@ struct PlaylistView: View {
             
             // Now fetch the playlist videos
             let response = try await playlist.fetchVideosThrowing(
-                youtubeModel: YTM.model,
+                youtubeModel: youtubeService.model,
                 useCookies: true
             )
             
@@ -181,4 +181,5 @@ struct PlaylistView: View {
     )
     
     PlaylistView(playlist: playlist)
+        .environmentObject(YouTubeService.shared)
 }

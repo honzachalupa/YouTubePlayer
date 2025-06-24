@@ -30,17 +30,13 @@ class VideoPlaylistsViewModel: ObservableObject {
         playlistStates = await playerManager.getPlaylistStates(for: video)
     }
     
-    func addToPlaylist(_ playlist: YTPlaylist) {
-        playerManager.addToPlaylist(video, playlist)
-        Task {
-            await fetchPlaylistStates()
-        }
+    func addToPlaylist(_ playlist: YTPlaylist) async {
+        await playerManager.addToPlaylist(playlist)
+        await fetchPlaylistStates()
     }
     
-    func removeFromPlaylist(_ playlist: YTPlaylist) {
-        playerManager.removeFromPlaylist(video, playlist)
-        Task {
-            await fetchPlaylistStates()
-        }
+    func removeFromPlaylist(_ playlist: YTPlaylist) async {
+        await playerManager.removeFromPlaylist(playlist)
+        await fetchPlaylistStates()
     }
 } 

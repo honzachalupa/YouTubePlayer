@@ -2,7 +2,7 @@ import SwiftUI
 import YouTubeKit
 
 struct VideoView: View {
-    @EnvironmentObject private var youtubeService: YouTubeServiceWrapper
+    @EnvironmentObject private var youtubeService: YouTubeService
     @EnvironmentObject private var playerManager: PlayerManager
     @StateObject private var messageService = MessageService.shared
     @State private var description: String? = nil
@@ -13,7 +13,7 @@ struct VideoView: View {
                 await youtubeService.getVisitorData()
                 
                 let response = try await video.fetchMoreInfosThrowing(
-                    youtubeModel: YTM.model
+                    youtubeModel: youtubeService.model
                 )
                 
                 withAnimation {
@@ -71,10 +71,7 @@ struct VideoView: View {
 }
 
 #Preview {
-    VStack {}
-        .sheet(isPresented: .constant(true)) {
-            VideoView()
-                .environmentObject(YouTubeServiceWrapper(model: YTM.model))
-                .environmentObject(PlayerManager())
-        }
+    VideoView()
+        .environmentObject(YouTubeService.shared)
+        .environmentObject(PlayerManager())
 }

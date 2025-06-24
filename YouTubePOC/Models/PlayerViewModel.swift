@@ -10,14 +10,16 @@ class PlayerViewModel: ObservableObject {
     
     private var playerTimeObserver: Any?
     private let authService: YouTubeAuthService
+    private let youtubeService: YouTubeService
     
     init() {
         self.authService = .shared
+        self.youtubeService = .shared
         configureAudioSession()
     }
     
     @MainActor
-deinit {
+    deinit {
         if let observer = playerTimeObserver, let currentPlayer = player {
             currentPlayer.removeTimeObserver(observer)
         }
@@ -30,7 +32,7 @@ deinit {
         Task {
             do {
                 await getVisitorData()
-                let streamingInfos = try await video.fetchStreamingInfosThrowing(youtubeModel: YTM.model)
+                let streamingInfos = try await video.fetchStreamingInfosThrowing(youtubeModel: youtubeService.model)
                 
                 guard let streamingURL = streamingInfos.streamingURL else {
                     error = "Failed to get video streaming URL"
@@ -91,12 +93,12 @@ deinit {
     }
     
     private func getVisitorData() async {
-        if YTM.model.visitorData.isEmpty {
+        if youtubeService.model.visitorData.isEmpty {
             if let visitorData = try? await SearchResponse.sendThrowingRequest(
-                youtubeModel: YTM.model,
+                youtubeModel: youtubeService.model,
                 data: [.query: "homefwhfjoifj"]
             ).visitorData {
-                YTM.model.visitorData = visitorData
+                youtubeService.model.visitorData = visitorData
             } else {
                 print("Couldn't get visitorData, request may fail.")
             }

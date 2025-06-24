@@ -2,25 +2,26 @@ import SwiftUI
 import YouTubeKit
 
 struct SubscriptionsVideosView: View {
+    @EnvironmentObject private var youtubeService: YouTubeService
     @State private var videos: [YTVideo] = []
     @State private var fetchError: Error? = nil
 
     func fetchVideos() async {
         do {
             // First ensure we have visitor data
-            await YTM.shared.getVisitorData()
+            await youtubeService.getVisitorData()
             
             // Set proper locale format (language_COUNTRY)
             let locale = Bundle.main.preferredLocalizations.first ?? "en"
-            YTM.model.selectedLocale = locale
+            youtubeService.model.selectedLocale = locale
             
             // Create request data
             let data: [HeadersList.AddQueryInfo.ContentTypes: String] = [
-                .visitorData: YTM.model.visitorData
+                .visitorData: youtubeService.model.visitorData
             ]
             
             let response = try await AccountSubscriptionsFeedResponse.sendThrowingRequest(
-                youtubeModel: YTM.model,
+                youtubeModel: youtubeService.model,
                 data: data,
                 useCookies: true
             )
@@ -32,7 +33,6 @@ struct SubscriptionsVideosView: View {
                 }
             }
         } catch {
-            print("Failed to fetch subscription videos: \(error)")
             withAnimation {
                 fetchError = error
                 videos = []
@@ -55,4 +55,5 @@ struct SubscriptionsVideosView: View {
 
 #Preview {
     SubscriptionsVideosView()
+        .environmentObject(YouTubeService.shared)
 }
