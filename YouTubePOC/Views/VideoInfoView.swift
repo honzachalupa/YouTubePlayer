@@ -48,6 +48,8 @@ struct VideoInfoView: View {
                     .font(.caption)
                     .opacity(0.5)
             }
+            
+            Spacer()
         }
     }
 }

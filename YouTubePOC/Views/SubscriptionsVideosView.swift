@@ -2,7 +2,7 @@ import SwiftUI
 import YouTubeKit
 
 struct SubscriptionsVideosView: View {
-    @EnvironmentObject private var youtubeService: YouTubeService
+    private let youtubeService = YouTubeService.shared
     @State private var videos: [YTVideo] = []
     @State private var fetchError: Error? = nil
 

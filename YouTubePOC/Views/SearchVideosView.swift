@@ -2,40 +2,40 @@ import SwiftUI
 import YouTubeKit
 
 struct SearchVideosView: View {
-    @State private var query: String = ""
+    private let youtubeService = YouTubeService.shared
+    @State private var query = ""
     @State private var videos: [YTVideo] = []
     @State private var channels: [YTChannel] = []
     @State private var fetchError: Error? = nil
-    @State private var currentContinuation: String? = nil
-    @State private var isFetching = false
+    @State private var isLoading = false
+    @State private var continuationToken: String? = nil
     @State private var hasMoreResults = true
     @State private var visitorData: String? = nil
-    @EnvironmentObject private var youtubeService: YouTubeService
 
     func searchVideos(loadMore: Bool = false) async {
         print("searchVideos called with loadMore: \(loadMore)")
-        print("Current continuation token: \(currentContinuation ?? "none")")
+        print("Current continuation token: \(continuationToken ?? "none")")
         print("Current query: \(query)")
         
-        guard !query.isEmpty && !isFetching else {
+        guard !query.isEmpty && !isLoading else {
             if query.isEmpty {
                 withAnimation {
                     videos = []
                     channels = []
-                    currentContinuation = nil
+                    continuationToken = nil
                     hasMoreResults = false
                 }
             }
             return
         }
         
-        isFetching = true
+        isLoading = true
         
         do {
             if loadMore {
-                guard let token = currentContinuation, let visitorData = visitorData else {
+                guard let token = continuationToken, let visitorData = visitorData else {
                     print("Missing token or visitor data for continuation")
-                    isFetching = false
+                    isLoading = false
                     return
                 }
                 
@@ -55,7 +55,7 @@ struct SearchVideosView: View {
                 
                 withAnimation {
                     videos.append(contentsOf: response.results.compactMap { $0 as? YTVideo })
-                    currentContinuation = response.continuationToken
+                    continuationToken = response.continuationToken
                     hasMoreResults = response.continuationToken != nil
                 }
             } else {
@@ -75,7 +75,7 @@ struct SearchVideosView: View {
                 withAnimation {
                     videos = response.results.compactMap { $0 as? YTVideo }
                     channels = response.results.compactMap { $0 as? YTChannel }
-                    currentContinuation = response.continuationToken
+                    continuationToken = response.continuationToken
                     visitorData = response.visitorData
                     hasMoreResults = response.continuationToken != nil
                 }
@@ -85,7 +85,7 @@ struct SearchVideosView: View {
             fetchError = error
         }
         
-        isFetching = false
+        isLoading = false
     }
     
     var body: some View {
@@ -139,5 +139,4 @@ struct SearchVideosView: View {
 
 #Preview {
     SearchVideosView()
-        .environmentObject(YouTubeService.shared)
 }

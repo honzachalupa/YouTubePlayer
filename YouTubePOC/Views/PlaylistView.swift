@@ -12,7 +12,7 @@ func getPlaylistIcon(_ playlistTitle: String?) -> String {
 struct PlaylistView: View {
     public var playlist: YTPlaylist
     
-    @EnvironmentObject private var youtubeService: YouTubeService
+    private let youtubeService = YouTubeService.shared
     @StateObject private var messageService = MessageService.shared
     @StateObject private var playlistService = YouTubePlaylistService.shared
     @State private var videos: [YTVideo] = []

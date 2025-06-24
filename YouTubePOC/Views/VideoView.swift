@@ -2,7 +2,9 @@ import SwiftUI
 import YouTubeKit
 
 struct VideoView: View {
-    @EnvironmentObject private var youtubeService: YouTubeService
+    public let video: YTVideo
+    
+    private let youtubeService = YouTubeService.shared
     @EnvironmentObject private var playerManager: PlayerManager
     @StateObject private var messageService = MessageService.shared
     @State private var description: String? = nil
@@ -71,7 +73,6 @@ struct VideoView: View {
 }
 
 #Preview {
-    VideoView()
-        .environmentObject(YouTubeService.shared)
+    VideoView(video: YTVideo(videoId: "dQw4w9WgXcQ"))
         .environmentObject(PlayerManager())
 }

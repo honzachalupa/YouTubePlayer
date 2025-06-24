@@ -18,6 +18,7 @@ class PlayerManager: ObservableObject {
     @Published var temporaryPlaylistStates: [String: [(playlist: YTPlaylist, isVideoPresentInside: Bool)]] = [:]
     
     private var playerTimeObserver: Any?
+    private var currentPlayer: AVPlayer?
     private let authService: YouTubeAuthService
     private let playlistService = YouTubePlaylistService.shared
     private let youtubeService = YouTubeService.shared
@@ -39,6 +40,9 @@ class PlayerManager: ObservableObject {
     
     nonisolated deinit {
         Task { @MainActor in
+            if let observer = playerTimeObserver, let player = currentPlayer {
+                player.removeTimeObserver(observer)
+            }
             UIApplication.shared.endReceivingRemoteControlEvents()
         }
     }
@@ -122,10 +126,14 @@ class PlayerManager: ObservableObject {
     }
     
     private func setupPlayerObservation(for player: AVPlayer) {
-        // Remove any existing time observer
-        if let observer = playerTimeObserver {
-            player.removeTimeObserver(observer)
+        // Remove any existing time observer from the current player
+        if let observer = playerTimeObserver, let oldPlayer = currentPlayer {
+            oldPlayer.removeTimeObserver(observer)
+            playerTimeObserver = nil
         }
+        
+        // Store the new player as current
+        currentPlayer = player
         
         // Add new time observer
         let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
