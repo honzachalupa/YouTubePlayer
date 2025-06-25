@@ -48,7 +48,9 @@ struct SubscriptionsVideosView: View {
             .toolbar {
                 AccountToolbarItem()
             }
+            #if os(iOS)
             .navigationTitle("Subscriptions")
+            #endif
         }
     }
 }

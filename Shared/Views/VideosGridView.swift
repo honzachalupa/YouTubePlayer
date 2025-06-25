@@ -49,17 +49,20 @@ struct VideosGridView: View {
     var body: some View {
         Group {
             if isLoading && !isRefreshing {
+                Spacer()
                 ProgressView()
                     .controlSize(.large)
+                Spacer()
             } else if videos.isEmpty {
+                Spacer()
                 ContentUnavailableView("No videos found", systemImage: "play.slash.fill")
+                Spacer()
             } else {
                 ScrollView {
                     LazyVGrid(columns: getColumns(), spacing: 20) {
                         ForEach(videos, id: \.videoId) { video in
                             VideoGridItemView(video: video)
                                 .onAppear {
-                                    print("Video appeared: \(video.videoId)")
                                     if let lastVideo = videos.last, video.videoId == lastVideo.videoId {
                                         print("Last video appeared, triggering load more")
                                         loadMoreIfNeeded?(video)
@@ -102,6 +105,12 @@ struct VideoGridItemView: View {
             #if os(tvOS)
             NavigationLink {
                 VideoView(video: video)
+                    .task {
+                        await videoManager.loadVideo(video)
+                    }
+                    .onAppear {
+                        print("NavigationLink appeared")
+                    }
             } label: {
                 VideoContent(video: video)
             }

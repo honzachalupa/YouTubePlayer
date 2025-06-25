@@ -10,64 +10,59 @@ struct VideoView: View {
     @State private var description: String? = nil
     
     func fetchDetails() async {
-        if let video = videoManager.selectedVideo {
-            do {
-                await youtubeService.getVisitorData()
-                
-                let response = try await video.fetchMoreInfosThrowing(
-                    youtubeModel: youtubeService.model
-                )
-                
-                withAnimation {
-                    description = response.videoDescription?.map { part in
-                        part.text ?? ""
-                    }.joined()
-                }
-            } catch {
-                messageService.show(message: error.localizedDescription, type: .error)
+        do {
+            await youtubeService.getVisitorData()
+            
+            let response = try await video.fetchMoreInfosThrowing(
+                youtubeModel: youtubeService.model
+            )
+            
+            withAnimation {
+                description = response.videoDescription?.map { part in
+                    part.text ?? ""
+                }.joined()
             }
-        } else {
-            messageService.show(message: "Error: Video ID not provided.", type: .error)
+        } catch {
+            messageService.show(message: error.localizedDescription, type: .error)
         }
     }
     
     var body: some View {
-        if let video = videoManager.selectedVideo {
-            NavigationStack {
-                VStack(spacing: 0) {
-                    VideoPlayerView(video: video)
-                        .id(video.videoId) // Force recreation when video changes
-                    
-                    ScrollView(.vertical) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 15) {
-                                Text(video.title ?? "")
-                                    .font(.title)
-                                
-                                if let channelInfo = video.channel {
-                                    NavigationLink(value: channelInfo) {
-                                        VideoInfoView(video: video, mainLabel: .channelName)
-                                    }
-                                    .foregroundStyle(.foreground)
-                                }
-                                
-                                VideoActionsView(video: video)
-                                
-                                if let description {
-                                    Text(.init(description))
-                                }
+        VStack(spacing: 0) {
+            VideoPlayerView(video: video)
+                .id(video.videoId) // Force recreation when video changes
+            
+            ScrollView(.vertical) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 15) {
+                        Text(video.title ?? "")
+                            .font(.title)
+                        
+                        if let channelInfo = video.channel {
+                            NavigationLink(value: channelInfo) {
+                                VideoInfoView(video: video, mainLabel: .channelName)
                             }
-                            
-                            Spacer()
+                            .foregroundStyle(.foreground)
                         }
-                        .padding(20)
+                        
+                        VideoActionsView(video: video)
+                        
+                        if let description {
+                            Text(.init(description))
+                        }
                     }
+                    
+                    Spacer()
                 }
-                .navigationDestination(for: YTLittleChannelInfos.self) { channelInfo in
-                    ChannelView(channelInfo: channelInfo)
-                }
-                .task { await fetchDetails() }
+                .padding(20)
             }
+        }
+        .navigationDestination(for: YTLittleChannelInfos.self) { channelInfo in
+            ChannelView(channelInfo: channelInfo)
+        }
+        .task { await fetchDetails() }
+        .onAppear {
+            print("VideoView appeared")
         }
     }
 }

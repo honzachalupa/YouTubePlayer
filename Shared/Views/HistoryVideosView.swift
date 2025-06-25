@@ -56,7 +56,9 @@ struct HistoryVideosView: View {
             .toolbar {
                 AccountToolbarItem()
             }
+            #if os(iOS)
             .navigationTitle("History")
+            #endif
         }
     }
 }

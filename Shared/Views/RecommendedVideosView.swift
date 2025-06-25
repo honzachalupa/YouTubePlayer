@@ -45,7 +45,9 @@ struct RecommendedVideosView: View {
             .toolbar {
                 AccountToolbarItem()
             }
+            #if os(iOS)
             .navigationTitle("Recommended")
+            #endif
         }
     }
 }
