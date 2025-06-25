@@ -9,8 +9,10 @@ struct ContentView: View {
     
     var body: some View {
         TabView {
-            Tab("Subscriptions", systemImage: "heart.rectangle.fill") {
-                SubscriptionsVideosView()
+            if authService.isAuthenticated {
+                Tab("Subscriptions", systemImage: "heart.rectangle.fill") {
+                    SubscriptionsVideosView()
+                }
             }
             
             Tab("Recommended", systemImage: "play.rectangle.on.rectangle.fill") {

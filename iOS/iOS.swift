@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct YouTubePOCApp: App {
+struct YouTubeApp: App {
     @StateObject private var videoManager = VideoManager()
     
     var body: some Scene {

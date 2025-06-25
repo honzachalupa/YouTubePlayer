@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "216CD24C2DD24C2900E3F397"
-               BuildableName = "YouTubePOC.app"
-               BlueprintName = "YouTubePOC"
-               ReferencedContainer = "container:YouTubePOC.xcodeproj">
+               BuildableName = "iOS.app"
+               BlueprintName = "iOS"
+               ReferencedContainer = "container:YouTube.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -45,9 +45,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "216CD24C2DD24C2900E3F397"
-            BuildableName = "YouTubePOC.app"
-            BlueprintName = "YouTubePOC"
-            ReferencedContainer = "container:YouTubePOC.xcodeproj">
+            BuildableName = "iOS.app"
+            BlueprintName = "iOS"
+            ReferencedContainer = "container:YouTube.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -62,9 +62,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "216CD24C2DD24C2900E3F397"
-            BuildableName = "YouTubePOC.app"
-            BlueprintName = "YouTubePOC"
-            ReferencedContainer = "container:YouTubePOC.xcodeproj">
+            BuildableName = "iOS.app"
+            BlueprintName = "iOS"
+            ReferencedContainer = "container:YouTube.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

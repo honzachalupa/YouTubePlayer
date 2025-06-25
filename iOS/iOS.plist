@@ -8,10 +8,10 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>com.janchalupa.YouTubePOC</string>
+			<string>com.janchalupa.YouTube</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.janchalupa.YouTubePOC</string>
+				<string>com.janchalupa.YouTube</string>
 			</array>
 		</dict>
 	</array>

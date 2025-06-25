@@ -11,26 +11,26 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		216CD24D2DD24C2900E3F397 /* YouTubePOC.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YouTubePOC.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		216CD24D2DD24C2900E3F397 /* iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		21795FD22DFB708300482B97 /* Exceptions for "YouTubePOC" folder in "YouTubePOC" target */ = {
+		21795FD22DFB708300482B97 /* Exceptions for "iOS" folder in "iOS" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Info.plist,
+				iOS.plist,
 			);
-			target = 216CD24C2DD24C2900E3F397 /* YouTubePOC */;
+			target = 216CD24C2DD24C2900E3F397 /* iOS */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		216CD24F2DD24C2900E3F397 /* YouTubePOC */ = {
+		216CD24F2DD24C2900E3F397 /* iOS */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				21795FD22DFB708300482B97 /* Exceptions for "YouTubePOC" folder in "YouTubePOC" target */,
+				21795FD22DFB708300482B97 /* Exceptions for "iOS" folder in "iOS" target */,
 			);
-			path = YouTubePOC;
+			path = iOS;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -50,7 +50,7 @@
 		216CD2442DD24C2900E3F397 = {
 			isa = PBXGroup;
 			children = (
-				216CD24F2DD24C2900E3F397 /* YouTubePOC */,
+				216CD24F2DD24C2900E3F397 /* iOS */,
 				216CD24E2DD24C2900E3F397 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -58,7 +58,7 @@
 		216CD24E2DD24C2900E3F397 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				216CD24D2DD24C2900E3F397 /* YouTubePOC.app */,
+				216CD24D2DD24C2900E3F397 /* iOS.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -66,9 +66,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		216CD24C2DD24C2900E3F397 /* YouTubePOC */ = {
+		216CD24C2DD24C2900E3F397 /* iOS */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 216CD2582DD24C2B00E3F397 /* Build configuration list for PBXNativeTarget "YouTubePOC" */;
+			buildConfigurationList = 216CD2582DD24C2B00E3F397 /* Build configuration list for PBXNativeTarget "iOS" */;
 			buildPhases = (
 				216CD2492DD24C2900E3F397 /* Sources */,
 				216CD24A2DD24C2900E3F397 /* Frameworks */,
@@ -79,14 +79,14 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				216CD24F2DD24C2900E3F397 /* YouTubePOC */,
+				216CD24F2DD24C2900E3F397 /* iOS */,
 			);
-			name = YouTubePOC;
+			name = iOS;
 			packageProductDependencies = (
 				21795FB82DFB3C3A00482B97 /* YouTubeKit */,
 			);
-			productName = YouTubePOC;
-			productReference = 216CD24D2DD24C2900E3F397 /* YouTubePOC.app */;
+			productName = YouTube;
+			productReference = 216CD24D2DD24C2900E3F397 /* iOS.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -104,7 +104,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 216CD2482DD24C2900E3F397 /* Build configuration list for PBXProject "YouTubePOC" */;
+			buildConfigurationList = 216CD2482DD24C2900E3F397 /* Build configuration list for PBXProject "YouTube" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -122,7 +122,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				216CD24C2DD24C2900E3F397 /* YouTubePOC */,
+				216CD24C2DD24C2900E3F397 /* iOS */,
 			);
 		};
 /* End PBXProject section */
@@ -283,7 +283,7 @@
 				DEVELOPMENT_TEAM = 4XV9V3GJPT;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = YouTubePOC/Info.plist;
+				INFOPLIST_FILE = iOS/iOS.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = YouTube;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -296,7 +296,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.janchalupa.YouTubePOC;
+				PRODUCT_BUNDLE_IDENTIFIER = com.janchalupa.YouTube;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -314,7 +314,7 @@
 				DEVELOPMENT_TEAM = 4XV9V3GJPT;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = YouTubePOC/Info.plist;
+				INFOPLIST_FILE = iOS/iOS.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = YouTube;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -327,7 +327,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.janchalupa.YouTubePOC;
+				PRODUCT_BUNDLE_IDENTIFIER = com.janchalupa.YouTube;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -338,7 +338,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		216CD2482DD24C2900E3F397 /* Build configuration list for PBXProject "YouTubePOC" */ = {
+		216CD2482DD24C2900E3F397 /* Build configuration list for PBXProject "YouTube" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				216CD2562DD24C2B00E3F397 /* Debug */,
@@ -347,7 +347,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		216CD2582DD24C2B00E3F397 /* Build configuration list for PBXNativeTarget "YouTubePOC" */ = {
+		216CD2582DD24C2B00E3F397 /* Build configuration list for PBXNativeTarget "iOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				216CD2592DD24C2B00E3F397 /* Debug */,
