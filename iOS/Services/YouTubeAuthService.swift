@@ -5,6 +5,7 @@ import SwiftUI
 import UIKit
 import CryptoKit
 import WebKit
+import SwiftData
 
 enum YouTubeAuthError: LocalizedError {
     case invalidCallbackURL
@@ -33,19 +34,7 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
     private let clientID = "906870749753-ajab2im3jtl2ecfqbp28lo27k2vv0v0t.apps.googleusercontent.com"
     private weak var presentationWindow: UIWindow?
     private let youtubeService = YouTubeService.shared
-    
-    private var accessToken: String? {
-        get { 
-            let token = UserDefaults.standard.string(forKey: "youtube_access_token")
-            
-            return token
-        }
-        set {
-            UserDefaults.standard.set(newValue, forKey: "youtube_access_token")
-            
-            youtubeService.accessToken = newValue
-        }
-    }
+    private var modelContext: ModelContext?
     
     struct UserInfo: Codable {
         let name: String
@@ -55,14 +44,61 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
     override private init() {
         super.init()
         
-        if !youtubeService.cookies.isEmpty {
-            self.isAuthenticated = true
+        Task {
+            await loadAuthenticationData()
+        }
+    }
+    
+    func setModelContext(_ context: ModelContext) {
+        self.modelContext = context
+    }
+    
+    private func loadAuthenticationData() async {
+        guard let context = modelContext else { return }
+        
+        do {
+            var descriptor = FetchDescriptor<AuthenticationModel>(
+                sortBy: [SortDescriptor(\.lastUpdated, order: .reverse)]
+            )
+            descriptor.fetchLimit = 1
             
-            Task {
-                await fetchUserInfo()
+            let authData = try context.fetch(descriptor).first
+            
+            if let authData = authData {
+                youtubeService.cookies = authData.cookies
+                youtubeService.alwaysUseCookies = true
+                youtubeService.model.visitorData = authData.visitorData
+                
+                if !youtubeService.cookies.isEmpty {
+                    self.isAuthenticated = true
+                    self.userInfo = authData.userInfo
+                }
             }
-        } else {
-            self.isAuthenticated = false
+        } catch {
+            print("YouTubeAuthService: Error loading authentication data: \(error)")
+        }
+    }
+    
+    private func saveAuthenticationData() {
+        guard let context = modelContext else { return }
+        
+        do {
+            // Delete old authentication data
+            let descriptor = FetchDescriptor<AuthenticationModel>()
+            let existingData = try context.fetch(descriptor)
+            existingData.forEach { context.delete($0) }
+            
+            // Save new authentication data
+            let authData = AuthenticationModel(
+                cookies: youtubeService.cookies,
+                visitorData: youtubeService.model.visitorData,
+                userInfo: userInfo
+            )
+            context.insert(authData)
+            
+            try context.save()
+        } catch {
+            print("YouTubeAuthService: Error saving authentication data: \(error)")
         }
     }
     
@@ -195,6 +231,7 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
             await fetchUserInfo()
             
             if userInfo != nil {
+                saveAuthenticationData()
                 break
             }
             
@@ -222,6 +259,18 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
         youtubeService.reset()
         YouTubePlaylistService.shared.clearData()
         VideoManager.shared.clearPlaylistData()
+        
+        // Clear SwiftData
+        if let context = modelContext {
+            do {
+                let descriptor = FetchDescriptor<AuthenticationModel>()
+                let existingData = try context.fetch(descriptor)
+                existingData.forEach { context.delete($0) }
+                try context.save()
+            } catch {
+                print("YouTubeAuthService: Error clearing authentication data: \(error)")
+            }
+        }
         
         let dataStore = WKWebsiteDataStore.default()
         let dataTypes = WKWebsiteDataStore.allWebsiteDataTypes()
