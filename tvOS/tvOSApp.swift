@@ -2,10 +2,9 @@ import SwiftUI
 import SwiftData
 
 @main
-struct YouTubeApp: App {
-    @StateObject private var videoManager = VideoManager()
-    
+struct YouTube_tvOSApp: App {
     let container: ModelContainer
+    @StateObject private var videoManager = VideoManager()
     
     init() {
         do {
@@ -23,9 +22,6 @@ struct YouTubeApp: App {
             // Set up YouTubeAuthService with ModelContext
             let context = container.mainContext
             YouTubeAuthService.shared.setModelContext(context)
-            
-            // Set up platform-specific functionality
-            YouTubeAuthService.shared.setupPlatformSpecific()
         } catch {
             fatalError("Failed to create ModelContainer: \(error.localizedDescription)")
         }

@@ -50,31 +50,29 @@ struct AccessoryControlsView: View {
     }
 }
 
-struct AccessoryControlsView_Previews: PreviewProvider {
-    static var previews: some View {
-        let videoManager = VideoManager()
-        videoManager.selectedVideo = YTVideo(
-            videoId: "cETgTtu6atM",
-            title: "WWDC25: What's new in SwiftUI",
-            channel: YTLittleChannelInfos(
-                channelId: "",
-                name: "MacRumors",
-                thumbnails: [
-                    YTThumbnail(url: URL(string: "https://yt3.ggpht.com/QM10AqUfNyZxhp92xKOfs5PBnS5vCngEKlbiC--ZHTraiZRubULznnjh9lDWFiGYLkLTRf3g=s68-c-k-c0x00ffffff-no-rj")!)
-                ]
-            ),
-            viewCount: "64K views",
-            timeLength: "6:31",
+#Preview {
+    let videoManager = VideoManager()
+    videoManager.selectedVideo = YTVideo(
+        videoId: "cETgTtu6atM",
+        title: "WWDC25: What's new in SwiftUI",
+        channel: YTLittleChannelInfos(
+            channelId: "",
+            name: "MacRumors",
             thumbnails: [
-                YTThumbnail(
-                    width: 480,
-                    height: 360,
-                    url: URL(string: "https://i.ytimg.com/vi/cETgTtu6atM/hq720.jpg?sqp=-oaymwEjCOgCEMoBSFryq4qpAxUIARUAAAAAGAElAADIQj0AgKJDeAE=&rs=AOn4CLCewFWvccdDn7llqNJmmFRGHeOCIQ")!
-                )
+                YTThumbnail(url: URL(string: "https://yt3.ggpht.com/QM10AqUfNyZxhp92xKOfs5PBnS5vCngEKlbiC--ZHTraiZRubULznnjh9lDWFiGYLkLTRf3g=s68-c-k-c0x00ffffff-no-rj")!)
             ]
-        )
-        
-        return AccessoryControlsView()
-            .environmentObject(videoManager)
-    }
+        ),
+        viewCount: "64K views",
+        timeLength: "6:31",
+        thumbnails: [
+            YTThumbnail(
+                width: 480,
+                height: 360,
+                url: URL(string: "https://i.ytimg.com/vi/cETgTtu6atM/hq720.jpg?sqp=-oaymwEjCOgCEMoBSFryq4qpAxUIARUAAAAAGAElAADIQj0AgKJDeAE=&rs=AOn4CLCewFWvccdDn7llqNJmmFRGHeOCIQ")!
+            )
+        ]
+    )
+    
+    return AccessoryControlsView()
+        .environmentObject(videoManager)
 }
