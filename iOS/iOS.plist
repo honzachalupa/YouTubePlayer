@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>AVFoundationPictureInPictureEnabledByDefault</key>
+	<true/>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -31,7 +33,5 @@
 	<array>
 		<string>audio</string>
 	</array>
-	<key>AVFoundationPictureInPictureEnabledByDefault</key>
-	<true/>
 </dict>
 </plist>
