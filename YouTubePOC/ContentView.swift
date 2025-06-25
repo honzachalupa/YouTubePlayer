@@ -9,7 +9,7 @@ struct ContentView: View {
     
     var body: some View {
         TabView {
-            Tab("Subscriptions", systemImage: "play.house.fill") {
+            Tab("Subscriptions", systemImage: "heart.rectangle.fill") {
                 SubscriptionsVideosView()
             }
             
@@ -18,12 +18,22 @@ struct ContentView: View {
             }
             
             if authService.isAuthenticated {
-                if horizontalSize == .regular {
-                    /// iPadOS + macOS
-                    Tab("History", systemImage: "memories") {
-                        HistoryVideosView()
+                /// iOS
+                if horizontalSize == .compact {
+                    Tab("Playlists", systemImage: "play.square.stack.fill") {
+                        NavigationStack {
+                            PlaylistsListView()
+                                .navigationTitle("Playlists")
+                        }
                     }
-                    
+                }
+                
+                Tab("History", systemImage: "memories") {
+                    HistoryVideosView()
+                }
+                
+                /// iPadOS + macOS
+                if horizontalSize == .regular {
                     TabSection("Playlists") {
                         ForEach(playlistService.playlists, id: \.playlistId) { playlist in
                             Tab(playlist.title ?? "", systemImage: getPlaylistIcon(playlist.title)) {
@@ -35,18 +45,6 @@ struct ContentView: View {
                             PlaylistsListView()
                         }
                     }
-                } else {
-                    /// iOS
-                    Tab("Playlists", systemImage: "play.square.stack.fill") {
-                        NavigationStack {
-                            PlaylistsListView()
-                                .navigationTitle("Playlists")
-                        }
-                    }
-                }
-                
-                Tab("History", systemImage: "memories") {
-                    HistoryVideosView()
                 }
             }
             
