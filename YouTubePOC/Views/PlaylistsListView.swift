@@ -19,7 +19,7 @@ struct PlaylistsListView: View {
         NavigationStack {
             Group {
                 if !authService.isAuthenticated {
-                    ContentUnavailableView("Sign in to view playlists", systemImage: "person.crop.circle.badge.exclamationmark")
+                    ContentUnavailableView("Sign in to view this content", systemImage: "person.crop.circle.badge.exclamationmark")
                 } else if playlistService.isLoading {
                     ProgressView()
                         .controlSize(.large)

@@ -19,6 +19,11 @@ struct ContentView: View {
             
             if authService.isAuthenticated {
                 if horizontalSize == .regular {
+                    /// iPadOS + macOS
+                    Tab("History", systemImage: "memories") {
+                        HistoryVideosView()
+                    }
+                    
                     TabSection("Playlists") {
                         ForEach(playlistService.playlists, id: \.playlistId) { playlist in
                             Tab(playlist.title ?? "", systemImage: getPlaylistIcon(playlist.title)) {
@@ -31,12 +36,17 @@ struct ContentView: View {
                         }
                     }
                 } else {
+                    /// iOS
                     Tab("Playlists", systemImage: "play.square.stack.fill") {
                         NavigationStack {
                             PlaylistsListView()
                                 .navigationTitle("Playlists")
                         }
                     }
+                }
+                
+                Tab("History", systemImage: "memories") {
+                    HistoryVideosView()
                 }
             }
             
