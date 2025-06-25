@@ -2,12 +2,12 @@ import SwiftUI
 
 @main
 struct YouTubePOCApp: App {
-    @StateObject private var playerManager = PlayerManager()
+    @StateObject private var videoManager = VideoManager()
     
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(playerManager)
+                .environmentObject(videoManager)
         }
     }
 }

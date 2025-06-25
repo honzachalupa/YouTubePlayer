@@ -3,17 +3,17 @@ import YouTubeKit
 
 struct AccessoryControlsView: View {
     @Environment(\.tabViewBottomAccessoryPlacement) private var accessoryPlacement
-    @EnvironmentObject private var playerManager: PlayerManager
+    @EnvironmentObject private var videoManager: VideoManager
     @State private var isPlaying = false
     private let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
     
     private func updatePlayState() {
-        isPlaying = playerManager.isPlaying
+        isPlaying = videoManager.isPlaying
     }
     
     var body: some View {
         HStack {
-            if let video = playerManager.selectedVideo {
+            if let video = videoManager.selectedVideo {
                 if let thumbnailUrl = video.channel?.thumbnails.first?.url, accessoryPlacement != .inline {
                     AsyncImage(url: thumbnailUrl) { phase in
                         if let image = phase.image {
@@ -30,15 +30,15 @@ struct AccessoryControlsView: View {
                     .fontWeight(.bold)
                     .lineLimit(1)
                     .onTapGesture {
-                        playerManager.isVideoSheetPresented = true
+                        videoManager.isVideoSheetPresented = true
                     }
                 
                 Button {
-                    playerManager.togglePlayPause()
+                    videoManager.togglePlayPause()
                 } label: {
                     Label(
-                        playerManager.isPlaying ? "Pause" : "Play",
-                        systemImage: playerManager.isPlaying ? "pause.fill" : "play.fill"
+                        videoManager.isPlaying ? "Pause" : "Play",
+                        systemImage: videoManager.isPlaying ? "pause.fill" : "play.fill"
                     )
                 }
                 .onReceive(timer) { _ in
@@ -52,8 +52,8 @@ struct AccessoryControlsView: View {
 
 struct AccessoryControlsView_Previews: PreviewProvider {
     static var previews: some View {
-        let playerManager = PlayerManager()
-        playerManager.selectedVideo = YTVideo(
+        let videoManager = VideoManager()
+        videoManager.selectedVideo = YTVideo(
             videoId: "cETgTtu6atM",
             title: "WWDC25: What's new in SwiftUI",
             channel: YTLittleChannelInfos(
@@ -75,6 +75,6 @@ struct AccessoryControlsView_Previews: PreviewProvider {
         )
         
         return AccessoryControlsView()
-            .environmentObject(playerManager)
+            .environmentObject(videoManager)
     }
 }

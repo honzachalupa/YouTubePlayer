@@ -3,7 +3,7 @@ import YouTubeKit
 
 struct ContentView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSize
-    @EnvironmentObject private var playerManager: PlayerManager
+    @EnvironmentObject private var videoManager: VideoManager
     @StateObject private var authService = YouTubeAuthService.shared
     @StateObject private var playlistService = YouTubePlaylistService.shared
     
@@ -46,16 +46,16 @@ struct ContentView: View {
         }
         .accentColor(Color("AccentColor"))
         .tabViewStyle(.sidebarAdaptable)
-        .sheet(isPresented: $playerManager.isVideoSheetPresented) {
-            if let video = playerManager.selectedVideo {
+        .sheet(isPresented: $videoManager.isVideoSheetPresented) {
+            if let video = videoManager.selectedVideo {
                 VideoView(video: video)
-                    .environmentObject(playerManager)
+                    .environmentObject(videoManager)
                     .presentationSizing(.page)
                     .presentationDragIndicator(.visible)
             }
         }
         .tabViewBottomAccessory {
-            if playerManager.selectedVideo != nil {
+            if videoManager.selectedVideo != nil {
                 AccessoryControlsView()
                     .padding(.leading, 1)
                     .padding(.trailing, 15)
@@ -73,5 +73,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .environmentObject(PlayerManager())
+        .environmentObject(VideoManager())
 }

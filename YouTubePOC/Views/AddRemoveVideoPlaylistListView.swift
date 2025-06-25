@@ -8,7 +8,7 @@ struct AddRemoveVideoPlaylistListView: View {
     
     init(video: YTVideo) {
         self.video = video
-        self._playlistsViewModel = StateObject(wrappedValue: VideoPlaylistsViewModel(video: video, playerManager: PlayerManager.shared))
+        self._playlistsViewModel = StateObject(wrappedValue: VideoPlaylistsViewModel(video: video, videoManager: VideoManager.shared))
     }
     
     var body: some View {

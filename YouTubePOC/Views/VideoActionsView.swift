@@ -4,26 +4,26 @@ import YouTubeKit
 struct VideoActionsView: View {
     public let video: YTVideo
     
-    @EnvironmentObject private var playerManager: PlayerManager
+    @EnvironmentObject private var videoManager: VideoManager
     
     var body: some View {
         HStack {
             Group {
                 Button {
-                    Task { await playerManager.likeVideo() }
+                    Task { await videoManager.likeVideo() }
                 } label: {
-                    Label("Like", systemImage: playerManager.likeStatus == .liked ? "hand.thumbsup.fill" : "hand.thumbsup")
+                    Label("Like", systemImage: videoManager.likeStatus == .liked ? "hand.thumbsup.fill" : "hand.thumbsup")
                 }
-                .tint(playerManager.likeStatus == .liked ? .green : .none)
-                .symbolEffect(.bounce, value: playerManager.likeStatus == .liked)
+                .tint(videoManager.likeStatus == .liked ? .green : .none)
+                .symbolEffect(.bounce, value: videoManager.likeStatus == .liked)
                 
                 Button {
-                    Task { await playerManager.dislikeVideo() }
+                    Task { await videoManager.dislikeVideo() }
                 } label: {
-                    Image(systemName: playerManager.likeStatus == .disliked ? "hand.thumbsdown.fill" : "hand.thumbsdown")
+                    Image(systemName: videoManager.likeStatus == .disliked ? "hand.thumbsdown.fill" : "hand.thumbsdown")
                 }
-                .tint(playerManager.likeStatus == .disliked ? .red : .none)
-                .symbolEffect(.bounce, value: playerManager.likeStatus == .disliked)
+                .tint(videoManager.likeStatus == .disliked ? .red : .none)
+                .symbolEffect(.bounce, value: videoManager.likeStatus == .disliked)
                 
                 ShareLink(item: "https://www.youtube.com/watch?v=\(video.videoId)") {
                     Label("Share", systemImage: "arrowshape.turn.up.right.fill")
@@ -67,5 +67,5 @@ struct VideoActionsView: View {
     
     VideoActionsView(video: video)
         .padding()
-        .environmentObject(PlayerManager())
+        .environmentObject(VideoManager())
 }

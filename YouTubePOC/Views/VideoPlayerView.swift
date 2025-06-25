@@ -6,7 +6,7 @@ struct VideoPlayerView: View {
     public let video: YTVideo
     
     @ObservedObject private var messageService = MessageService.shared
-    @EnvironmentObject private var playerManager: PlayerManager
+    @EnvironmentObject private var videoManager: VideoManager
     
     private struct CustomVideoPlayer: UIViewControllerRepresentable {
         let player: AVPlayer
@@ -23,7 +23,7 @@ struct VideoPlayerView: View {
     
     var body: some View {
         Group {
-            if playerManager.isLoading && playerManager.selectedVideo?.videoId == video.videoId {
+            if videoManager.isLoading {
                 if let thumbnailURL = video.thumbnails.last?.url {
                     AsyncImage(url: thumbnailURL) { phase in
                         if let image = phase.image {
@@ -49,18 +49,18 @@ struct VideoPlayerView: View {
                                 .controlSize(.large)
                         }
                 }
-            } else if let player = playerManager.player {
+            } else if let player = videoManager.player {
                 CustomVideoPlayer(player: player)
                     .onAppear {
                         // Only play if not already playing
-                        if !playerManager.isPlaying {
+                        if !videoManager.isPlaying {
                             player.play()
-                            playerManager.isPlaying = true
+                            videoManager.isPlaying = true
                         }
                     }
                     .onDisappear {
                         // Don't stop playback when view disappears to support background playback
-                        if !playerManager.isPlaying {
+                        if !videoManager.isPlaying {
                             player.pause()
                         }
                     }
@@ -75,22 +75,22 @@ struct VideoPlayerView: View {
         .aspectRatio(16/9, contentMode: .fit)
         .task {
             // Only load the video if it's different from the currently selected one
-            if playerManager.selectedVideo?.videoId != video.videoId {
-                await playerManager.loadVideo(video)
-            } else if !playerManager.isPlaying {
+            if videoManager.selectedVideo?.videoId != video.videoId {
+                await videoManager.loadVideo(video)
+            } else if !videoManager.isPlaying {
                 // If it's the same video but not playing, ensure it plays
-                playerManager.player?.play()
-                playerManager.isPlaying = true
+                videoManager.player?.play()
+                videoManager.isPlaying = true
             }
         }
         .onChange(of: video) {
             // Only load if it's a different video
-            if playerManager.selectedVideo?.videoId != video.videoId {
-                Task { await playerManager.loadVideo(video) }
+            if videoManager.selectedVideo?.videoId != video.videoId {
+                Task { await videoManager.loadVideo(video) }
             }
         }
-        .onChange(of: playerManager.error) {
-            if let errorMessage = playerManager.error {
+        .onChange(of: videoManager.error) {
+            if let errorMessage = videoManager.error {
                 messageService.show(message: errorMessage, type: .error)
             }
         }

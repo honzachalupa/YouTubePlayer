@@ -4,8 +4,8 @@ import YouTubeKit
 import MediaPlayer
 
 @MainActor
-class PlayerManager: ObservableObject {
-    static let shared = PlayerManager()
+class VideoManager: ObservableObject {
+    static let shared = VideoManager()
     
     @Published var selectedVideo: YTVideo?
     @Published var isVideoSheetPresented = false
@@ -23,6 +23,7 @@ class PlayerManager: ObservableObject {
     private let playlistService = YouTubePlaylistService.shared
     private let youtubeService = YouTubeService.shared
     private var thumbnailImage: UIImage?
+    private var isCleanedUp = false
     
     func clearPlaylistData() {
         availablePlaylists = []
@@ -38,12 +39,23 @@ class PlayerManager: ObservableObject {
         UIApplication.shared.beginReceivingRemoteControlEvents()
     }
     
+    @MainActor
+    private func cleanup() {
+        guard !isCleanedUp else { return }
+        isCleanedUp = true
+        
+        if let observer = playerTimeObserver, let player = currentPlayer {
+            player.removeTimeObserver(observer)
+            playerTimeObserver = nil
+            currentPlayer = nil
+        }
+        UIApplication.shared.endReceivingRemoteControlEvents()
+    }
+    
     nonisolated deinit {
-        Task { @MainActor in
-            if let observer = playerTimeObserver, let player = currentPlayer {
-                player.removeTimeObserver(observer)
-            }
-            UIApplication.shared.endReceivingRemoteControlEvents()
+        // Schedule cleanup on the main actor
+        Task { @MainActor [self] in
+            cleanup()
         }
     }
     
@@ -304,7 +316,7 @@ class PlayerManager: ObservableObject {
         guard let video = selectedVideo else { return }
         
         do {
-            let response = try await RemoveVideoFromPlaylistResponse.sendThrowingRequest(
+            let response = try await RemoveVideoByIdFromPlaylistResponse.sendThrowingRequest(
                 youtubeModel: youtubeService.model,
                 data: [
                     .browseId: playlist.playlistId.hasPrefix("VL") ? String(playlist.playlistId.dropFirst(2)) : playlist.playlistId,

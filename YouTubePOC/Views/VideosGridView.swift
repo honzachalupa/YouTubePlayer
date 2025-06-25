@@ -86,12 +86,12 @@ struct VideosGridView: View {
 struct VideoGridItemView: View {
     public let video: YTVideo
     
-    @EnvironmentObject private var playerManager: PlayerManager
+    @EnvironmentObject private var videoManager: VideoManager
     @StateObject private var playlistsViewModel: VideoPlaylistsViewModel
     
     init(video: YTVideo) {
         self.video = video
-        self._playlistsViewModel = StateObject(wrappedValue: VideoPlaylistsViewModel(video: video, playerManager: PlayerManager.shared))
+        self._playlistsViewModel = StateObject(wrappedValue: VideoPlaylistsViewModel(video: video, videoManager: VideoManager.shared))
     }
     
     var body: some View {
@@ -119,7 +119,7 @@ struct VideoGridItemView: View {
         .cornerRadius(20)
         .shadow(color: .black.opacity(0.3), radius: 10)
         .onTapGesture {
-            playerManager.selectVideo(video)
+            videoManager.selectVideo(video)
         }
         .contextMenu {
             Section("Add to playlist") {
@@ -150,6 +150,6 @@ struct VideoGridItemView: View {
     )
     
     VideosGridView(videos: [video, video, video], fetchVideos: { Task.init { } }, loadMoreIfNeeded: { _ in })
-        .environmentObject(PlayerManager())
+        .environmentObject(VideoManager())
 }
 

@@ -221,7 +221,7 @@ class YouTubeAuthService: NSObject, ObservableObject, ASWebAuthenticationPresent
         
         youtubeService.reset()
         YouTubePlaylistService.shared.clearData()
-        PlayerManager.shared.clearPlaylistData()
+        VideoManager.shared.clearPlaylistData()
         
         let dataStore = WKWebsiteDataStore.default()
         let dataTypes = WKWebsiteDataStore.allWebsiteDataTypes()

@@ -6,11 +6,11 @@ class VideoPlaylistsViewModel: ObservableObject {
     @Published var playlistStates: [(playlist: YTPlaylist, isVideoPresentInside: Bool)] = []
     
     private let video: YTVideo
-    private let playerManager: PlayerManager
+    private let videoManager: VideoManager
     
-    init(video: YTVideo, playerManager: PlayerManager) {
+    init(video: YTVideo, videoManager: VideoManager) {
         self.video = video
-        self.playerManager = playerManager
+        self.videoManager = videoManager
         
         Task {
             await fetchPlaylistStates()
@@ -18,16 +18,16 @@ class VideoPlaylistsViewModel: ObservableObject {
     }
     
     func fetchPlaylistStates() async {
-        playlistStates = await playerManager.getPlaylistStates(for: video)
+        playlistStates = await videoManager.getPlaylistStates(for: video)
     }
     
     func addToPlaylist(_ playlist: YTPlaylist) async {
-        await playerManager.addToPlaylist(playlist)
+        await videoManager.addToPlaylist(playlist)
         await fetchPlaylistStates()
     }
     
     func removeFromPlaylist(_ playlist: YTPlaylist) async {
-        await playerManager.removeFromPlaylist(playlist)
+        await videoManager.removeFromPlaylist(playlist)
         await fetchPlaylistStates()
     }
 } 

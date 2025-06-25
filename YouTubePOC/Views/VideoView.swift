@@ -5,12 +5,12 @@ struct VideoView: View {
     public let video: YTVideo
     
     private let youtubeService = YouTubeService.shared
-    @EnvironmentObject private var playerManager: PlayerManager
+    @EnvironmentObject private var videoManager: VideoManager
     @StateObject private var messageService = MessageService.shared
     @State private var description: String? = nil
     
     func fetchDetails() async {
-        if let video = playerManager.selectedVideo {
+        if let video = videoManager.selectedVideo {
             do {
                 await youtubeService.getVisitorData()
                 
@@ -32,7 +32,7 @@ struct VideoView: View {
     }
     
     var body: some View {
-        if let video = playerManager.selectedVideo {
+        if let video = videoManager.selectedVideo {
             NavigationStack {
                 VStack(spacing: 0) {
                     VideoPlayerView(video: video)
@@ -74,5 +74,5 @@ struct VideoView: View {
 
 #Preview {
     VideoView(video: YTVideo(videoId: "dQw4w9WgXcQ"))
-        .environmentObject(PlayerManager())
+        .environmentObject(VideoManager())
 }
