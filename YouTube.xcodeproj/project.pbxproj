@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		211D40D42E0C35F800CD2C6F /* YouTubeKit in Frameworks */ = {isa = PBXBuildFile; productRef = 211D40D32E0C35F800CD2C6F /* YouTubeKit */; };
+		21210E722E30BECC007904A3 /* SwiftCore in Frameworks */ = {isa = PBXBuildFile; productRef = 21210E712E30BECC007904A3 /* SwiftCore */; };
 		21795FB92DFB3C3A00482B97 /* YouTubeKit in Frameworks */ = {isa = PBXBuildFile; productRef = 21795FB82DFB3C3A00482B97 /* YouTubeKit */; };
 /* End PBXBuildFile section */
 
@@ -105,6 +106,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				21795FB92DFB3C3A00482B97 /* YouTubeKit in Frameworks */,
+				21210E722E30BECC007904A3 /* SwiftCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -183,6 +185,7 @@
 			name = iOS;
 			packageProductDependencies = (
 				21795FB82DFB3C3A00482B97 /* YouTubeKit */,
+				21210E712E30BECC007904A3 /* SwiftCore */,
 			);
 			productName = YouTube;
 			productReference = 216CD24D2DD24C2900E3F397 /* iOS.app */;
@@ -218,6 +221,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				21795FB72DFB3C3A00482B97 /* XCRemoteSwiftPackageReference "YouTubeKit" */,
+				21210E702E30BECC007904A3 /* XCRemoteSwiftPackageReference "SwiftCore" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 216CD24E2DD24C2900E3F397 /* Products */;
@@ -555,6 +559,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		21210E702E30BECC007904A3 /* XCRemoteSwiftPackageReference "SwiftCore" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/honzachalupa/SwiftCore";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.5.10;
+			};
+		};
 		21795FB72DFB3C3A00482B97 /* XCRemoteSwiftPackageReference "YouTubeKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/b5i/YouTubeKit/";
@@ -570,6 +582,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 21795FB72DFB3C3A00482B97 /* XCRemoteSwiftPackageReference "YouTubeKit" */;
 			productName = YouTubeKit;
+		};
+		21210E712E30BECC007904A3 /* SwiftCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 21210E702E30BECC007904A3 /* XCRemoteSwiftPackageReference "SwiftCore" */;
+			productName = SwiftCore;
 		};
 		21795FB82DFB3C3A00482B97 /* YouTubeKit */ = {
 			isa = XCSwiftPackageProductDependency;

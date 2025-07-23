@@ -43,6 +43,7 @@ struct RecommendedVideosView: View {
                 await fetchVideos()
             }
             .toolbar {
+                SettingsToolbarItem()
                 AccountToolbarItem()
             }
             #if os(iOS)
