@@ -73,6 +73,7 @@ struct VideoPlayerView: View {
             }
         }
         .aspectRatio(16/9, contentMode: .fit)
+        .ignoresSafeArea()
         .task {
             // Only load the video if it's different from the currently selected one
             if videoManager.selectedVideo?.videoId != video.videoId {

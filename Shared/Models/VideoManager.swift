@@ -222,14 +222,27 @@ class VideoManager: ObservableObject {
                 }
             }
             
-            // Get video info and streaming URL
-            _ = try await video.fetchMoreInfosThrowing(
+            // Get video info with tracking data
+            let videoInfoData: [HeadersList.AddQueryInfo.ContentTypes: String] = [
+                .query: video.videoId,
+                .visitorData: youtubeService.model.visitorData
+            ]
+            
+            _ = try await MoreVideoInfosResponse.sendThrowingRequest(
                 youtubeModel: youtubeService.model,
+                data: videoInfoData,
                 useCookies: true
             )
             
-            let streamingInfos = try await video.fetchStreamingInfosThrowing(
+            // Get streaming info with tracking data
+            let streamingInfoData: [HeadersList.AddQueryInfo.ContentTypes: String] = [
+                .query: video.videoId,
+                .visitorData: youtubeService.model.visitorData
+            ]
+            
+            let streamingInfos = try await VideoInfosResponse.sendThrowingRequest(
                 youtubeModel: youtubeService.model,
+                data: streamingInfoData,
                 useCookies: false
             )
             

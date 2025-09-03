@@ -1,5 +1,5 @@
 {
-  "originHash" : "032cdd17a8b44efd469795a86cf92ba999e7abcb1536b63bfe1f7ff361883a7c",
+  "originHash" : "94588f566163c43966cf4013ba51a8b8619e51fccf96568bc39162405cefb336",
   "pins" : [
     {
       "identity" : "networkimage",
@@ -51,8 +51,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/b5i/YouTubeKit/",
       "state" : {
-        "branch" : "main",
-        "revision" : "1f963c7c3bf7c28d06e982078cd85ef30fe1a132"
+        "revision" : "cd24dfc8cb51b7994fa45f381aeb7cbd945ce2ef",
+        "version" : "2.5.0"
       }
     }
   ],

@@ -2,3 +2,4 @@
 Secrets.json
 *.xcuserstate
 xcuserdata/
+.build
