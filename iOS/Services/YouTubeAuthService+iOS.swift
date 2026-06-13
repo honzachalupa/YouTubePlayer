@@ -24,6 +24,8 @@ class YouTubeiOSAuthDelegate: YouTubeAuthPlatformDelegate {
 
 extension YouTubeAuthService {
     func setupPlatformSpecific() {
-        platformDelegate = YouTubeiOSAuthDelegate()
+        platformDelegate = retainedPlatformDelegate
     }
-} 
+}
+
+private let retainedPlatformDelegate = YouTubeiOSAuthDelegate()

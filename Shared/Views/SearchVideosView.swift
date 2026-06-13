@@ -131,6 +131,7 @@ struct SearchVideosView: View {
             )
         }
         .searchable(text: $query, prompt: "Search videos or channels...")
+        .navigationTitle("Search")
         .onChange(of: query) {
             Task { await searchVideos() }
         }

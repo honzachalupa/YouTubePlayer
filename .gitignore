@@ -3,3 +3,6 @@ Secrets.json
 *.xcuserstate
 xcuserdata/
 .build
+.derivedData
+.codex-cache
+.codex-home

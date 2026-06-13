@@ -81,9 +81,6 @@
         }
       }
     },
-    "Close" : {
-
-    },
     "Create" : {
       "localizations" : {
         "cs" : {
@@ -134,6 +131,16 @@
         }
       }
     },
+    "Failed to load video" : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nepodařilo se načíst video"
+          }
+        }
+      }
+    },
     "History" : {
       "localizations" : {
         "cs" : {
@@ -180,6 +187,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Žádné playlisty nenalezeny"
+          }
+        }
+      }
+    },
+    "No video selected" : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Není vybrané žádné video"
           }
         }
       }

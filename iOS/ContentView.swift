@@ -7,23 +7,37 @@ struct ContentView: View {
     @StateObject private var authService = YouTubeAuthService.shared
     @StateObject private var playlistService = YouTubePlaylistService.shared
     
+    private func navigationTabContent<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        NavigationStack {
+            content()
+                .toolbar {
+                    SettingsToolbarItem()
+                    AccountToolbarItem()
+                }
+        }
+    }
+    
     var body: some View {
         TabView {
             if authService.isAuthenticated {
                 Tab("Subscriptions", systemImage: "heart.rectangle.fill") {
-                    SubscriptionsVideosView()
+                    navigationTabContent {
+                        SubscriptionsVideosView()
+                    }
                 }
             }
             
             Tab("Recommended", systemImage: "play.rectangle.on.rectangle.fill") {
-                RecommendedVideosView()
+                navigationTabContent {
+                    RecommendedVideosView()
+                }
             }
             
             if authService.isAuthenticated {
                 /// iOS
                 if horizontalSize == .compact {
                     Tab("Playlists", systemImage: "play.square.stack.fill") {
-                        NavigationStack {
+                        navigationTabContent {
                             PlaylistsListView()
                                 .navigationTitle("Playlists")
                         }
@@ -31,7 +45,9 @@ struct ContentView: View {
                 }
                 
                 Tab("History", systemImage: "memories") {
-                    HistoryVideosView()
+                    navigationTabContent {
+                        HistoryVideosView()
+                    }
                 }
                 
                 /// iPadOS + macOS
@@ -39,44 +55,53 @@ struct ContentView: View {
                     TabSection("Playlists") {
                         ForEach(playlistService.playlists, id: \.playlistId) { playlist in
                             Tab(playlist.title ?? "", systemImage: getPlaylistIcon(playlist.title)) {
-                                PlaylistView(playlist: playlist)
+                                navigationTabContent {
+                                    PlaylistView(playlist: playlist)
+                                }
                             }
                         }
                         
                         Tab("All...", systemImage: "list.bullet") {
-                            PlaylistsListView()
+                            navigationTabContent {
+                                PlaylistsListView()
+                                    .navigationTitle("Playlists")
+                            }
                         }
                     }
                 }
             }
             
             Tab("Search", systemImage: "magnifyingglass", role: .search) {
-                SearchVideosView()
+                navigationTabContent {
+                    SearchVideosView()
+                }
             }
         }
-        .accentColor(Color("AccentColor"))
+        .tabViewBottomAccessory(isEnabled: videoManager.shouldShowAccessory) {
+            AccessoryControlsView()
+                .padding(.leading, 1)
+                .padding(.trailing, 15)
+        }
         .tabViewStyle(.sidebarAdaptable)
+        .tabBarMinimizeBehavior(.onScrollDown)
         .sheet(isPresented: $videoManager.isVideoSheetPresented) {
             if let video = videoManager.selectedVideo {
                 VideoView(video: video)
                     .environmentObject(videoManager)
                     .presentationSizing(.page)
                     .presentationDragIndicator(.visible)
+            } else {
+                ContentUnavailableView("No video selected", systemImage: "play.slash.fill")
+                    .presentationSizing(.page)
+                    .presentationDragIndicator(.visible)
             }
         }
-        .tabViewBottomAccessory {
-            if videoManager.selectedVideo != nil {
-                AccessoryControlsView()
-                    .padding(.leading, 1)
-                    .padding(.trailing, 15)
-            }
-        }
-        .tabBarMinimizeBehavior(.onScrollDown)
         .onChange(of: authService.isAuthenticated) { _, isAuthenticated in
             if !isAuthenticated {
                 playlistService.clearData()
             }
         }
+        .accentColor(Color("AccentColor"))
         .messageOverlay()
     }
 }

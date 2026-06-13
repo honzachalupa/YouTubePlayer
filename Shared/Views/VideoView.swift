@@ -75,13 +75,9 @@ struct VideoView: View {
                 ChannelView(channelInfo: channelInfo)
             }
             .toolbar {
-                if horizontalSizeClass == .regular {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            dismiss()
-                        } label: {
-                            Label("Close", systemImage: "xmark")
-                        }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(role: .close) {
+                        dismiss()
                     }
                 }
             }

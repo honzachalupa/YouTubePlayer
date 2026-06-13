@@ -8,16 +8,28 @@ struct ScrollViewOffsetPreferenceKey: PreferenceKey {
     }
 }
 
+private struct ScrollViewContentHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 struct VideosGridView: View {
     public var videos: [YTVideo]
     public var error: Error?
     public var fetchVideos: () async -> Void
     public var loadMoreIfNeeded: ((YTVideo) -> Void)?
+    public var isLoadingMore: Bool = false
     
     @ObservedObject private var messageService = MessageService.shared
     @State private var selectedVideo: YTVideo? = nil
     @State private var isLoading: Bool = true
     @State private var isRefreshing: Bool = false
+    @State private var scrollViewportWidth: CGFloat = 0
+    @State private var scrollViewportHeight: CGFloat = 0
+    @State private var scrollContentHeight: CGFloat = 0
+    @State private var lastAutoFillAttemptVideoCount: Int = -1
     
     func fetch() async {
         if !isRefreshing {
@@ -30,8 +42,8 @@ struct VideosGridView: View {
         isRefreshing = false
     }
     
-    func getColumns() -> [GridItem] {
-        if UIScreen.main.bounds.width > 1500 {
+    func getColumns(for width: CGFloat) -> [GridItem] {
+        if width > 1500 {
             return [GridItem(
                 .adaptive(minimum: 500, maximum: 1200),
                 spacing: 20,
@@ -46,9 +58,30 @@ struct VideosGridView: View {
         }
     }
     
+    private func updateScrollViewportSize(_ size: CGSize) {
+        scrollViewportWidth = size.width
+        scrollViewportHeight = size.height
+        triggerLoadMoreIfViewportNotFilled()
+    }
+    
+    private func triggerLoadMoreIfViewportNotFilled() {
+        guard let loadMoreIfNeeded, let lastVideo = videos.last else { return }
+        guard !videos.isEmpty else { return }
+        guard scrollViewportHeight > 0, scrollContentHeight > 0 else { return }
+        
+        // Only auto-attempt once per visible item count to avoid repeated loops when there is no more data.
+        guard lastAutoFillAttemptVideoCount != videos.count else { return }
+        
+        let threshold: CGFloat = 24
+        guard scrollContentHeight <= scrollViewportHeight + threshold else { return }
+        
+        lastAutoFillAttemptVideoCount = videos.count
+        loadMoreIfNeeded(lastVideo)
+    }
+    
     var body: some View {
         Group {
-            if isLoading && !isRefreshing {
+            if isLoading && !isRefreshing && videos.isEmpty {
                 Spacer()
                 ProgressView()
                     .controlSize(.large)
@@ -59,19 +92,72 @@ struct VideosGridView: View {
                 Spacer()
             } else {
                 ScrollView {
-                    LazyVGrid(columns: getColumns(), spacing: 20) {
-                        ForEach(videos, id: \.videoId) { video in
-                            VideoGridItemView(video: video)
-                                .onAppear {
-                                    if let lastVideo = videos.last, video.videoId == lastVideo.videoId {
-                                        print("Last video appeared, triggering load more")
-                                        loadMoreIfNeeded?(video)
+                    VStack(spacing: 0) {
+                        LazyVGrid(columns: getColumns(for: scrollViewportWidth), spacing: 20) {
+                            ForEach(videos, id: \.videoId) { video in
+                                VideoGridItemView(video: video)
+                                    .onAppear {
+                                        if let lastVideo = videos.last, video.videoId == lastVideo.videoId {
+                                            print("Last video appeared, triggering load more")
+                                            loadMoreIfNeeded?(video)
+                                        }
                                     }
+                            }
+                        }
+                        
+                        // Footer sentinel handles large viewports where content does not become scrollable.
+                        if let lastVideo = videos.last, loadMoreIfNeeded != nil {
+                            Color.clear
+                                .frame(height: 1)
+                                .id("load-more-sentinel-\(videos.count)")
+                                .onAppear {
+                                    loadMoreIfNeeded?(lastVideo)
                                 }
+                        }
+
+                        if isLoadingMore {
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                    .controlSize(.regular)
+                                Spacer()
+                            }
+                            .padding(.top, 12)
+                            .padding(.bottom, 8)
                         }
                     }
                     .padding()
-                    .animation(.easeInOut, value: videos)
+                    .background {
+                        GeometryReader { contentProxy in
+                            Color.clear
+                                .preference(
+                                    key: ScrollViewContentHeightPreferenceKey.self,
+                                    value: contentProxy.size.height
+                                )
+                        }
+                    }
+                }
+                .background {
+                    GeometryReader { viewportProxy in
+                        Color.clear
+                            .onAppear {
+                                updateScrollViewportSize(viewportProxy.size)
+                            }
+                            .onChange(of: viewportProxy.size) {
+                                updateScrollViewportSize(viewportProxy.size)
+                            }
+                    }
+                }
+                .animation(.easeInOut, value: videos)
+                .onChange(of: videos.count) {
+                    if videos.isEmpty {
+                        lastAutoFillAttemptVideoCount = -1
+                    }
+                    triggerLoadMoreIfViewportNotFilled()
+                }
+                .onPreferenceChange(ScrollViewContentHeightPreferenceKey.self) { value in
+                    scrollContentHeight = value
+                    triggerLoadMoreIfViewportNotFilled()
                 }
                 .refreshable {
                     isRefreshing = true
@@ -135,23 +221,30 @@ private struct VideoContent: View {
     let video: YTVideo
     
     var body: some View {
-        VStack {
-            Group {
+        VStack(spacing: 0) {
+            ZStack {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.2))
+
                 if let thumbnailURL = video.thumbnails.last?.url {
                     AsyncImage(url: thumbnailURL) { image in
                         image
                             .resizable()
+                            .scaledToFill()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } placeholder: {
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.2))
+                        Color.clear
                     }
                 }
             }
+            .frame(maxWidth: .infinity)
             .aspectRatio(16/9, contentMode: .fit)
+            .clipped()
             
             VideoInfoView(video: video, mainLabel: .videoTitle)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
+                .padding(.horizontal, 12)
+                .padding(.top, 10)
+                .padding(.bottom, 5)
 
             Spacer()
         }
@@ -184,4 +277,3 @@ private struct VideoContent: View {
     VideosGridView(videos: [video, video, video], fetchVideos: { Task.init { } }, loadMoreIfNeeded: { _ in })
         .environmentObject(VideoManager())
 }
-

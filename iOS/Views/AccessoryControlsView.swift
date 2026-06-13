@@ -1,5 +1,6 @@
 import SwiftUI
 import YouTubeKit
+import Combine
 
 struct AccessoryControlsView: View {
     @Environment(\.tabViewBottomAccessoryPlacement) private var accessoryPlacement
@@ -7,44 +8,51 @@ struct AccessoryControlsView: View {
     @State private var isPlaying = false
     private let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
     
+    private var videoTitle: String {
+        videoManager.selectedVideo?.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+    
     private func updatePlayState() {
         isPlaying = videoManager.isPlaying
     }
     
     var body: some View {
-        HStack {
-            if let video = videoManager.selectedVideo {
-                if let thumbnailUrl = video.channel?.thumbnails.first?.url, accessoryPlacement != .inline {
-                    AsyncImage(url: thumbnailUrl) { phase in
-                        if let image = phase.image {
-                            image.resizable()
-                                .frame(width: 40, height: 40)
-                                .clipShape(Circle())
-                                .padding(.leading, 0)
+        Group {
+            if let video = videoManager.selectedVideo, !videoTitle.isEmpty {
+                HStack {
+                    if let thumbnailUrl = video.channel?.thumbnails.first?.url, accessoryPlacement != .inline {
+                        AsyncImage(url: thumbnailUrl) { phase in
+                            if let image = phase.image {
+                                image.resizable()
+                                    .frame(width: 40, height: 40)
+                                    .clipShape(Circle())
+                                    .padding(.leading, 0)
+                            }
                         }
                     }
-                }
-                
-                Text(video.title ?? "")
-                    .font(.callout)
-                    .fontWeight(.bold)
-                    .lineLimit(1)
-                    .onTapGesture {
-                        videoManager.isVideoSheetPresented = true
+                    
+                    Text(videoTitle)
+                        .font(.callout)
+                        .fontWeight(.bold)
+                        .lineLimit(1)
+                        .onTapGesture {
+                            videoManager.isVideoSheetPresented = true
+                        }
+                    
+                    Button {
+                        videoManager.togglePlayPause()
+                    } label: {
+                        Label(
+                            videoManager.isPlaying ? "Pause" : "Play",
+                            systemImage: videoManager.isPlaying ? "pause.fill" : "play.fill"
+                        )
+                        .labelStyle(.iconOnly)
                     }
-                
-                Button {
-                    videoManager.togglePlayPause()
-                } label: {
-                    Label(
-                        videoManager.isPlaying ? "Pause" : "Play",
-                        systemImage: videoManager.isPlaying ? "pause.fill" : "play.fill"
-                    )
+                    .onReceive(timer) { _ in
+                        updatePlayState()
+                    }
+                    .padding(.leading, 5)
                 }
-                .onReceive(timer) { _ in
-                    updatePlayState()
-                }
-                .padding(.leading, 5)
             }
         }
     }

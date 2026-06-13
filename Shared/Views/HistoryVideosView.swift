@@ -3,10 +3,22 @@ import YouTubeKit
 
 struct HistoryVideosView: View {
     private let youtubeService = YouTubeService.shared
+    private let authService = YouTubeAuthService.shared
     @State private var videos: [YTVideo] = []
     @State private var fetchError: Error? = nil
 
     func fetchVideos() async {
+        guard authService.isAuthenticated else {
+            withAnimation {
+                fetchError = NSError(
+                    domain: "YouTubeAuth",
+                    code: 401,
+                    userInfo: [NSLocalizedDescriptionKey: "Not authenticated. Please sign in."]
+                )
+                videos = []
+            }
+            return
+        }
         do {
             // First ensure we have visitor data
             await youtubeService.getVisitorData()
@@ -49,18 +61,12 @@ struct HistoryVideosView: View {
     }
     
     var body: some View {
-        NavigationStack {
-            VideosGridView(videos: videos, error: fetchError) {
-                await fetchVideos()
-            }
-            .toolbar {
-                SettingsToolbarItem()
-                AccountToolbarItem()
-            }
-            #if os(iOS)
-            .navigationTitle("History")
-            #endif
+        VideosGridView(videos: videos, error: fetchError) {
+            await fetchVideos()
         }
+        #if os(iOS)
+        .navigationTitle("History")
+        #endif
     }
 }
 

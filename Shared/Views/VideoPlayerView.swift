@@ -64,6 +64,20 @@ struct VideoPlayerView: View {
                             player.pause()
                         }
                     }
+            } else if let errorMessage = videoManager.error, !errorMessage.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.largeTitle)
+                        
+                    Text("Failed to load video")
+                        .font(.headline)
+
+                    Text(errorMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                }
             } else {
                 Color.gray.opacity(0.2)
                     .overlay {
@@ -75,8 +89,8 @@ struct VideoPlayerView: View {
         .aspectRatio(16/9, contentMode: .fit)
         .ignoresSafeArea()
         .task {
-            // Only load the video if it's different from the currently selected one
-            if videoManager.selectedVideo?.videoId != video.videoId {
+            // Load if the requested video is not already selected or no player exists yet.
+            if videoManager.selectedVideo?.videoId != video.videoId || videoManager.player == nil {
                 await videoManager.loadVideo(video)
             } else if !videoManager.isPlaying {
                 // If it's the same video but not playing, ensure it plays

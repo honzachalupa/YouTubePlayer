@@ -16,102 +16,98 @@ struct PlaylistsListView: View {
     }
     
     var body: some View {
-        NavigationStack {
-            Group {
-                if !authService.isAuthenticated {
-                    ContentUnavailableView("Sign in to view this content", systemImage: "person.crop.circle.badge.exclamationmark")
-                } else if playlistService.isLoading {
-                    ProgressView()
-                        .controlSize(.large)
-                } else if let error = playlistService.error {
-                    ContentUnavailableView(error, systemImage: "exclamationmark.triangle.fill")
-                } else if playlistService.playlists.isEmpty {
-                    ContentUnavailableView("No playlists found", systemImage: "play.square.stack")
-                } else {
-                    List {
-                        ForEach(playlistService.playlists, id: \.playlistId) { playlist in
-                            NavigationLink {
-                                PlaylistView(playlist: playlist)
-                            } label: {
-                                PlaylistRowView(playlist: playlist)
-                            }
-                            #if os(iOS)
-                            .swipeActions {
-                                Button(role: .destructive) {
-                                    playlistToDelete = playlist
-                                } label: {
-                                    Label("Delete", systemImage: "trash.fill")
-                                }
-                            }
-                            #endif
-                            .contextMenu {
-                                Button(role: .destructive) {
-                                    playlistToDelete = playlist
-                                } label: {
-                                    Label("Delete", systemImage: "trash.fill")
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            .task { await fetchIfNeeded() }
-            .refreshable { await playlistService.fetchPlaylists() }
-            .toolbar {
-                if authService.isAuthenticated {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button {
-                            showingCreatePlaylistSheet = true
+        Group {
+            if !authService.isAuthenticated {
+                ContentUnavailableView("Sign in to view this content", systemImage: "person.crop.circle.badge.exclamationmark")
+            } else if playlistService.isLoading {
+                ProgressView()
+                    .controlSize(.large)
+            } else if let error = playlistService.error {
+                ContentUnavailableView(error, systemImage: "exclamationmark.triangle.fill")
+            } else if playlistService.playlists.isEmpty {
+                ContentUnavailableView("No playlists found", systemImage: "play.square.stack")
+            } else {
+                List {
+                    ForEach(playlistService.playlists, id: \.playlistId) { playlist in
+                        NavigationLink {
+                            PlaylistView(playlist: playlist)
                         } label: {
-                            Label("Create playlist", systemImage: "plus")
+                            PlaylistRowView(playlist: playlist)
                         }
-                    }
-                }
-                
-                AccountToolbarItem()
-            }
-            .sheet(isPresented: $showingCreatePlaylistSheet) {
-                CreatePlaylistView()
-            }
-            .confirmationDialog(
-                "Are you sure you want to delete \"\(playlistToDelete?.title ?? "")\" playlist?",
-                isPresented: .init(
-                    get: { playlistToDelete != nil },
-                    set: { if !$0 { playlistToDelete = nil } }
-                ),
-                titleVisibility: .visible
-            ) {
-                Button("Delete", role: .destructive) {
-                    if let playlist = playlistToDelete {
-                        Task {
-                            let success = await playlistService.deletePlaylist(playlist)
-                            if success {
-                                playlistToDelete = nil
-                            } else {
-                                showingDeleteError = true
+                        #if os(iOS)
+                        .swipeActions {
+                            Button(role: .destructive) {
+                                playlistToDelete = playlist
+                            } label: {
+                                Label("Delete", systemImage: "trash.fill")
+                            }
+                        }
+                        #endif
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                playlistToDelete = playlist
+                            } label: {
+                                Label("Delete", systemImage: "trash.fill")
                             }
                         }
                     }
                 }
-                
-                Button("Cancel", role: .cancel) {
-                    playlistToDelete = nil
-                }
             }
-            .alert("Failed to delete playlist \"\(playlistToDelete?.title ?? "")\".", isPresented: $showingDeleteError) {
-                Button("OK", role: .cancel) {
-                    showingDeleteError = false
-                }
-            } message: {
-                if let error = playlistService.error {
-                    Text(error)
-                }
-            }
-            .onChange(of: authService.isAuthenticated) { _, isAuthenticated in
-                if isAuthenticated {
-                    Task {
-                        await fetchIfNeeded()
+        }
+        .task { await fetchIfNeeded() }
+        .refreshable { await playlistService.fetchPlaylists() }
+        .toolbar {
+            if authService.isAuthenticated {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showingCreatePlaylistSheet = true
+                    } label: {
+                        Label("Create playlist", systemImage: "plus")
                     }
+                }
+            }
+        }
+        .sheet(isPresented: $showingCreatePlaylistSheet) {
+            CreatePlaylistView()
+        }
+        .confirmationDialog(
+            "Are you sure you want to delete \"\(playlistToDelete?.title ?? "")\" playlist?",
+            isPresented: .init(
+                get: { playlistToDelete != nil },
+                set: { if !$0 { playlistToDelete = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                if let playlist = playlistToDelete {
+                    Task {
+                        let success = await playlistService.deletePlaylist(playlist)
+                        if success {
+                            playlistToDelete = nil
+                        } else {
+                            showingDeleteError = true
+                        }
+                    }
+                }
+            }
+            
+            Button("Cancel", role: .cancel) {
+                playlistToDelete = nil
+            }
+        }
+        .alert("Failed to delete playlist \"\(playlistToDelete?.title ?? "")\".", isPresented: $showingDeleteError) {
+            Button("OK", role: .cancel) {
+                showingDeleteError = false
+            }
+        } message: {
+            if let error = playlistService.error {
+                Text(error)
+            }
+        }
+        .onChange(of: authService.isAuthenticated) { _, isAuthenticated in
+            if isAuthenticated {
+                Task {
+                    await fetchIfNeeded()
                 }
             }
         }

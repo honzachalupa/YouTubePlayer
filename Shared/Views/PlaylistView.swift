@@ -125,45 +125,43 @@ struct PlaylistView: View {
     }
     
     var body: some View {
-        NavigationStack {
-            VideosGridView(videos: filteredVideos, error: fetchError) {
-                await fetchVideos()
-            }
-            .toolbar {
-                ToolbarItem(placement: .destructiveAction) {
-                    Button(role: .destructive) {
-                        showingDeleteConfirmation = true
-                    } label: {
-                        if isDeletingPlaylist {
-                            ProgressView()
-                        } else {
-                            Label("Delete playlist", systemImage: "trash.fill")
-                        }
-                    }
-                    .tint(.red)
-                    .disabled(isDeletingPlaylist)
-                    .confirmationDialog(
-                        "Are you sure you want to delete this playlist?",
-                        isPresented: $showingDeleteConfirmation,
-                        titleVisibility: .visible
-                    ) {
-                        Button("Delete", role: .destructive) {
-                            isDeletingPlaylist = true
-                            Task {
-                                let success = await playlistService.deletePlaylist(playlist)
-                                isDeletingPlaylist = false
-                                if !success {
-                                    messageService.show(message: playlistService.error ?? "Failed to delete playlist.", type: .error)
-                                }
-                            }
-                        }
-                        Button("Cancel", role: .cancel) {}
+        VideosGridView(videos: filteredVideos, error: fetchError) {
+            await fetchVideos()
+        }
+        .toolbar {
+            ToolbarItem(placement: .destructiveAction) {
+                Button(role: .destructive) {
+                    showingDeleteConfirmation = true
+                } label: {
+                    if isDeletingPlaylist {
+                        ProgressView()
+                    } else {
+                        Label("Delete playlist", systemImage: "trash.fill")
                     }
                 }
+                .tint(.red)
+                .disabled(isDeletingPlaylist)
+                .confirmationDialog(
+                    "Are you sure you want to delete this playlist?",
+                    isPresented: $showingDeleteConfirmation,
+                    titleVisibility: .visible
+                ) {
+                    Button("Delete", role: .destructive) {
+                        isDeletingPlaylist = true
+                        Task {
+                            let success = await playlistService.deletePlaylist(playlist)
+                            isDeletingPlaylist = false
+                            if !success {
+                                messageService.show(message: playlistService.error ?? "Failed to delete playlist.", type: .error)
+                            }
+                        }
+                    }
+                    Button("Cancel", role: .cancel) {}
+                }
             }
-            .searchable(text: $searchText, prompt: "Search videos in playlist")
-            .navigationTitle(playlist.title != nil ? "\(playlist.title ?? "") playlist" : "Playlist")
         }
+        .searchable(text: $searchText, prompt: "Search videos in playlist")
+        .navigationTitle(playlist.title != nil ? "\(playlist.title ?? "") playlist" : "Playlist")
         .task { await fetchVideos() }
     }
 }

@@ -18,6 +18,13 @@ class VideoManager: ObservableObject {
     @Published var availablePlaylists: [(playlist: YTPlaylist, isVideoPresentInside: Bool)] = []
     @Published var temporaryPlaylistStates: [String: [(playlist: YTPlaylist, isVideoPresentInside: Bool)]] = [:]
     
+    var shouldShowAccessory: Bool {
+        guard let title = selectedVideo?.title?.trimmingCharacters(in: .whitespacesAndNewlines) else {
+            return false
+        }
+        return !title.isEmpty
+    }
+    
     private var playerTimeObserver: Any?
     private var currentPlayer: AVPlayer?
     private let authService: YouTubeAuthService
@@ -203,53 +210,110 @@ class VideoManager: ObservableObject {
             isPlaying = true
         }
     }
+
+    enum PlaybackResolverError: LocalizedError {
+        case noNativePlayableStream
+
+        var errorDescription: String? {
+            switch self {
+            case .noNativePlayableStream:
+                return "No native HLS or muxed MP4 stream was returned for this video."
+            }
+        }
+    }
+
+    private func nativeWatchPageStreamingURL(for video: YTVideo) async throws -> URL? {
+        var components = URLComponents(string: "https://www.youtube.com/watch")
+        components?.queryItems = [
+            URLQueryItem(name: "v", value: video.videoId),
+            URLQueryItem(name: "bpctr", value: "9999999999"),
+            URLQueryItem(name: "has_verified", value: "1")
+        ]
+
+        guard let url = components?.url else { return nil }
+
+        var request = URLRequest(url: url)
+        request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Safari/605.1.15", forHTTPHeaderField: "User-Agent")
+        request.setValue("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", forHTTPHeaderField: "Accept")
+        request.setValue("\(youtubeService.model.selectedLocale);q=0.9", forHTTPHeaderField: "Accept-Language")
+
+        if !youtubeService.model.cookies.isEmpty {
+            request.setValue(youtubeService.model.cookies, forHTTPHeaderField: "Cookie")
+        }
+
+        let (data, _) = try await URLSession.shared.data(for: request)
+        let html = String(decoding: data, as: UTF8.self)
+
+        guard let playerResponseJSON = NativePlaybackSupport.extractInitialPlayerResponseJSON(from: html) else {
+            return nil
+        }
+
+        let playerResponse = try VideoInfosResponse.decodeJSON(json: JSON(parseJSON: playerResponseJSON))
+        return NativePlaybackSupport.streamingURL(from: playerResponse)
+    }
     
     func loadVideo(_ video: YTVideo) async {
         isLoading = true
         error = nil
         
         do {
-            // First ensure we have visitor data
+            // Ensure a fresh visitorData token before player requests.
             if youtubeService.model.visitorData.isEmpty {
-                let homeResponse = try await HomeScreenResponse.sendThrowingRequest(
+                let searchResponse = try await SearchResponse.sendThrowingRequest(
                     youtubeModel: youtubeService.model,
-                    data: [:],
-                    useCookies: true
+                    data: [.query: "home"],
+                    useCookies: false
                 )
                 
-                if let visitorData = homeResponse.visitorData {
+                if let visitorData = searchResponse.visitorData {
                     youtubeService.model.visitorData = visitorData
+                    UserDefaults.standard.set(visitorData, forKey: "ytm_visitor_data")
                 }
             }
             
-            // Get video info with tracking data
-            let videoInfoData: [HeadersList.AddQueryInfo.ContentTypes: String] = [
-                .query: video.videoId,
-                .visitorData: youtubeService.model.visitorData
-            ]
-            
-            _ = try await MoreVideoInfosResponse.sendThrowingRequest(
-                youtubeModel: youtubeService.model,
-                data: videoInfoData,
-                useCookies: true
-            )
-            
-            // Get streaming info with tracking data
-            let streamingInfoData: [HeadersList.AddQueryInfo.ContentTypes: String] = [
-                .query: video.videoId,
-                .visitorData: youtubeService.model.visitorData
-            ]
-            
-            let streamingInfos = try await VideoInfosResponse.sendThrowingRequest(
-                youtubeModel: youtubeService.model,
-                data: streamingInfoData,
-                useCookies: false
-            )
-            
-            guard let streamingURL = streamingInfos.streamingURL else {
-                error = "Failed to get video streaming URL"
-                isLoading = false
-                return
+            let streamingURL: URL
+            var primaryPlaybackError: Error?
+
+            do {
+                let streamingInfos = try await video.fetchStreamingInfosThrowing(
+                    youtubeModel: youtubeService.model,
+                    useCookies: nil
+                )
+
+                if let hlsURL = streamingInfos.streamingURL {
+                    streamingURL = hlsURL
+                } else if let directMuxedURL = NativePlaybackSupport.preferredMuxedStreamingURL(from: streamingInfos.defaultFormats) {
+                    streamingURL = directMuxedURL
+                } else {
+                    throw PlaybackResolverError.noNativePlayableStream
+                }
+            } catch {
+                primaryPlaybackError = error
+
+                do {
+                    let downloadFormatsResponse = try await video.fetchStreamingInfosWithDownloadFormatsThrowing(
+                        youtubeModel: youtubeService.model,
+                        useCookies: nil
+                    )
+
+                    guard let fallbackURL = NativePlaybackSupport.fallbackStreamingURL(from: downloadFormatsResponse) else {
+                        if let primaryPlaybackError {
+                            throw primaryPlaybackError
+                        }
+
+                        throw PlaybackResolverError.noNativePlayableStream
+                    }
+
+                    streamingURL = fallbackURL
+                } catch let fallbackError {
+                    if let watchPageURL = try? await nativeWatchPageStreamingURL(for: video) {
+                        streamingURL = watchPageURL
+                    } else if let primaryPlaybackError {
+                        throw primaryPlaybackError
+                    } else {
+                        throw fallbackError
+                    }
+                }
             }
             
             // Load thumbnail for now playing info
@@ -282,6 +346,14 @@ class VideoManager: ObservableObject {
             self.error = error.stepDescription.contains("Login is required") ?
                 "Authentication required. Please sign in." :
                 "Failed to load video: \(error.localizedDescription)"
+        } catch let error as NetworkError {
+            if error.message.isEmpty {
+                self.error = "Failed to load video: Network error \(error.code)."
+            } else {
+                self.error = "Failed to load video: \(error.message) (code \(error.code))"
+            }
+        } catch let error as VideoInfosWithDownloadFormatsResponse.ResponseError {
+            self.error = "Playable fallback stream parsing failed at \(String(describing: error.step)): \(error.reason)"
         } catch {
             self.error = "Failed to load video: \(error.localizedDescription)"
         }
@@ -405,9 +477,16 @@ class VideoManager: ObservableObject {
     }
     
     func selectVideo(_ video: YTVideo) {
+        selectedVideo = video
+        error = nil
+        isLoading = true
+        isPlaying = false
+        player?.pause()
+        player = nil
+        isVideoSheetPresented = true
+
         Task {
             await loadVideo(video)
-            isVideoSheetPresented = true
         }
     }
 }

@@ -36,7 +36,7 @@ class YouTubePlaylistService: ObservableObject {
             // Get playlists directly
             let response = try await AccountPlaylistsResponse.sendThrowingRequest(
                 youtubeModel: youtubeService.model,
-                data: [.browseId: "FEplaylists_aggregation"],
+                data: [.browseId: "FEplaylist_aggregation"],
                 useCookies: true
             )
             

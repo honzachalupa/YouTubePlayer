@@ -38,18 +38,12 @@ struct RecommendedVideosView: View {
     }
     
     var body: some View {
-        NavigationStack {
-            VideosGridView(videos: videos, error: fetchError) {
-                await fetchVideos()
-            }
-            .toolbar {
-                SettingsToolbarItem()
-                AccountToolbarItem()
-            }
-            #if os(iOS)
-            .navigationTitle("Recommended")
-            #endif
+        VideosGridView(videos: videos, error: fetchError) {
+            await fetchVideos()
         }
+        #if os(iOS)
+        .navigationTitle("Recommended")
+        #endif
     }
 }
 

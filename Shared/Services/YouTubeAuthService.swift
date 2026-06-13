@@ -53,6 +53,9 @@ final class YouTubeAuthService: NSObject, ObservableObject {
     
     func setModelContext(_ context: ModelContext) {
         self.modelContext = context
+        Task {
+            await loadAuthenticationData()
+        }
     }
     
     private func loadAuthenticationData() async {
@@ -68,12 +71,17 @@ final class YouTubeAuthService: NSObject, ObservableObject {
             
             if let authData = authData {
                 youtubeService.cookies = authData.cookies
-                youtubeService.alwaysUseCookies = true
+                youtubeService.alwaysUseCookies = !authData.cookies.isEmpty
                 youtubeService.model.visitorData = authData.visitorData
                 
-                if !youtubeService.cookies.isEmpty {
+                if hasAuthCookies(authData.cookies) {
                     self.isAuthenticated = true
                     self.userInfo = authData.userInfo
+                } else {
+                    self.isAuthenticated = false
+                    self.userInfo = nil
+                    youtubeService.cookies = ""
+                    youtubeService.alwaysUseCookies = false
                 }
             }
         } catch {
@@ -124,12 +132,12 @@ final class YouTubeAuthService: NSObject, ObservableObject {
         }
         
         do {
-            let locale = Bundle.main.preferredLocalizations.first ?? "en"
-            let localeComponents = locale.components(separatedBy: "_")
+            let locale = Locale.current.identifier.replacingOccurrences(of: "_", with: "-")
+            let localeComponents = locale.components(separatedBy: "-")
             let languageCode = localeComponents[0]
             let countryCode = localeComponents.count > 1 ? localeComponents[1] : "US"
             
-            youtubeService.model.selectedLocale = "\(languageCode)_\(countryCode)"
+            youtubeService.model.selectedLocale = "\(languageCode)-\(countryCode)"
             
             let customHeaders = HeadersList(
                 url: URL(string: "https://www.youtube.com/youtubei/v1/account/account_menu")!,
@@ -175,12 +183,15 @@ final class YouTubeAuthService: NSObject, ObservableObject {
                 print("YouTubeAuthService: Could not fetch user info, account may be disconnected. Response: \(response)")
                 await MainActor.run {
                     self.userInfo = nil
+                    self.isAuthenticated = false
+                    self.authError = "Not authenticated. Please sign in again."
                 }
             }
         } catch {
             print("YouTubeAuthService: Error fetching user info: \(error)")
             await MainActor.run {
                 self.userInfo = nil
+                self.isAuthenticated = false
                 self.authError = error.localizedDescription
             }
         }
@@ -193,6 +204,14 @@ final class YouTubeAuthService: NSObject, ObservableObject {
         
         youtubeService.cookies = cookies
         youtubeService.alwaysUseCookies = true
+        
+        guard hasAuthCookies(cookies) else {
+            self.isAuthenticated = false
+            self.userInfo = nil
+            self.authError = "Authentication cookies missing. Please sign in again."
+            isLoading = false
+            return
+        }
         
         try? await Task.sleep(nanoseconds: 1_000_000_000) // Wait 1 second
         
@@ -229,6 +248,19 @@ final class YouTubeAuthService: NSObject, ObservableObject {
         }
         
         isLoading = false
+    }
+
+    private func hasAuthCookies(_ cookies: String) -> Bool {
+        let hasSAPISID = containsCookie(named: "SAPISID", in: cookies)
+        let hasPAPISID = containsCookie(named: "__Secure-1PAPISID", in: cookies) || containsCookie(named: "__Secure-3PAPISID", in: cookies)
+        let hasPSID = containsCookie(named: "__Secure-1PSID", in: cookies) || containsCookie(named: "__Secure-3PSID", in: cookies)
+        return hasSAPISID && hasPAPISID && hasPSID
+    }
+
+    private func containsCookie(named name: String, in cookies: String) -> Bool {
+        let escaped = NSRegularExpression.escapedPattern(for: name)
+        let pattern = "(^|;\\s*)\(escaped)="
+        return cookies.range(of: pattern, options: .regularExpression) != nil
     }
     
     func signOut() {

@@ -49,6 +49,7 @@ final class YouTubeService: ObservableObject {
     
     func setup() {
         model.selectedLocale = Bundle.main.preferredLocalizations.first ?? "en"
+        configureNativePlaybackHeaders()
         
         if let savedCookies = UserDefaults.standard.string(forKey: "ytm_cookies") {
             cookies = savedCookies
@@ -56,6 +57,23 @@ final class YouTubeService: ObservableObject {
         } else {
             print("YouTubeService: No saved cookies found during setup")
         }
+    }
+
+    private func configureNativePlaybackHeaders() {
+        let languageCode = model.selectedLocaleLanguageCode.isEmpty ? "en" : model.selectedLocaleLanguageCode
+        let countryCode = NativePlaybackSupport.resolvedCountryCode(
+            selectedLocaleCountryCode: model.selectedLocaleCountryCode,
+            languageCode: languageCode,
+            fallbackRegionCode: Locale.current.region?.identifier ?? "US"
+        )
+
+        model.replaceHeaders(
+            withHeaders: NativePlaybackSupport.makeVideoInfosHeaders(
+                languageCode: languageCode,
+                countryCode: countryCode
+            ),
+            headersType: .videoInfos
+        )
     }
     
     func reset() {

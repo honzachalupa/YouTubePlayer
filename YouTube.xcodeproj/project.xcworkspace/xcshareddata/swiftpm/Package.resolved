@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/honzachalupa/SwiftCore",
       "state" : {
-        "revision" : "8186dbaf207bbb491c85063b1189a3eb6aa4605b",
-        "version" : "1.5.10"
+        "revision" : "0f5b166a1203c088537ddf9d82ca014970045234",
+        "version" : "1.10.3"
       }
     },
     {
@@ -51,8 +51,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/b5i/YouTubeKit/",
       "state" : {
-        "revision" : "cd24dfc8cb51b7994fa45f381aeb7cbd945ce2ef",
-        "version" : "2.5.0"
+        "revision" : "c5c1b3fe235978af84940c3e49ab9bc0a3f82c76",
+        "version" : "2.7.0"
       }
     }
   ],

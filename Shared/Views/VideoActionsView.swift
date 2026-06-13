@@ -36,11 +36,6 @@ struct VideoActionsView: View {
                 } label: {
                     Label("Save", systemImage: "square.and.arrow.down.fill")
                 }
-                .menuStyle(.button)
-                .foregroundStyle(.primary)
-                .padding(.vertical, 7)
-                .padding(.horizontal, 12)
-                .glassEffect(.regular.interactive())
             }
             .buttonStyle(.glass)
         }
