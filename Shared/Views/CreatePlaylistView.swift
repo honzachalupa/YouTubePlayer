@@ -1,0 +1,59 @@
+import SwiftUI
+import YouTubeKit
+
+struct CreatePlaylistView: View {
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var playlistService = YouTubePlaylistService.shared
+    @State private var name = ""
+    @State private var privacy = YTPrivacy.private
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Name", text: $name)
+                    
+                    Picker("Privacy", selection: $privacy) {
+                        Text("Private").tag(YTPrivacy.private)
+                        Text("Public").tag(YTPrivacy.public)
+                    }
+                }
+            }
+            .navigationTitle("Create playlist")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Create") {
+                        Task {
+                            let success = await playlistService.createPlaylist(name: name, privacy: privacy)
+                            if success {
+                                dismiss()
+                            }
+                        }
+                    }
+                    .disabled(name.isEmpty || playlistService.isLoading)
+                }
+            }
+            .overlay {
+                if playlistService.isLoading {
+                    ProgressView()
+                        .controlSize(.large)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(.ultraThinMaterial)
+                }
+            }
+        }
+    }
+}
+
+#Preview {
+    CreatePlaylistView()
+} 
