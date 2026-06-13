@@ -6,28 +6,42 @@ struct ContentView: View {
     @EnvironmentObject private var videoManager: VideoManager
     @StateObject private var authService = YouTubeAuthService.shared
     @StateObject private var playlistService = YouTubePlaylistService.shared
+    @State private var selectedTab: ContentTab = YouTubeAuthService.shared.isAuthenticated ? .subscriptions : .recommended
+    @State private var isToolbarReady = false
+    
+    private enum ContentTab: Hashable {
+        case subscriptions
+        case recommended
+        case playlists
+        case history
+        case playlist(String)
+        case allPlaylists
+        case search
+    }
     
     private func navigationTabContent<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         NavigationStack {
             content()
                 .toolbar {
-                    SettingsToolbarItem()
-                    AccountToolbarItem()
+                    if isToolbarReady {
+                        SettingsToolbarItem()
+                        AccountToolbarItem()
+                    }
                 }
         }
     }
     
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             if authService.isAuthenticated {
-                Tab("Subscriptions", systemImage: "heart.rectangle.fill") {
+                Tab("Subscriptions", systemImage: "heart.rectangle.fill", value: ContentTab.subscriptions) {
                     navigationTabContent {
                         SubscriptionsVideosView()
                     }
                 }
             }
             
-            Tab("Recommended", systemImage: "play.rectangle.on.rectangle.fill") {
+            Tab("Recommended", systemImage: "play.rectangle.on.rectangle.fill", value: ContentTab.recommended) {
                 navigationTabContent {
                     RecommendedVideosView()
                 }
@@ -36,7 +50,7 @@ struct ContentView: View {
             if authService.isAuthenticated {
                 /// iOS
                 if horizontalSize == .compact {
-                    Tab("Playlists", systemImage: "play.square.stack.fill") {
+                    Tab("Playlists", systemImage: "play.square.stack.fill", value: ContentTab.playlists) {
                         navigationTabContent {
                             PlaylistsListView()
                                 .navigationTitle("Playlists")
@@ -44,7 +58,7 @@ struct ContentView: View {
                     }
                 }
                 
-                Tab("History", systemImage: "memories") {
+                Tab("History", systemImage: "memories", value: ContentTab.history) {
                     navigationTabContent {
                         HistoryVideosView()
                     }
@@ -54,14 +68,14 @@ struct ContentView: View {
                 if horizontalSize == .regular {
                     TabSection("Playlists") {
                         ForEach(playlistService.playlists, id: \.playlistId) { playlist in
-                            Tab(playlist.title ?? "", systemImage: getPlaylistIcon(playlist.title)) {
+                            Tab(playlist.title ?? "", systemImage: getPlaylistIcon(playlist.title), value: ContentTab.playlist(playlist.playlistId)) {
                                 navigationTabContent {
                                     PlaylistView(playlist: playlist)
                                 }
                             }
                         }
                         
-                        Tab("All...", systemImage: "list.bullet") {
+                        Tab("All...", systemImage: "list.bullet", value: ContentTab.allPlaylists) {
                             navigationTabContent {
                                 PlaylistsListView()
                                     .navigationTitle("Playlists")
@@ -71,11 +85,15 @@ struct ContentView: View {
                 }
             }
             
-            Tab("Search", systemImage: "magnifyingglass", role: .search) {
+            Tab("Search", systemImage: "magnifyingglass", value: ContentTab.search, role: .search) {
                 navigationTabContent {
                     SearchVideosView()
                 }
             }
+        }
+        .task {
+            await Task.yield()
+            isToolbarReady = true
         }
         .tabViewBottomAccessory(isEnabled: videoManager.shouldShowAccessory) {
             AccessoryControlsView()
@@ -96,9 +114,22 @@ struct ContentView: View {
                     .presentationDragIndicator(.visible)
             }
         }
+        .onAppear {
+            if authService.isAuthenticated {
+                selectedTab = .subscriptions
+            }
+        }
         .onChange(of: authService.isAuthenticated) { _, isAuthenticated in
-            if !isAuthenticated {
+            isToolbarReady = false
+            if isAuthenticated {
+                selectedTab = .subscriptions
+            } else {
+                selectedTab = .recommended
                 playlistService.clearData()
+            }
+            Task {
+                await Task.yield()
+                isToolbarReady = true
             }
         }
         .accentColor(Color("AccentColor"))

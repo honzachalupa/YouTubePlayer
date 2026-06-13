@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SettingsToolbarItem: ToolbarContent {
     var body: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
+        ToolbarItem(id: "toolbar.settings", placement: .topBarLeading) {
             NavigationLink {
                 SettingsView()
             } label: {

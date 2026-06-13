@@ -20,9 +20,7 @@ struct AccountToolbarItem: ToolbarContent {
     }
     
     var body: some ToolbarContent {
-        // ToolbarSpacer(.fixed, placement: .topBarTrailing)
-        
-        ToolbarItem(placement: .topBarTrailing) {
+        ToolbarItem(id: "toolbar.account", placement: .topBarTrailing) {
             if authService.isAuthenticated {
                 Button {
                     isPopoverPresented.toggle()
