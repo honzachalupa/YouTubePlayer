@@ -67,12 +67,15 @@ class VideoManager: ObservableObject {
         }
     }
     
-    private func configureAudioSession() {
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-            try AVAudioSession.sharedInstance().setActive(true)
-        } catch {
-            print("Failed to configure audio session:", error)
+    private nonisolated func configureAudioSession() {
+        Task.detached(priority: .utility) {
+            do {
+                let audioSession = AVAudioSession.sharedInstance()
+                try audioSession.setCategory(.playback, mode: .default)
+                try audioSession.setActive(true)
+            } catch {
+                print("Failed to configure audio session:", error)
+            }
         }
     }
     
