@@ -3,6 +3,7 @@ import YouTubeKit
 
 struct VideoView: View {
     public let video: YTVideo
+    private let detailTopAnchorID = "video-detail-top"
     
     private let youtubeService = YouTubeService.shared
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
@@ -16,9 +17,48 @@ struct VideoView: View {
     #if os(iOS)
     @State private var isLandscapeFullscreenPresented = false
     #endif
+
+    private enum DetailQueueSection {
+        case recommended(videos: [YTVideo])
+        case playlist(title: String, videos: [YTVideo])
+    }
     
     private var currentVideo: YTVideo {
         videoManager.selectedVideo ?? video
+    }
+
+    private var detailQueueSection: DetailQueueSection? {
+        if let playbackQueueContext = videoManager.playbackQueueContext {
+            let followingVideos = playbackQueueContext.followingVideos(after: currentVideo.videoId)
+
+            switch playbackQueueContext.source {
+            case .recommended:
+                if !followingVideos.isEmpty {
+                    return .recommended(videos: followingVideos)
+                }
+            case .playlist(let title):
+                if !followingVideos.isEmpty {
+                    return .playlist(title: title, videos: followingVideos)
+                }
+            }
+        }
+
+        if !recommendedVideos.isEmpty {
+            return .recommended(videos: recommendedVideos)
+        }
+
+        return nil
+    }
+
+    private var detailQueueContextForSelection: VideoManager.PlaybackQueueContext? {
+        if videoManager.isUsingPlaylistQueue(for: currentVideo.videoId) {
+            return videoManager.playbackQueueContext
+        }
+
+        return VideoManager.PlaybackQueueContext(
+            source: .recommended,
+            videos: [currentVideo] + recommendedVideos
+        )
     }
 
     #if os(iOS)
@@ -58,6 +98,7 @@ struct VideoView: View {
                 recommendedVideos: resolvedRecommendedVideos,
                 for: video.videoId
             )
+            videoManager.setRecommendedQueue(currentVideo: video, recommendedVideos: resolvedRecommendedVideos)
             
             withAnimation {
                 moreInfosResponse = response
@@ -105,6 +146,8 @@ struct VideoView: View {
                 recommendedVideos: recommendedVideos,
                 for: currentVideo.videoId
             )
+            
+            videoManager.setRecommendedQueue(currentVideo: currentVideo, recommendedVideos: recommendedVideos)
         } catch {
             print("Error loading more recommended videos:", error)
         }
@@ -114,36 +157,26 @@ struct VideoView: View {
     
     var body: some View {
         NavigationStack {
-            XStack(isVertical: horizontalSizeClass == .compact) {
-                Group {
-                    if horizontalSizeClass == .compact {
-                        VideoPlayerView(video: currentVideo)
-                            .backgroundExtensionEffect()
-                    } else {
-                        ZStack {
-                            Color.black.ignoresSafeArea()
-                            
-                            VideoPlayerView(video: currentVideo)
-                                .offset(y: -40) // Counteract the toolbar spacing
-                        }
-                    }
-                }
-                .id(currentVideo.videoId)
-                
-                ScrollView(.vertical) {
-                    VStack(alignment: .leading, spacing: 18) {
-                        videoDetailsSection
+            VStack(spacing: 0) {
+                VideoPlayerView(video: currentVideo)
+                    .id(currentVideo.videoId)
+            
+                ScrollViewReader { proxy in
+                    ScrollView(.vertical) {
+                        VStack(alignment: .leading) {
+                            videoDetailsSection
 
-                        if !recommendedVideos.isEmpty {
-                            recommendedVideosSection
+                            if let detailQueueSection {
+                                queueSection(detailQueueSection)
+                            }
                         }
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .onChange(of: currentVideo.videoId) {
+                        proxy.scrollTo(detailTopAnchorID, anchor: .top)
+                    }
                 }
-                #if os(iOS)
-                .frame(width: horizontalSizeClass == .regular ? 420 : nil)
-                #endif
             }
             .navigationDestination(for: YTLittleChannelInfos.self) { channelInfo in
                 ChannelView(channelInfo: channelInfo)
@@ -163,6 +196,7 @@ struct VideoView: View {
                 description = cachedDetails.description
                 recommendedVideos = cachedDetails.recommendedVideos
                 moreInfosResponse = cachedDetails.response
+                videoManager.setRecommendedQueue(currentVideo: currentVideo, recommendedVideos: cachedDetails.recommendedVideos)
             } else {
                 description = nil
                 recommendedVideos = []
@@ -212,22 +246,42 @@ struct VideoView: View {
         }
     }
 
-    private var recommendedVideosSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+    private func queueSection(_ section: DetailQueueSection) -> some View {
+        let sectionTitle: String
+        let sectionVideos: [YTVideo]
+        let showsLoadMore: Bool
+
+        switch section {
+        case .recommended(let videos):
+            sectionTitle = "Recommended"
+            sectionVideos = videos
+            showsLoadMore = true
+        case .playlist(let title, let videos):
+            sectionTitle = title
+            sectionVideos = videos
+            showsLoadMore = false
+        }
+
+        return VStack(alignment: .leading, spacing: 10) {
             Divider()
             
-            Text("Recommended")
+            Text(sectionTitle)
                 .font(.headline)
 
             LazyVStack(spacing: 10) {
-                ForEach(recommendedVideos, id: \.videoId) { video in
-                    RelatedVideoRow(video: video)
+                ForEach(sectionVideos, id: \.videoId) { video in
+                    RelatedVideoRow(
+                        video: video,
+                        playbackQueueContext: detailQueueContextForSelection
+                    )
                         .onAppear {
-                            loadMoreRecommendedIfNeeded(current: video)
+                            if showsLoadMore {
+                                loadMoreRecommendedIfNeeded(current: video)
+                            }
                         }
                 }
 
-                if isLoadingMoreRecommended {
+                if showsLoadMore && isLoadingMoreRecommended {
                     HStack {
                         Spacer()
                         ProgressView()
@@ -242,12 +296,13 @@ struct VideoView: View {
 
 private struct RelatedVideoRow: View {
     let video: YTVideo
+    let playbackQueueContext: VideoManager.PlaybackQueueContext?
 
     @EnvironmentObject private var videoManager: VideoManager
 
     var body: some View {
         Button {
-            videoManager.selectVideo(video)
+            videoManager.selectVideo(video, playbackQueueContext: playbackQueueContext)
         } label: {
             HStack(alignment: .top, spacing: 10) {
                 ZStack(alignment: .bottomTrailing) {

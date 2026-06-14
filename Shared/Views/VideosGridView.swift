@@ -21,6 +21,7 @@ struct VideosGridView: View {
     public var fetchVideos: () async -> Void
     public var loadMoreIfNeeded: ((YTVideo) -> Void)?
     public var isLoadingMore: Bool = false
+    public var playbackQueueContextProvider: ((YTVideo) -> VideoManager.PlaybackQueueContext?)?
     
     @ObservedObject private var messageService = MessageService.shared
     @State private var selectedVideo: YTVideo? = nil
@@ -95,13 +96,16 @@ struct VideosGridView: View {
                     VStack(spacing: 0) {
                         LazyVGrid(columns: getColumns(for: scrollViewportWidth), spacing: 20) {
                             ForEach(videos, id: \.videoId) { video in
-                                VideoGridItemView(video: video)
-                                    .onAppear {
-                                        if let lastVideo = videos.last, video.videoId == lastVideo.videoId {
-                                            print("Last video appeared, triggering load more")
-                                            loadMoreIfNeeded?(video)
-                                        }
+                                VideoGridItemView(
+                                    video: video,
+                                    playbackQueueContextProvider: playbackQueueContextProvider
+                                )
+                                .onAppear {
+                                    if let lastVideo = videos.last, video.videoId == lastVideo.videoId {
+                                        print("Last video appeared, triggering load more")
+                                        loadMoreIfNeeded?(video)
                                     }
+                                }
                             }
                         }
                         
@@ -176,13 +180,18 @@ struct VideosGridView: View {
 
 struct VideoGridItemView: View {
     public let video: YTVideo
+    public var playbackQueueContextProvider: ((YTVideo) -> VideoManager.PlaybackQueueContext?)?
     
     @EnvironmentObject private var videoManager: VideoManager
     @StateObject private var playlistsViewModel: VideoPlaylistsViewModel
     @FocusState private var isFocused: Bool
     
-    init(video: YTVideo) {
+    init(
+        video: YTVideo,
+        playbackQueueContextProvider: ((YTVideo) -> VideoManager.PlaybackQueueContext?)? = nil
+    ) {
         self.video = video
+        self.playbackQueueContextProvider = playbackQueueContextProvider
         self._playlistsViewModel = StateObject(wrappedValue: VideoPlaylistsViewModel(video: video, videoManager: VideoManager.shared))
     }
     
@@ -192,6 +201,7 @@ struct VideoGridItemView: View {
             NavigationLink {
                 VideoView(video: video)
                     .task {
+                        videoManager.setPlaybackQueueContext(playbackQueueContextProvider?(video))
                         await videoManager.loadVideo(video)
                     }
                     .onAppear {
@@ -205,7 +215,10 @@ struct VideoGridItemView: View {
             #else
             VideoContent(video: video)
                 .onTapGesture {
-                    videoManager.selectVideo(video)
+                    videoManager.selectVideo(
+                        video,
+                        playbackQueueContext: playbackQueueContextProvider?(video)
+                    )
                 }
             #endif
         }

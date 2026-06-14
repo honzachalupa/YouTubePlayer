@@ -64,7 +64,6 @@
 				Views/VideoPlayerView.swift,
 				Views/VideosGridView.swift,
 				Views/VideoView.swift,
-				Views/XStack.swift,
 			);
 			target = 211D40B62E0C335100CD2C6F /* tvOS */;
 		};

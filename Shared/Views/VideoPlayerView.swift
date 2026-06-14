@@ -91,6 +91,7 @@ struct VideoPlayerView: View {
             }
         }
         .aspectRatio(16/9, contentMode: .fit)
+        .backgroundExtensionEffect()
         .task {
             // Load if the requested video is not already selected or no player exists yet.
             if videoManager.selectedVideo?.videoId != video.videoId || videoManager.player == nil {

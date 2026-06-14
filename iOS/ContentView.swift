@@ -1,8 +1,8 @@
 import SwiftUI
+import UIKit
 import YouTubeKit
 
 struct ContentView: View {
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var videoManager: VideoManager
     @StateObject private var authService = YouTubeAuthService.shared
@@ -18,6 +18,10 @@ struct ContentView: View {
         case playlist(String)
         case allPlaylists
         case search
+    }
+    
+    private var isPhone: Bool {
+        UIDevice.current.userInterfaceIdiom == .phone
     }
     
     private func navigationTabContent<Content: View>(@ViewBuilder content: () -> Content) -> some View {
@@ -49,8 +53,7 @@ struct ContentView: View {
             }
             
             if authService.isAuthenticated {
-                /// iOS
-                if horizontalSizeClass == .compact {
+                if isPhone {
                     Tab("Playlists", systemImage: "play.square.stack.fill", value: ContentTab.playlists) {
                         navigationTabContent {
                             PlaylistsListView()
@@ -65,8 +68,7 @@ struct ContentView: View {
                     }
                 }
                 
-                /// iPadOS + macOS
-                if horizontalSizeClass == .regular {
+                if !isPhone {
                     TabSection("Playlists") {
                         ForEach(playlistService.playlists, id: \.playlistId) { playlist in
                             Tab(playlist.title ?? "", systemImage: getPlaylistIcon(playlist.title), value: ContentTab.playlist(playlist.playlistId)) {

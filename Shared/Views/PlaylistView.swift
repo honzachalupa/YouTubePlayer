@@ -32,6 +32,13 @@ struct PlaylistView: View {
             return title.lowercased().contains(searchText.lowercased())
         }
     }
+
+    private func playbackQueueContext(for _: YTVideo) -> VideoManager.PlaybackQueueContext {
+        VideoManager.PlaybackQueueContext(
+            source: .playlist(title: playlist.title ?? "Playlist"),
+            videos: filteredVideos
+        )
+    }
     
     func fetchVideos() async {
         guard !isLoading else { return }  // Prevent multiple simultaneous fetches
@@ -125,9 +132,14 @@ struct PlaylistView: View {
     }
     
     var body: some View {
-        VideosGridView(videos: filteredVideos, error: fetchError) {
+        VideosGridView(
+            videos: filteredVideos,
+            error: fetchError,
+            fetchVideos: {
             await fetchVideos()
-        }
+        },
+            playbackQueueContextProvider: playbackQueueContext(for:)
+        )
         .toolbar {
             ToolbarItem(placement: .destructiveAction) {
                 Button(role: .destructive) {

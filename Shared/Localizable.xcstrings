@@ -301,16 +301,6 @@
         }
       }
     },
-    "Related" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Související"
-          }
-        }
-      }
-    },
     "Save" : {
       "localizations" : {
         "cs" : {
@@ -382,7 +372,14 @@
       }
     },
     "Sign out" : {
-
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odhlásit se"
+          }
+        }
+      }
     },
     "streamed" : {
       "comment" : "Used in regex",

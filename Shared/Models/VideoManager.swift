@@ -8,6 +8,32 @@ import SwiftData
 @MainActor
 class VideoManager: ObservableObject {
     static let shared = VideoManager()
+
+    struct PlaybackQueueContext {
+        enum Source {
+            case recommended
+            case playlist(title: String)
+        }
+
+        let source: Source
+        let videos: [YTVideo]
+
+        func containsVideo(withID videoID: String) -> Bool {
+            videos.contains { $0.videoId == videoID }
+        }
+
+        func followingVideos(after currentVideoID: String) -> [YTVideo] {
+            guard let currentIndex = videos.firstIndex(where: { $0.videoId == currentVideoID }) else {
+                return videos
+            }
+
+            return Array(videos.dropFirst(currentIndex + 1))
+        }
+
+        func nextVideo(after currentVideoID: String) -> YTVideo? {
+            followingVideos(after: currentVideoID).first
+        }
+    }
     
     @Published var selectedVideo: YTVideo?
     @Published var isVideoSheetPresented = false
@@ -18,6 +44,7 @@ class VideoManager: ObservableObject {
     @Published var likeStatus: YTLikeStatus = .nothing
     @Published var availablePlaylists: [(playlist: YTPlaylist, isVideoPresentInside: Bool)] = []
     @Published var temporaryPlaylistStates: [String: [(playlist: YTPlaylist, isVideoPresentInside: Bool)]] = [:]
+    @Published private(set) var playbackQueueContext: PlaybackQueueContext?
     
     var shouldShowAccessory: Bool {
         guard let title = selectedVideo?.title?.trimmingCharacters(in: .whitespacesAndNewlines) else {
@@ -27,6 +54,7 @@ class VideoManager: ObservableObject {
     }
     
     private var playerTimeObserver: Any?
+    private var playbackDidEndObserver: NSObjectProtocol?
     private var currentPlayer: AVPlayer?
     private let authService: YouTubeAuthService
     private let playlistService = YouTubePlaylistService.shared
@@ -65,6 +93,10 @@ class VideoManager: ObservableObject {
             player.removeTimeObserver(observer)
             playerTimeObserver = nil
             currentPlayer = nil
+        }
+        if let observer = playbackDidEndObserver {
+            NotificationCenter.default.removeObserver(observer)
+            playbackDidEndObserver = nil
         }
         UIApplication.shared.endReceivingRemoteControlEvents()
     }
@@ -227,9 +259,14 @@ class VideoManager: ObservableObject {
             oldPlayer.removeTimeObserver(observer)
             playerTimeObserver = nil
         }
+        if let observer = playbackDidEndObserver {
+            NotificationCenter.default.removeObserver(observer)
+            playbackDidEndObserver = nil
+        }
         
         // Store the new player as current
         currentPlayer = player
+        observePlaybackDidEnd(for: player.currentItem)
         
         // Add new time observer
         let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
@@ -277,6 +314,75 @@ class VideoManager: ObservableObject {
                 self.saveCurrentPlaybackPosition()
             }
         }
+    }
+
+    private func observePlaybackDidEnd(for item: AVPlayerItem?) {
+        guard let item else { return }
+
+        playbackDidEndObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: item,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.playNextVideoIfAvailable()
+            }
+        }
+    }
+
+    private func playNextVideoIfAvailable() {
+        saveCurrentPlaybackPosition(force: true)
+        isPlaying = false
+
+        guard let currentVideoID = selectedVideo?.videoId,
+              let queue = playbackQueueContext,
+              let nextVideo = queue.nextVideo(after: currentVideoID) else {
+            return
+        }
+
+        selectVideo(nextVideo, playbackQueueContext: queue)
+    }
+
+    private func deduplicatedQueueVideos(_ videos: [YTVideo]) -> [YTVideo] {
+        var seenVideoIDs = Set<String>()
+
+        return videos.filter { video in
+            guard !video.videoId.isEmpty, !seenVideoIDs.contains(video.videoId) else {
+                return false
+            }
+
+            seenVideoIDs.insert(video.videoId)
+            return true
+        }
+    }
+
+    func setRecommendedQueue(currentVideo: YTVideo, recommendedVideos: [YTVideo]) {
+        guard !isUsingPlaylistQueue(for: currentVideo.videoId) else { return }
+
+        playbackQueueContext = PlaybackQueueContext(
+            source: .recommended,
+            videos: deduplicatedQueueVideos([currentVideo] + recommendedVideos)
+        )
+    }
+
+    func setPlaylistQueue(title: String, videos: [YTVideo]) {
+        playbackQueueContext = PlaybackQueueContext(
+            source: .playlist(title: title),
+            videos: deduplicatedQueueVideos(videos)
+        )
+    }
+
+    func setPlaybackQueueContext(_ playbackQueueContext: PlaybackQueueContext?) {
+        self.playbackQueueContext = playbackQueueContext
+    }
+
+    func isUsingPlaylistQueue(for videoID: String) -> Bool {
+        guard let playbackQueueContext,
+              case .playlist = playbackQueueContext.source else {
+            return false
+        }
+
+        return playbackQueueContext.containsVideo(withID: videoID)
     }
     
     func togglePlayPause() {
@@ -558,8 +664,9 @@ class VideoManager: ObservableObject {
         }
     }
     
-    func selectVideo(_ video: YTVideo) {
+    func selectVideo(_ video: YTVideo, playbackQueueContext: PlaybackQueueContext? = nil) {
         saveCurrentPlaybackPosition(force: true)
+        self.playbackQueueContext = playbackQueueContext
         selectedVideo = video
         error = nil
         isLoading = true
