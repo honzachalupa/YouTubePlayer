@@ -3,13 +3,16 @@ import SwiftData
 
 @main
 struct YouTubeApp: App {
-    @StateObject private var videoManager = VideoManager()
+    @StateObject private var videoManager = VideoManager.shared
     
     let container: ModelContainer
     
     init() {
         do {
-            let schema = Schema([AuthenticationModel.self])
+            let schema = Schema([
+                AuthenticationModel.self,
+                PlaybackPositionModel.self
+            ])
             let modelConfiguration = ModelConfiguration(
                 schema: schema,
                 isStoredInMemoryOnly: false
@@ -23,6 +26,7 @@ struct YouTubeApp: App {
             // Set up YouTubeAuthService with ModelContext
             let context = container.mainContext
             YouTubeAuthService.shared.setModelContext(context)
+            VideoManager.shared.setModelContext(context)
             
             // Set up platform-specific functionality
             YouTubeAuthService.shared.setupPlatformSpecific()

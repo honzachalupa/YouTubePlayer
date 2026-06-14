@@ -13,10 +13,29 @@ struct VideoView: View {
     @State private var recommendedVideos: [YTVideo] = []
     @State private var moreInfosResponse: MoreVideoInfosResponse?
     @State private var isLoadingMoreRecommended = false
+    #if os(iOS)
+    @State private var isLandscapeFullscreenPresented = false
+    #endif
     
     private var currentVideo: YTVideo {
         videoManager.selectedVideo ?? video
     }
+
+    #if os(iOS)
+    private var isPhone: Bool {
+        UIDevice.current.userInterfaceIdiom == .phone
+    }
+
+    private func updateLandscapeFullscreen(for orientation: UIDeviceOrientation) {
+        guard isPhone else { return }
+
+        if orientation.isLandscape {
+            isLandscapeFullscreenPresented = true
+        } else if orientation.isPortrait {
+            isLandscapeFullscreenPresented = false
+        }
+    }
+    #endif
 
     func fetchDetails(for video: YTVideo) async {
         do {
@@ -80,15 +99,16 @@ struct VideoView: View {
         NavigationStack {
             XStack(isVertical: horizontalSizeClass == .compact) {
                 Group {
-                    if horizontalSizeClass == .regular {
+                    if horizontalSizeClass == .compact {
+                        VideoPlayerView(video: currentVideo)
+                            .backgroundExtensionEffect()
+                    } else {
                         ZStack {
                             Color.black.ignoresSafeArea()
                             
                             VideoPlayerView(video: currentVideo)
                                 .offset(y: -40) // Counteract the toolbar spacing
                         }
-                    } else {
-                        VideoPlayerView(video: currentVideo)
                     }
                 }
                 .id(currentVideo.videoId)
@@ -112,13 +132,13 @@ struct VideoView: View {
                 ChannelView(channelInfo: channelInfo)
             }
             .toolbar {
-                if horizontalSizeClass == .regular {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button(role: .close) {
-                            dismiss()
-                        }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(role: .close) {
+                        dismiss()
                     }
                 }
+                
+                VideoActionsToolbarView(video: currentVideo)
             }
         }
         .task(id: currentVideo.videoId) {
@@ -129,7 +149,26 @@ struct VideoView: View {
         }
         .onAppear {
             print("VideoView appeared")
+            #if os(iOS)
+            updateLandscapeFullscreen(for: UIDevice.current.orientation)
+            #endif
         }
+        #if os(iOS)
+        .onRotate { orientation in
+            updateLandscapeFullscreen(for: orientation)
+        }
+        .fullScreenCover(isPresented: $isLandscapeFullscreenPresented) {
+            ZStack {
+                Color.black.ignoresSafeArea()
+                VideoPlayerView(video: currentVideo)
+                    .environmentObject(videoManager)
+            }
+            .ignoresSafeArea()
+            .onRotate { orientation in
+                updateLandscapeFullscreen(for: orientation)
+            }
+        }
+        #endif
     }
 
     private var videoDetailsSection: some View {
@@ -143,8 +182,6 @@ struct VideoView: View {
                 }
                 .foregroundStyle(.foreground)
             }
-            
-            VideoActionsView(video: currentVideo)
             
             if let description {
                 Text(.init(description))

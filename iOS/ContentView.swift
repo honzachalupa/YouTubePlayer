@@ -3,6 +3,7 @@ import YouTubeKit
 
 struct ContentView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var videoManager: VideoManager
     @StateObject private var authService = YouTubeAuthService.shared
     @StateObject private var playlistService = YouTubePlaylistService.shared
@@ -117,6 +118,11 @@ struct ContentView: View {
         .onAppear {
             if authService.isAuthenticated {
                 selectedTab = .subscriptions
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active {
+                videoManager.saveCurrentPlaybackPosition(force: true)
             }
         }
         .onChange(of: authService.isAuthenticated) { _, isAuthenticated in

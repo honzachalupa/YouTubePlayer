@@ -6,11 +6,11 @@ struct XStack<Content: View>: View {
     
     var body: some View {
         if isVertical {
-            VStack {
+            VStack(spacing: 0) {
                 content()
             }
         } else {
-            HStack {
+            HStack(spacing: 0) {
                 content()
             }
         }

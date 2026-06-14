@@ -15,4 +15,24 @@ final class AuthenticationModel {
         self.userInfo = userInfo
         self.lastUpdated = Date()
     }
+}
+
+@Model
+final class PlaybackPositionModel {
+    var videoId: String = ""
+    var positionSeconds: Double = 0
+    var durationSeconds: Double?
+    var updatedAt: Date = Date()
+
+    init(
+        videoId: String,
+        positionSeconds: Double,
+        durationSeconds: Double? = nil,
+        updatedAt: Date = Date()
+    ) {
+        self.videoId = videoId
+        self.positionSeconds = positionSeconds
+        self.durationSeconds = durationSeconds
+        self.updatedAt = updatedAt
+    }
 } 

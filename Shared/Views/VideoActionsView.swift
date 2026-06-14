@@ -1,43 +1,52 @@
 import SwiftUI
 import YouTubeKit
 
-struct VideoActionsView: View {
+struct VideoActionsToolbarView: ToolbarContent {
     public let video: YTVideo
     
     @EnvironmentObject private var videoManager: VideoManager
     
-    var body: some View {
-        HStack {
-            Group {
-                Button {
-                    Task { await videoManager.likeVideo() }
-                } label: {
-                    Label("Like", systemImage: videoManager.likeStatus == .liked ? "hand.thumbsup.fill" : "hand.thumbsup")
-                }
-                .tint(videoManager.likeStatus == .liked ? .green : .none)
-                .symbolEffect(.bounce, value: videoManager.likeStatus == .liked)
-                
-                Button {
-                    Task { await videoManager.dislikeVideo() }
-                } label: {
-                    Image(systemName: videoManager.likeStatus == .disliked ? "hand.thumbsdown.fill" : "hand.thumbsdown")
-                }
-                .tint(videoManager.likeStatus == .disliked ? .red : .none)
-                .symbolEffect(.bounce, value: videoManager.likeStatus == .disliked)
-                
-                #if os(iOS)
-                ShareLink(item: "https://www.youtube.com/watch?v=\(video.videoId)") {
-                    Label("Share", systemImage: "arrowshape.turn.up.right.fill")
-                }
-                #endif
-                
-                Menu {
-                    AddRemoveVideoPlaylistListView(video: video)
-                } label: {
-                    Label("Save", systemImage: "square.and.arrow.down.fill")
-                }
+    var body: some ToolbarContent {
+        ToolbarItem(placement: .bottomBar) {
+            Button {
+                Task { await videoManager.likeVideo() }
+            } label: {
+                Image(systemName: videoManager.likeStatus == .liked ? "hand.thumbsup.fill" : "hand.thumbsup")
+                    
+                Text("Like")
             }
-            .buttonStyle(.glass)
+            .tint(videoManager.likeStatus == .liked ? .green : .none)
+            .symbolEffect(.bounce, value: videoManager.likeStatus == .liked)
+        }
+        
+        ToolbarSpacer(.fixed, placement: .bottomBar)
+        
+        ToolbarItem(placement: .bottomBar) {
+            Button {
+                Task { await videoManager.dislikeVideo() }
+            } label: {
+                Image(systemName: videoManager.likeStatus == .disliked ? "hand.thumbsdown.fill" : "hand.thumbsdown")
+            }
+            .tint(videoManager.likeStatus == .disliked ? .red : .none)
+            .symbolEffect(.bounce, value: videoManager.likeStatus == .disliked)
+        }
+        
+        ToolbarSpacer(placement: .bottomBar)
+        
+        #if os(iOS)
+        ToolbarItem(placement: .bottomBar) {
+            ShareLink(item: "https://www.youtube.com/watch?v=\(video.videoId)") {
+                Label("Share", systemImage: "arrowshape.turn.up.right")
+            }
+        }
+        #endif
+        
+        ToolbarItem(placement: .bottomBar) {
+            Menu {
+                AddRemoveVideoPlaylistListView(video: video)
+            } label: {
+                Label("Save", systemImage: "square.and.arrow.down")
+            }
         }
     }
 }
@@ -62,7 +71,11 @@ struct VideoActionsView: View {
         ]
     )
     
-    VideoActionsView(video: video)
-        .padding()
-        .environmentObject(VideoManager())
+    NavigationStack {
+        Color.clear
+            .toolbar {
+                VideoActionsToolbarView(video: video)
+            }
+    }
+    .environmentObject(VideoManager())
 }

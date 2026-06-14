@@ -30,12 +30,15 @@ struct VideoPlayerView: View {
                             image
                                 .resizable()
                                 .overlay {
-                                    Color.black.opacity(0.3)
+                                    Color.black
+                                        .opacity(0.3)
+                                    
                                     ProgressView()
                                         .controlSize(.large)
                                 }
                         } else {
-                            Color.gray.opacity(0.2)
+                            Color.gray
+                                .opacity(0.2)
                                 .overlay {
                                     ProgressView()
                                         .controlSize(.large)
@@ -43,7 +46,8 @@ struct VideoPlayerView: View {
                         }
                     }
                 } else {
-                    Color.gray.opacity(0.2)
+                    Color.gray
+                        .opacity(0.2)
                         .overlay {
                             ProgressView()
                                 .controlSize(.large)
@@ -87,7 +91,6 @@ struct VideoPlayerView: View {
             }
         }
         .aspectRatio(16/9, contentMode: .fit)
-        .ignoresSafeArea()
         .task {
             // Load if the requested video is not already selected or no player exists yet.
             if videoManager.selectedVideo?.videoId != video.videoId || videoManager.player == nil {

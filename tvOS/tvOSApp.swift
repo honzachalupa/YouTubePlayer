@@ -8,7 +8,10 @@ struct YouTube_tvOSApp: App {
     
     init() {
         do {
-            let schema = Schema([AuthenticationModel.self])
+            let schema = Schema([
+                AuthenticationModel.self,
+                PlaybackPositionModel.self
+            ])
             let modelConfiguration = ModelConfiguration(
                 schema: schema,
                 isStoredInMemoryOnly: false
@@ -22,6 +25,8 @@ struct YouTube_tvOSApp: App {
             // Set up YouTubeAuthService with ModelContext
             let context = container.mainContext
             YouTubeAuthService.shared.setModelContext(context)
+            VideoManager.shared.setModelContext(context)
+            videoManager.setModelContext(context)
         } catch {
             fatalError("Failed to create ModelContainer: \(error.localizedDescription)")
         }

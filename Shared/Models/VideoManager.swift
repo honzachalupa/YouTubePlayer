@@ -3,6 +3,7 @@ import AVKit
 import YouTubeKit
 import MediaPlayer
 import Combine
+import SwiftData
 
 @MainActor
 class VideoManager: ObservableObject {
@@ -30,12 +31,19 @@ class VideoManager: ObservableObject {
     private let authService: YouTubeAuthService
     private let playlistService = YouTubePlaylistService.shared
     private let youtubeService = YouTubeService.shared
+    private var modelContext: ModelContext?
     private var thumbnailImage: UIImage?
     private var isCleanedUp = false
+    private var lastPlaybackPositionSave = Date.distantPast
+    private let maximumStoredPlaybackPositions = 200
     
     func clearPlaylistData() {
         availablePlaylists = []
         temporaryPlaylistStates = [:]
+    }
+
+    func setModelContext(_ context: ModelContext) {
+        modelContext = context
     }
     
     init() {
@@ -51,6 +59,7 @@ class VideoManager: ObservableObject {
     private func cleanup() {
         guard !isCleanedUp else { return }
         isCleanedUp = true
+        saveCurrentPlaybackPosition(force: true)
         
         if let observer = playerTimeObserver, let player = currentPlayer {
             player.removeTimeObserver(observer)
@@ -58,13 +67,6 @@ class VideoManager: ObservableObject {
             currentPlayer = nil
         }
         UIApplication.shared.endReceivingRemoteControlEvents()
-    }
-    
-    nonisolated deinit {
-        // Schedule cleanup on the main actor
-        Task { @MainActor [self] in
-            cleanup()
-        }
     }
     
     private nonisolated func configureAudioSession() {
@@ -148,9 +150,80 @@ class VideoManager: ObservableObject {
         }
     }
     
+    private func playbackPosition(for videoId: String) -> PlaybackPositionModel? {
+        guard let modelContext else { return nil }
+
+        var descriptor = FetchDescriptor<PlaybackPositionModel>(
+            predicate: #Predicate { $0.videoId == videoId }
+        )
+        descriptor.fetchLimit = 1
+
+        return try? modelContext.fetch(descriptor).first
+    }
+
+    private func prunePlaybackPositionsIfNeeded() {
+        guard let modelContext else { return }
+
+        let descriptor = FetchDescriptor<PlaybackPositionModel>(
+            sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
+        )
+
+        guard let positions = try? modelContext.fetch(descriptor),
+              positions.count > maximumStoredPlaybackPositions else {
+            return
+        }
+
+        for position in positions.dropFirst(maximumStoredPlaybackPositions) {
+            modelContext.delete(position)
+        }
+    }
+
+    private func savedPlaybackTime(for videoId: String) -> CMTime? {
+        guard let position = playbackPosition(for: videoId), position.positionSeconds >= 3 else {
+            return nil
+        }
+
+        return CMTime(seconds: position.positionSeconds, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+    }
+
+    func saveCurrentPlaybackPosition(force: Bool = false) {
+        guard let modelContext,
+              let videoId = selectedVideo?.videoId,
+              let player,
+              let currentItem = player.currentItem else {
+            return
+        }
+
+        let currentSeconds = player.currentTime().seconds
+        guard currentSeconds.isFinite, currentSeconds >= 0 else { return }
+
+        let now = Date()
+        guard force || now.timeIntervalSince(lastPlaybackPositionSave) >= 5 else { return }
+
+        let durationSeconds = currentItem.duration.seconds.isFinite ? currentItem.duration.seconds : nil
+        let position = playbackPosition(for: videoId) ?? PlaybackPositionModel(videoId: videoId, positionSeconds: 0)
+        position.positionSeconds = currentSeconds
+        position.durationSeconds = durationSeconds
+        position.updatedAt = now
+
+        if position.modelContext == nil {
+            modelContext.insert(position)
+        }
+
+        prunePlaybackPositionsIfNeeded()
+
+        do {
+            try modelContext.save()
+            lastPlaybackPositionSave = now
+        } catch {
+            print("Error saving playback position:", error)
+        }
+    }
+
     private func setupPlayerObservation(for player: AVPlayer) {
         // Remove any existing time observer from the current player
         if let observer = playerTimeObserver, let oldPlayer = currentPlayer {
+            saveCurrentPlaybackPosition(force: true)
             oldPlayer.removeTimeObserver(observer)
             playerTimeObserver = nil
         }
@@ -200,12 +273,15 @@ class VideoManager: ObservableObject {
                     
                     MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
                 }
+
+                self.saveCurrentPlaybackPosition()
             }
         }
     }
     
     func togglePlayPause() {
         if isPlaying {
+            saveCurrentPlaybackPosition(force: true)
             player?.pause()
             isPlaying = false
         } else {
@@ -328,6 +404,9 @@ class VideoManager: ObservableObject {
             
             // Create and configure player
             let newPlayer = AVPlayer(url: streamingURL)
+            if let savedTime = savedPlaybackTime(for: video.videoId) {
+                await newPlayer.seek(to: savedTime)
+            }
             setupPlayerObservation(for: newPlayer)
             
             // Update state
@@ -480,6 +559,7 @@ class VideoManager: ObservableObject {
     }
     
     func selectVideo(_ video: YTVideo) {
+        saveCurrentPlaybackPosition(force: true)
         selectedVideo = video
         error = nil
         isLoading = true
