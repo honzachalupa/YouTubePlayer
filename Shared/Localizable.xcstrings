@@ -301,6 +301,16 @@
         }
       }
     },
+    "Related" : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Související"
+          }
+        }
+      }
+    },
     "Save" : {
       "localizations" : {
         "cs" : {
