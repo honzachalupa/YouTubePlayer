@@ -7,6 +7,24 @@ import Combine
 @MainActor
 final class YouTubeService: ObservableObject {
     static let shared = YouTubeService()
+
+    private struct CacheEntry<Value> {
+        let value: Value
+        let expirationDate: Date
+        var lastAccessDate: Date
+    }
+
+    private enum CacheConfiguration {
+        static let videoDetailsTTL: TimeInterval = 10 * 60
+        static let videoDetailsLimit = 25
+        static let recommendedVideosTTL: TimeInterval = 5 * 60
+    }
+
+    struct CachedVideoDetails {
+        let response: MoreVideoInfosResponse
+        let description: String?
+        let recommendedVideos: [YTVideo]
+    }
     
     @Published var model = YouTubeModel()
     
@@ -29,6 +47,8 @@ final class YouTubeService: ObservableObject {
     }
     
     @Published var accessToken: String?
+    private var cachedVideoDetailsByID: [String: CacheEntry<CachedVideoDetails>] = [:]
+    private var cachedRecommendedVideos: CacheEntry<[YTVideo]>?
     
     private init() {
         self.model = YouTubeModel()
@@ -90,6 +110,80 @@ final class YouTubeService: ObservableObject {
         UserDefaults.standard.removeObject(forKey: "youtube_user_info")
         UserDefaults.standard.removeObject(forKey: "ytm_visitor_data")
         UserDefaults.standard.synchronize()
+        cachedVideoDetailsByID.removeAll()
+        cachedRecommendedVideos = nil
+    }
+
+    func cachedDetails(for videoID: String) -> CachedVideoDetails? {
+        guard var entry = cachedVideoDetailsByID[videoID] else { return nil }
+
+        guard entry.expirationDate > Date() else {
+            cachedVideoDetailsByID.removeValue(forKey: videoID)
+            return nil
+        }
+
+        entry.lastAccessDate = Date()
+        cachedVideoDetailsByID[videoID] = entry
+        return entry.value
+    }
+
+    func cacheVideoDetails(
+        response: MoreVideoInfosResponse,
+        description: String?,
+        recommendedVideos: [YTVideo],
+        for videoID: String
+    ) {
+        evictExpiredVideoDetails()
+        let now = Date()
+        cachedVideoDetailsByID[videoID] = CacheEntry(
+            value: CachedVideoDetails(
+                response: response,
+                description: description,
+                recommendedVideos: recommendedVideos
+            ),
+            expirationDate: now.addingTimeInterval(CacheConfiguration.videoDetailsTTL),
+            lastAccessDate: now
+        )
+        trimVideoDetailsCacheIfNeeded()
+    }
+
+    func cachedRecommendedVideosFeed() -> [YTVideo]? {
+        guard var entry = cachedRecommendedVideos else { return nil }
+
+        guard entry.expirationDate > Date() else {
+            cachedRecommendedVideos = nil
+            return nil
+        }
+
+        entry.lastAccessDate = Date()
+        cachedRecommendedVideos = entry
+        return entry.value
+    }
+
+    func cacheRecommendedVideosFeed(_ videos: [YTVideo]) {
+        let now = Date()
+        cachedRecommendedVideos = CacheEntry(
+            value: videos,
+            expirationDate: now.addingTimeInterval(CacheConfiguration.recommendedVideosTTL),
+            lastAccessDate: now
+        )
+    }
+
+    private func evictExpiredVideoDetails() {
+        let now = Date()
+        cachedVideoDetailsByID = cachedVideoDetailsByID.filter { $0.value.expirationDate > now }
+    }
+
+    private func trimVideoDetailsCacheIfNeeded() {
+        let overflowCount = cachedVideoDetailsByID.count - CacheConfiguration.videoDetailsLimit
+        guard overflowCount > 0 else { return }
+
+        let oldestVideoIDs = cachedVideoDetailsByID
+            .sorted { $0.value.lastAccessDate < $1.value.lastAccessDate }
+            .prefix(overflowCount)
+            .map(\.key)
+
+        oldestVideoIDs.forEach { cachedVideoDetailsByID.removeValue(forKey: $0) }
     }
     
     func getVisitorData() async {

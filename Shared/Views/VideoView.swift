@@ -46,13 +46,23 @@ struct VideoView: View {
             )
             
             guard currentVideo.videoId == video.videoId else { return }
+
+            let resolvedDescription = response.videoDescription?.map { part in
+                part.text ?? ""
+            }.joined()
+            let resolvedRecommendedVideos = response.recommendedVideos.compactMap { $0 as? YTVideo }
+
+            youtubeService.cacheVideoDetails(
+                response: response,
+                description: resolvedDescription,
+                recommendedVideos: resolvedRecommendedVideos,
+                for: video.videoId
+            )
             
             withAnimation {
                 moreInfosResponse = response
-                description = response.videoDescription?.map { part in
-                    part.text ?? ""
-                }.joined()
-                recommendedVideos = response.recommendedVideos.compactMap { $0 as? YTVideo }
+                description = resolvedDescription
+                recommendedVideos = resolvedRecommendedVideos
             }
         } catch {
             messageService.show(message: error.localizedDescription, type: .error)
@@ -88,6 +98,13 @@ struct VideoView: View {
                 moreInfosResponse = response
                 recommendedVideos.append(contentsOf: newVideos)
             }
+
+            youtubeService.cacheVideoDetails(
+                response: response,
+                description: description,
+                recommendedVideos: recommendedVideos,
+                for: currentVideo.videoId
+            )
         } catch {
             print("Error loading more recommended videos:", error)
         }
@@ -142,10 +159,16 @@ struct VideoView: View {
             }
         }
         .task(id: currentVideo.videoId) {
-            description = nil
-            recommendedVideos = []
-            moreInfosResponse = nil
-            await fetchDetails(for: currentVideo)
+            if let cachedDetails = youtubeService.cachedDetails(for: currentVideo.videoId) {
+                description = cachedDetails.description
+                recommendedVideos = cachedDetails.recommendedVideos
+                moreInfosResponse = cachedDetails.response
+            } else {
+                description = nil
+                recommendedVideos = []
+                moreInfosResponse = nil
+                await fetchDetails(for: currentVideo)
+            }
         }
         .onAppear {
             print("VideoView appeared")
@@ -191,7 +214,9 @@ struct VideoView: View {
 
     private var recommendedVideosSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Related")
+            Divider()
+            
+            Text("Recommended")
                 .font(.headline)
 
             LazyVStack(spacing: 10) {

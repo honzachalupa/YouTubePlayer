@@ -7,6 +7,14 @@ struct RecommendedVideosView: View {
     @State private var fetchError: Error? = nil
 
     func fetchVideos() async {
+        if videos.isEmpty, let cachedVideos = youtubeService.cachedRecommendedVideosFeed() {
+            withAnimation {
+                fetchError = nil
+                videos = cachedVideos
+            }
+            return
+        }
+
         do {
             // First ensure we have visitor data
             await youtubeService.getVisitorData()
@@ -25,14 +33,22 @@ struct RecommendedVideosView: View {
                 data: data,
                 useCookies: true
             )
+
+            youtubeService.cacheRecommendedVideosFeed(response.results)
             
             withAnimation {
+                fetchError = nil
                 videos = response.results
             }
         } catch {
             withAnimation {
-                fetchError = error
-                videos = []
+                if let cachedVideos = youtubeService.cachedRecommendedVideosFeed() {
+                    fetchError = nil
+                    videos = cachedVideos
+                } else {
+                    fetchError = error
+                    videos = []
+                }
             }
         }
     }
