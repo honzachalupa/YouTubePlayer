@@ -11,7 +11,7 @@
         }
       }
     },
-    "About this app" : {
+    "About" : {
       "localizations" : {
         "cs" : {
           "stringUnit" : {
@@ -380,6 +380,9 @@
           }
         }
       }
+    },
+    "Sign out" : {
+
     },
     "streamed" : {
       "comment" : "Used in regex",

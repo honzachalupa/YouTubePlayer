@@ -3,67 +3,52 @@ import YouTubeKit
 
 struct AccountToolbarItem: ToolbarContent {
     @StateObject private var authService = YouTubeAuthService.shared
-    @State private var isPopoverPresented: Bool = false
     @State private var isShowingLoginView = false
     
-    private var userInitials: String {
-        guard let name = authService.userInfo?.name else { return "" }
-        
-        let components = name.components(separatedBy: .whitespacesAndNewlines)
-        if components.count >= 2 {
-            return "\(components[0].prefix(1))\(components[1].prefix(1))"
-        } else if let first = components.first {
-            return String(first.prefix(2))
-        }
-        
-        return ""
+    private var userName: String {
+        authService.userInfo?.name.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
+    private var accountPictureURL: URL? {
+        guard let picture = authService.userInfo?.picture, !picture.isEmpty else { return nil }
+        return URL(string: picture)
     }
     
     var body: some ToolbarContent {
         ToolbarItem(id: "toolbar.account", placement: .topBarTrailing) {
             if authService.isAuthenticated {
-                Button {
-                    isPopoverPresented.toggle()
+                Menu {
+                    Button(role: .destructive) {
+                        authService.signOut()
+                    } label: {
+                        Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
+                    }
                 } label: {
-                    if authService.isAuthenticated && !userInitials.isEmpty {
-                        Text(userInitials)
-                    } else {
-                        Label("Account", systemImage: "person.fill")
-                    }
-                }
-                #if os(iOS)
-                .popover(isPresented: $isPopoverPresented) {
-                    HStack(spacing: 15) {
-                        if let pictureUrl = authService.userInfo?.picture {
-                            AsyncImage(url: URL(string: pictureUrl)) { image in
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 50, height: 50)
-                                    .clipShape(Circle())
-                            } placeholder: {
-                                Circle()
-                                    .fill(Color.gray.opacity(0.2))
-                                    .frame(width: 50, height: 50)
+                    if authService.isAuthenticated && !userName.isEmpty {
+                        HStack(spacing: 8) {
+                            AsyncImage(url: accountPictureURL) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                default:
+                                    Circle()
+                                        .fill(Color.gray.opacity(0.2))
+                                        .overlay {
+                                            Image(systemName: "person.fill")
+                                                .font(.system(size: 8, weight: .semibold))
+                                                .foregroundStyle(.secondary)
+                                        }
+                                }
                             }
+                            .frame(width: 22, height: 22)
+                            .clipShape(Circle())
+
+                            Text(userName)
                         }
-                        
-                        Text(authService.userInfo?.name ?? "")
-                            .fontWeight(.bold)
-                        
-                        Button {
-                            authService.signOut()
-                        } label: {
-                            Image(systemName: "rectangle.portrait.and.arrow.right")
-                        }
-                        .tint(.red)
-                        .buttonStyle(.glass)
-                        .buttonBorderShape(.circle)
                     }
-                    .padding()
-                    .presentationCompactAdaptation(.popover)
                 }
-                #endif
             } else {
                 Button {
                     isShowingLoginView = true

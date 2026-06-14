@@ -58,6 +58,8 @@ struct PlaylistsListView: View {
         .refreshable { await playlistService.fetchPlaylists() }
         .toolbar {
             if authService.isAuthenticated {
+                ToolbarSpacer(placement: .primaryAction)
+                
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         showingCreatePlaylistSheet = true
