@@ -118,12 +118,15 @@ private enum SubscriptionsVideosCache {
 }
 
 struct SubscriptionsVideosView: View {
+    @Environment(\.scenePhase) private var scenePhase
     private let youtubeService = YouTubeService.shared
     private let authService = YouTubeAuthService.shared
     @State private var allVideos: [YTVideo]
     @State private var videos: [YTVideo]
     @State private var fetchError: Error? = nil
     @State private var isLoadingMoreVisibleItems = false
+    @State private var hasLoadedOnce = false
+    @State private var foregroundRefreshID = 0
     
     init() {
         let cachedVideos = SubscriptionsVideosCache.loadVideos()
@@ -249,9 +252,18 @@ struct SubscriptionsVideosView: View {
     var body: some View {
         VideosGridView(videos: videos, error: fetchError, fetchVideos: {
             await fetchVideos()
+            hasLoadedOnce = true
         }, loadMoreIfNeeded: { video in
             loadMoreIfNeeded(currentVideo: video)
         }, isLoadingMore: isLoadingMoreVisibleItems)
+        .task(id: foregroundRefreshID) {
+            guard foregroundRefreshID > 0 else { return }
+            await fetchVideos()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, hasLoadedOnce else { return }
+            foregroundRefreshID += 1
+        }
         // Recreate grid when backing dataset size changes so viewport auto-fill can retry.
         .id("subscriptions-grid-\(allVideos.count)")
         #if os(iOS)

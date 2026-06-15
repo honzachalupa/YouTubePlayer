@@ -2,17 +2,19 @@ import SwiftUI
 import YouTubeKit
 
 struct RecommendedVideosView: View {
+    @Environment(\.scenePhase) private var scenePhase
     private let youtubeService = YouTubeService.shared
     @State private var videos: [YTVideo] = []
     @State private var fetchError: Error? = nil
+    @State private var hasLoadedOnce = false
+    @State private var foregroundRefreshID = 0
 
-    func fetchVideos() async {
-        if videos.isEmpty, let cachedVideos = youtubeService.cachedRecommendedVideosFeed() {
+    func fetchVideos(forceRefresh: Bool = false) async {
+        if !forceRefresh, videos.isEmpty, let cachedVideos = youtubeService.cachedRecommendedVideosFeed() {
             withAnimation {
                 fetchError = nil
                 videos = cachedVideos
             }
-            return
         }
 
         do {
@@ -56,6 +58,15 @@ struct RecommendedVideosView: View {
     var body: some View {
         VideosGridView(videos: videos, error: fetchError) {
             await fetchVideos()
+            hasLoadedOnce = true
+        }
+        .task(id: foregroundRefreshID) {
+            guard foregroundRefreshID > 0 else { return }
+            await fetchVideos(forceRefresh: true)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, hasLoadedOnce else { return }
+            foregroundRefreshID += 1
         }
         #if os(iOS)
         .navigationTitle("Recommended")
