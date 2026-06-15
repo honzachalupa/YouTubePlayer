@@ -10,7 +10,7 @@ struct RecommendedVideosView: View {
     @State private var foregroundRefreshToken = UUID()
 
     @discardableResult
-    private func showCachedVideosIfNeeded() -> Bool {
+    private func loadCachedVideosIfAvailable() -> Bool {
         guard videos.isEmpty, let cachedVideos = youtubeService.cachedRecommendedVideosFeed() else {
             return false
         }
@@ -24,7 +24,7 @@ struct RecommendedVideosView: View {
     }
 
     func fetchVideos(forceRefresh: Bool = false) async {
-        if !forceRefresh, showCachedVideosIfNeeded() {
+        if !forceRefresh, loadCachedVideosIfAvailable() {
             return
         }
 
@@ -66,14 +66,14 @@ struct RecommendedVideosView: View {
         }
     }
 
-    private func showCachedThenRefreshVideos() async {
-        showCachedVideosIfNeeded()
+    private func loadCachedThenRefreshVideos() async {
+        loadCachedVideosIfAvailable()
         await fetchVideos(forceRefresh: true)
     }
     
     var body: some View {
         VideosGridView(videos: videos, error: fetchError) {
-            await showCachedThenRefreshVideos()
+            await loadCachedThenRefreshVideos()
             hasLoadedOnce = true
         }
         .task(id: foregroundRefreshToken) {
