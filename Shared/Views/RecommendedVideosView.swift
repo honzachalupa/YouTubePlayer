@@ -2,16 +2,29 @@ import SwiftUI
 import YouTubeKit
 
 struct RecommendedVideosView: View {
+    @Environment(\.scenePhase) private var scenePhase
     private let youtubeService = YouTubeService.shared
     @State private var videos: [YTVideo] = []
     @State private var fetchError: Error? = nil
+    @State private var hasLoadedOnce = false
+    @State private var foregroundRefreshToken = UUID()
 
-    func fetchVideos() async {
-        if videos.isEmpty, let cachedVideos = youtubeService.cachedRecommendedVideosFeed() {
-            withAnimation {
-                fetchError = nil
-                videos = cachedVideos
-            }
+    @discardableResult
+    private func loadCachedVideosIfAvailable() -> Bool {
+        guard videos.isEmpty, let cachedVideos = youtubeService.cachedRecommendedVideosFeed() else {
+            return false
+        }
+
+        withAnimation {
+            fetchError = nil
+            videos = cachedVideos
+        }
+
+        return true
+    }
+
+    func fetchVideos(forceRefresh: Bool = false) async {
+        if !forceRefresh, loadCachedVideosIfAvailable() {
             return
         }
 
@@ -52,10 +65,24 @@ struct RecommendedVideosView: View {
             }
         }
     }
+
+    private func loadCachedThenRefreshVideos() async {
+        loadCachedVideosIfAvailable()
+        await fetchVideos(forceRefresh: true)
+    }
     
     var body: some View {
         VideosGridView(videos: videos, error: fetchError) {
-            await fetchVideos()
+            await loadCachedThenRefreshVideos()
+            hasLoadedOnce = true
+        }
+        .task(id: foregroundRefreshToken) {
+            guard hasLoadedOnce else { return }
+            await fetchVideos(forceRefresh: true)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, hasLoadedOnce else { return }
+            foregroundRefreshToken = UUID()
         }
         #if os(iOS)
         .navigationTitle("Recommended")

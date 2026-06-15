@@ -21,6 +21,7 @@ struct VideosGridView: View {
     public var fetchVideos: () async -> Void
     public var loadMoreIfNeeded: ((YTVideo) -> Void)?
     public var isLoadingMore: Bool = false
+    public var autoFillRetryKey: Int?
     public var playbackQueueContextProvider: ((YTVideo) -> VideoManager.PlaybackQueueContext?)?
     
     @ObservedObject private var messageService = MessageService.shared
@@ -157,6 +158,10 @@ struct VideosGridView: View {
                     if videos.isEmpty {
                         lastAutoFillAttemptVideoCount = -1
                     }
+                    triggerLoadMoreIfViewportNotFilled()
+                }
+                .onChange(of: autoFillRetryKey) {
+                    lastAutoFillAttemptVideoCount = -1
                     triggerLoadMoreIfViewportNotFilled()
                 }
                 .onPreferenceChange(ScrollViewContentHeightPreferenceKey.self) { value in

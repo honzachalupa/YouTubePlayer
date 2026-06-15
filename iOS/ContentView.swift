@@ -9,6 +9,7 @@ struct ContentView: View {
     @StateObject private var playlistService = YouTubePlaylistService.shared
     @State private var selectedTab: ContentTab = YouTubeAuthService.shared.isAuthenticated ? .subscriptions : .recommended
     @State private var isToolbarReady = false
+    @State private var hasCompletedInitialAuthRefresh = false
     
     private enum ContentTab: Hashable {
         case subscriptions
@@ -96,6 +97,7 @@ struct ContentView: View {
         }
         .task {
             await authService.refreshAuthenticationFromStoredCookies()
+            hasCompletedInitialAuthRefresh = true
             await Task.yield()
             isToolbarReady = true
         }
@@ -125,6 +127,7 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
+                guard hasCompletedInitialAuthRefresh else { return }
                 Task {
                     await authService.refreshAuthenticationFromStoredCookies()
                 }

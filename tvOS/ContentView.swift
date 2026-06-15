@@ -8,6 +8,7 @@ struct ContentView: View {
     @EnvironmentObject private var videoManager: VideoManager
     @StateObject private var authService = YouTubeAuthService.shared
     @StateObject private var playlistService = YouTubePlaylistService.shared
+    @State private var hasCompletedInitialAuthRefresh = false
     
     var body: some View {
         TabView {
@@ -65,12 +66,14 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
+            guard hasCompletedInitialAuthRefresh else { return }
             Task {
                 await authService.refreshAuthenticationFromStoredCookies()
             }
         }
         .task {
             await authService.refreshAuthenticationFromStoredCookies()
+            hasCompletedInitialAuthRefresh = true
         }
         .messageOverlay()
     }

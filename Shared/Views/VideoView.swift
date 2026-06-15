@@ -212,6 +212,12 @@ struct VideoView: View {
                 recommendedVideos = cachedDetails.recommendedVideos
                 moreInfosResponse = cachedDetails.response
                 videoManager.setRecommendedQueue(currentVideo: currentVideo, recommendedVideos: cachedDetails.recommendedVideos)
+            } else if let persistedDetails = youtubeService.cachedPersistedDetails(for: currentVideo.videoId) {
+                description = persistedDetails.description
+                recommendedVideos = persistedDetails.recommendedVideos
+                moreInfosResponse = nil
+                videoManager.setRecommendedQueue(currentVideo: currentVideo, recommendedVideos: persistedDetails.recommendedVideos)
+                await fetchDetails(for: currentVideo)
             } else {
                 description = nil
                 recommendedVideos = []

@@ -16,14 +16,97 @@ final class YouTubeService: ObservableObject {
 
     private enum CacheConfiguration {
         static let videoDetailsTTL: TimeInterval = 10 * 60
+        static let persistedVideoDetailsTTL: TimeInterval = 48 * 60 * 60
         static let videoDetailsLimit = 25
         static let recommendedVideosTTL: TimeInterval = 5 * 60
+        static let persistedVideoDetailsStorageKey = "ytm_persisted_video_details_v1"
     }
 
     struct CachedVideoDetails {
         let response: MoreVideoInfosResponse
         let description: String?
         let recommendedVideos: [YTVideo]
+    }
+
+    struct PersistedVideoDetails {
+        let description: String?
+        let recommendedVideos: [YTVideo]
+    }
+
+    private struct PersistedCacheEntry<Value: Codable>: Codable {
+        let value: Value
+        let expirationDate: Date
+        var lastAccessDate: Date
+    }
+
+    private struct PersistedVideoDetailsValue: Codable {
+        let description: String?
+        let recommendedVideos: [PersistedYTVideo]
+    }
+
+    private struct PersistedYTThumbnail: Codable {
+        let url: String
+
+        init?(thumbnail: YTThumbnail) {
+            url = thumbnail.url.absoluteString
+        }
+
+        var model: YTThumbnail? {
+            guard let url = URL(string: url) else { return nil }
+            return YTThumbnail(url: url)
+        }
+    }
+
+    private struct PersistedYTLittleChannelInfos: Codable {
+        let channelId: String
+        let name: String?
+        let thumbnails: [PersistedYTThumbnail]
+
+        init(channel: YTLittleChannelInfos) {
+            channelId = channel.channelId
+            name = channel.name
+            thumbnails = channel.thumbnails.compactMap(PersistedYTThumbnail.init)
+        }
+
+        var model: YTLittleChannelInfos {
+            YTLittleChannelInfos(
+                channelId: channelId,
+                name: name ?? "",
+                thumbnails: thumbnails.compactMap(\.model)
+            )
+        }
+    }
+
+    private struct PersistedYTVideo: Codable {
+        let videoId: String
+        let title: String?
+        let viewCount: String?
+        let timePosted: String?
+        let timeLength: String?
+        let thumbnails: [PersistedYTThumbnail]
+        let channel: PersistedYTLittleChannelInfos?
+
+        init(video: YTVideo) {
+            videoId = video.videoId
+            title = video.title
+            viewCount = video.viewCount
+            timePosted = video.timePosted
+            timeLength = video.timeLength
+            thumbnails = video.thumbnails.compactMap(PersistedYTThumbnail.init)
+            channel = video.channel.map(PersistedYTLittleChannelInfos.init)
+        }
+
+        var model: YTVideo {
+            YTVideo(
+                videoId: videoId,
+                title: title,
+                channel: channel?.model,
+                viewCount: viewCount,
+                timePosted: timePosted,
+                timeLength: timeLength,
+                thumbnails: thumbnails.compactMap(\.model)
+            )
+        }
     }
     
     @Published var model = YouTubeModel()
@@ -61,6 +144,7 @@ final class YouTubeService: ObservableObject {
     @Published var accessToken: String?
     private var cachedVideoDetailsByID: [String: CacheEntry<CachedVideoDetails>] = [:]
     private var cachedRecommendedVideos: CacheEntry<[YTVideo]>?
+    private var persistedVideoDetailsByID: [String: PersistedCacheEntry<PersistedVideoDetailsValue>] = [:]
 
     func reloadStoredCookies() {
         let storedCookies = Self.storedCookies()
@@ -98,6 +182,8 @@ final class YouTubeService: ObservableObject {
         if let visitorData = UserDefaults.standard.string(forKey: "ytm_visitor_data") {
             model.visitorData = visitorData
         }
+
+        loadPersistedVideoDetailsCache()
         
         setup()
     }
@@ -140,9 +226,11 @@ final class YouTubeService: ObservableObject {
         UserDefaults.standard.removeObject(forKey: "youtube_access_token")
         UserDefaults.standard.removeObject(forKey: "youtube_user_info")
         UserDefaults.standard.removeObject(forKey: "ytm_visitor_data")
+        UserDefaults.standard.removeObject(forKey: CacheConfiguration.persistedVideoDetailsStorageKey)
         UserDefaults.standard.synchronize()
         cachedVideoDetailsByID.removeAll()
         cachedRecommendedVideos = nil
+        persistedVideoDetailsByID.removeAll()
     }
 
     func cachedDetails(for videoID: String) -> CachedVideoDetails? {
@@ -176,6 +264,26 @@ final class YouTubeService: ObservableObject {
             lastAccessDate: now
         )
         trimVideoDetailsCacheIfNeeded()
+        cachePersistedVideoDetails(
+            description: description,
+            recommendedVideos: recommendedVideos,
+            for: videoID
+        )
+    }
+
+    func cachedPersistedDetails(for videoID: String) -> PersistedVideoDetails? {
+        evictExpiredPersistedVideoDetails()
+
+        guard var entry = persistedVideoDetailsByID[videoID] else { return nil }
+
+        entry.lastAccessDate = Date()
+        persistedVideoDetailsByID[videoID] = entry
+        savePersistedVideoDetailsCache()
+
+        return PersistedVideoDetails(
+            description: entry.value.description,
+            recommendedVideos: entry.value.recommendedVideos.map(\.model)
+        )
     }
 
     func cachedRecommendedVideosFeed() -> [YTVideo]? {
@@ -215,6 +323,73 @@ final class YouTubeService: ObservableObject {
             .map(\.key)
 
         oldestVideoIDs.forEach { cachedVideoDetailsByID.removeValue(forKey: $0) }
+    }
+
+    private func loadPersistedVideoDetailsCache() {
+        guard let data = UserDefaults.standard.data(forKey: CacheConfiguration.persistedVideoDetailsStorageKey) else {
+            persistedVideoDetailsByID = [:]
+            return
+        }
+
+        do {
+            persistedVideoDetailsByID = try JSONDecoder().decode(
+                [String: PersistedCacheEntry<PersistedVideoDetailsValue>].self,
+                from: data
+            )
+            evictExpiredPersistedVideoDetails()
+        } catch {
+            persistedVideoDetailsByID = [:]
+            UserDefaults.standard.removeObject(forKey: CacheConfiguration.persistedVideoDetailsStorageKey)
+        }
+    }
+
+    private func savePersistedVideoDetailsCache() {
+        do {
+            let data = try JSONEncoder().encode(persistedVideoDetailsByID)
+            UserDefaults.standard.set(data, forKey: CacheConfiguration.persistedVideoDetailsStorageKey)
+        } catch {
+            print("YouTubeService: Failed to persist video details cache:", error)
+        }
+    }
+
+    private func cachePersistedVideoDetails(
+        description: String?,
+        recommendedVideos: [YTVideo],
+        for videoID: String
+    ) {
+        evictExpiredPersistedVideoDetails()
+        let now = Date()
+        persistedVideoDetailsByID[videoID] = PersistedCacheEntry(
+            value: PersistedVideoDetailsValue(
+                description: description,
+                recommendedVideos: recommendedVideos.map(PersistedYTVideo.init)
+            ),
+            expirationDate: now.addingTimeInterval(CacheConfiguration.persistedVideoDetailsTTL),
+            lastAccessDate: now
+        )
+        trimPersistedVideoDetailsCacheIfNeeded()
+        savePersistedVideoDetailsCache()
+    }
+
+    private func evictExpiredPersistedVideoDetails() {
+        let now = Date()
+        let originalCount = persistedVideoDetailsByID.count
+        persistedVideoDetailsByID = persistedVideoDetailsByID.filter { $0.value.expirationDate > now }
+        if persistedVideoDetailsByID.count != originalCount {
+            savePersistedVideoDetailsCache()
+        }
+    }
+
+    private func trimPersistedVideoDetailsCacheIfNeeded() {
+        let overflowCount = persistedVideoDetailsByID.count - CacheConfiguration.videoDetailsLimit
+        guard overflowCount > 0 else { return }
+
+        let oldestVideoIDs = persistedVideoDetailsByID
+            .sorted { $0.value.lastAccessDate < $1.value.lastAccessDate }
+            .prefix(overflowCount)
+            .map(\.key)
+
+        oldestVideoIDs.forEach { persistedVideoDetailsByID.removeValue(forKey: $0) }
     }
     
     func getVisitorData() async {
