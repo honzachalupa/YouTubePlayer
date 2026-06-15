@@ -7,14 +7,24 @@ struct RecommendedVideosView: View {
     @State private var videos: [YTVideo] = []
     @State private var fetchError: Error? = nil
     @State private var hasLoadedOnce = false
-    @State private var foregroundRefreshID = 0
+    @State private var shouldRefreshOnForeground = false
+
+    private func showCachedVideosIfNeeded() -> Bool {
+        guard videos.isEmpty, let cachedVideos = youtubeService.cachedRecommendedVideosFeed() else {
+            return false
+        }
+
+        withAnimation {
+            fetchError = nil
+            videos = cachedVideos
+        }
+
+        return true
+    }
 
     func fetchVideos(forceRefresh: Bool = false) async {
-        if !forceRefresh, videos.isEmpty, let cachedVideos = youtubeService.cachedRecommendedVideosFeed() {
-            withAnimation {
-                fetchError = nil
-                videos = cachedVideos
-            }
+        if !forceRefresh, showCachedVideosIfNeeded() {
+            return
         }
 
         do {
@@ -54,19 +64,24 @@ struct RecommendedVideosView: View {
             }
         }
     }
+
+    private func refreshVideosOnInitialLoad() async {
+        _ = showCachedVideosIfNeeded()
+        await fetchVideos(forceRefresh: true)
+    }
     
     var body: some View {
         VideosGridView(videos: videos, error: fetchError) {
-            await fetchVideos()
+            await refreshVideosOnInitialLoad()
             hasLoadedOnce = true
         }
-        .task(id: foregroundRefreshID) {
-            guard foregroundRefreshID > 0 else { return }
+        .task(id: shouldRefreshOnForeground) {
+            guard shouldRefreshOnForeground else { return }
             await fetchVideos(forceRefresh: true)
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active, hasLoadedOnce else { return }
-            foregroundRefreshID += 1
+            shouldRefreshOnForeground.toggle()
         }
         #if os(iOS)
         .navigationTitle("Recommended")
