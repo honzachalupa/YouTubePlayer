@@ -53,30 +53,4 @@ final class LivePlaybackSmokeTests: XCTestCase {
         XCTAssertTrue(playableURL.scheme?.hasPrefix("http") == true)
     }
 
-    func testWatchPageStillContainsParsableInitialPlayerResponse() async throws {
-        try requireLiveTests()
-
-        let url = URL(string: "https://www.youtube.com/watch?v=\(smokeVideoID)&bpctr=9999999999&has_verified=1")!
-        var request = URLRequest(url: url)
-        request.setValue(
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Safari/605.1.15",
-            forHTTPHeaderField: "User-Agent"
-        )
-        request.setValue(
-            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            forHTTPHeaderField: "Accept"
-        )
-        request.setValue("en-US;q=0.9", forHTTPHeaderField: "Accept-Language")
-
-        let (data, _) = try await URLSession.shared.data(for: request)
-        let html = String(decoding: data, as: UTF8.self)
-
-        guard let playerResponseJSON = NativePlaybackSupport.extractInitialPlayerResponseJSON(from: html) else {
-            XCTFail("watchPageFallback stage failed: ytInitialPlayerResponse was not found in current watch HTML.")
-            return
-        }
-
-        let response = try VideoInfosResponse.decodeJSON(json: JSON(parseJSON: playerResponseJSON))
-        XCTAssertEqual(response.videoId, smokeVideoID)
-    }
 }

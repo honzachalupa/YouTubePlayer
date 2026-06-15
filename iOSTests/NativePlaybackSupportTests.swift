@@ -140,36 +140,4 @@ final class NativePlaybackSupportTests: XCTestCase {
         XCTAssertEqual(NativePlaybackSupport.fallbackStreamingURL(from: response), hls)
     }
 
-    func testExtractInitialPlayerResponseJSONHandlesNestedJSONAndEscapedBraces() {
-        let html = """
-        <html><body><script>
-        var ytInitialPlayerResponse = {"videoDetails":{"title":"Example } title"},"streamingData":{"formats":[{"url":"https://example.com/video.mp4"}]}}
-        ;</script></body></html>
-        """
-
-        let json = NativePlaybackSupport.extractInitialPlayerResponseJSON(from: html)
-
-        XCTAssertEqual(
-            json,
-            #"{"videoDetails":{"title":"Example } title"},"streamingData":{"formats":[{"url":"https://example.com/video.mp4"}]}}"#
-        )
-    }
-
-    func testExtractInitialPlayerResponseJSONReturnsNilWithoutMarker() {
-        XCTAssertNil(NativePlaybackSupport.extractInitialPlayerResponseJSON(from: "<html></html>"))
-    }
-
-    func testCurrentWatchHTMLShapeBreaksLibraryPlayerPathRegexButNotOurJSONExtractor() {
-        let html = #"""
-        <link rel="preload" href="https://i.ytimg.com/generate_204" as="fetch"><link rel="preconnect" href="https://www.youtube.com"><link rel="dns-prefetch" href="https://www.youtube.com"><link as="script" rel="preload" href="/s/player/445213fb/player_ias.vflset/en_US/base.js">
-        <script>var ytInitialPlayerResponse = {"videoDetails":{"videoId":"abc123","title":"Test"},"playabilityStatus":{"status":"OK"},"streamingData":{"formats":[{"itag":18,"mimeType":"video/mp4; codecs=\"avc1.42001E, mp4a.40.2\"","url":"https://example.com/video.mp4"}]}};</script><div id="player"></div>
-        """#
-
-        let libraryPlayerPath = html.ytkFirstGroupMatch(
-            for: #"<link rel=\"preload\" href=\"https:\\/\\/i.ytimg.com\\/generate_204\" as=\"fetch\"><link as=\"script\" rel=\"preload\" href=\"([\S]+)\""#
-        )
-
-        XCTAssertNil(libraryPlayerPath)
-        XCTAssertNotNil(NativePlaybackSupport.extractInitialPlayerResponseJSON(from: html))
-    }
 }

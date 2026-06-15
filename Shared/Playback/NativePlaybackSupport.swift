@@ -2,6 +2,16 @@ import Foundation
 import YouTubeKit
 
 enum NativePlaybackSupport {
+    struct HLSVariant {
+        let bandwidth: Int
+        let width: Int
+        let height: Int
+
+        var pixelCount: Int {
+            width * height
+        }
+    }
+
     static let androidClientVersion = "21.24.37"
     static let androidUserAgent = "com.google.android.youtube/\(androidClientVersion) (Linux; U; Android 15) gzip"
 
@@ -53,6 +63,14 @@ enum NativePlaybackSupport {
         )
     }
 
+    static func isLikelyHLSPlaylistURL(_ url: URL) -> Bool {
+        let value = url.absoluteString.lowercased()
+        return value.contains(".m3u8") ||
+            value.contains("/manifest/hls") ||
+            value.contains("hls_playlist") ||
+            value.contains("playlist_type=hls")
+    }
+
     static func preferredMuxedStreamingURL(from formats: [any DownloadFormat]) -> URL? {
         let preferredMuxedFormat = formats
             .compactMap { $0 as? VideoDownloadFormat }
@@ -73,6 +91,99 @@ enum NativePlaybackSupport {
         return preferredMuxedFormat?.url
     }
 
+    static func highestQualityHLSVariant(from masterPlaylist: String, masterURL: URL) -> HLSVariant? {
+        let variants = hlsVariants(from: masterPlaylist, masterURL: masterURL)
+
+        return variants
+            .sorted {
+                if $0.pixelCount == $1.pixelCount {
+                    return $0.bandwidth > $1.bandwidth
+                }
+
+                return $0.pixelCount > $1.pixelCount
+            }
+            .first
+    }
+
+    static func hlsVariantSummary(from masterPlaylist: String, masterURL: URL) -> String {
+        let variants = hlsVariants(from: masterPlaylist, masterURL: masterURL)
+
+        guard !variants.isEmpty else {
+            return "no HLS variants found"
+        }
+
+        return variants
+            .sorted {
+                if $0.pixelCount == $1.pixelCount {
+                    return $0.bandwidth > $1.bandwidth
+                }
+
+                return $0.pixelCount > $1.pixelCount
+            }
+            .map { variant in
+                let mbps = Double(variant.bandwidth) / 1_000_000
+                return "\(variant.width)x\(variant.height) @ \(String(format: "%.1f", mbps)) Mbps"
+            }
+            .joined(separator: ", ")
+    }
+
+    private static func hlsVariants(from masterPlaylist: String, masterURL: URL) -> [HLSVariant] {
+        let lines = masterPlaylist
+            .split(whereSeparator: \.isNewline)
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+
+        var variants: [HLSVariant] = []
+
+        for index in lines.indices where lines[index].hasPrefix("#EXT-X-STREAM-INF:") {
+            guard let uriLine = lines[(index + 1)...].first(where: { !$0.isEmpty && !$0.hasPrefix("#") }),
+                  URL(string: uriLine, relativeTo: masterURL)?.absoluteURL != nil else {
+                continue
+            }
+
+            let attributes = lines[index]
+            let bandwidth = hlsIntegerAttribute("BANDWIDTH", in: attributes) ?? 0
+            let resolution = hlsResolutionAttribute(in: attributes) ?? (width: 0, height: 0)
+
+            variants.append(
+                HLSVariant(
+                    bandwidth: bandwidth,
+                    width: resolution.width,
+                    height: resolution.height
+                )
+            )
+        }
+
+        return variants
+    }
+
+    private static func hlsIntegerAttribute(_ name: String, in attributes: String) -> Int? {
+        guard let value = hlsAttribute(name, in: attributes) else { return nil }
+        return Int(value)
+    }
+
+    private static func hlsResolutionAttribute(in attributes: String) -> (width: Int, height: Int)? {
+        guard let value = hlsAttribute("RESOLUTION", in: attributes) else { return nil }
+        let parts = value.split(separator: "x")
+        guard parts.count == 2,
+              let width = Int(parts[0]),
+              let height = Int(parts[1]) else {
+            return nil
+        }
+
+        return (width, height)
+    }
+
+    private static func hlsAttribute(_ name: String, in attributes: String) -> String? {
+        guard let range = attributes.range(of: "\(name)=") else { return nil }
+        var value = attributes[range.upperBound...]
+
+        if let commaIndex = value.firstIndex(of: ",") {
+            value = value[..<commaIndex]
+        }
+
+        return String(value).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+    }
+
     static func streamingURL(from response: VideoInfosResponse) -> URL? {
         if let hlsURL = response.streamingURL {
             return hlsURL
@@ -89,53 +200,4 @@ enum NativePlaybackSupport {
         return preferredMuxedStreamingURL(from: response.defaultFormats)
     }
 
-    static func extractInitialPlayerResponseJSON(from html: String) -> String? {
-        let marker = "var ytInitialPlayerResponse = "
-
-        guard let markerRange = html.range(of: marker) else {
-            return nil
-        }
-
-        var index = markerRange.upperBound
-        while index < html.endIndex, html[index].isWhitespace {
-            index = html.index(after: index)
-        }
-
-        guard index < html.endIndex, html[index] == "{" else {
-            return nil
-        }
-
-        let startIndex = index
-        var depth = 0
-        var isInsideString = false
-        var isEscaped = false
-
-        while index < html.endIndex {
-            let character = html[index]
-
-            if isInsideString {
-                if isEscaped {
-                    isEscaped = false
-                } else if character == "\\" {
-                    isEscaped = true
-                } else if character == "\"" {
-                    isInsideString = false
-                }
-            } else if character == "\"" {
-                isInsideString = true
-            } else if character == "{" {
-                depth += 1
-            } else if character == "}" {
-                depth -= 1
-
-                if depth == 0 {
-                    return String(html[startIndex...index])
-                }
-            }
-
-            index = html.index(after: index)
-        }
-
-        return nil
-    }
 }

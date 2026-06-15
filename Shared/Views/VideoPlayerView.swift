@@ -212,7 +212,18 @@ private struct NextVideoPromptOverlay: View {
         .padding(.trailing, 8)
         .padding(.vertical, 7)
         .glassEffect(.clear, in: RoundedRectangle(cornerRadius: promptCornerRadius))
-        .gesture(
+        .modifier(NextVideoPromptDismissGesture(videoManager: videoManager))
+    }
+}
+
+private struct NextVideoPromptDismissGesture: ViewModifier {
+    let videoManager: VideoManager
+
+    func body(content: Content) -> some View {
+        #if os(tvOS)
+        content
+        #else
+        content.gesture(
             DragGesture(minimumDistance: 20)
                 .onEnded { value in
                     let translation = value.translation
@@ -220,6 +231,7 @@ private struct NextVideoPromptOverlay: View {
                     videoManager.dismissNextVideoPrompt()
                 }
         )
+        #endif
     }
 }
 

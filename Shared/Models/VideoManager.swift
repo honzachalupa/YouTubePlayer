@@ -14,6 +14,12 @@ class VideoManager: ObservableObject {
         let remainingSeconds: Int
     }
 
+    private struct StreamingPlaybackSelection {
+        let url: URL
+        let preferredPeakBitRate: Double?
+        let preferredMaximumResolution: CGSize?
+    }
+
     struct PlaybackQueueContext {
         enum Source {
             case recommended
@@ -96,16 +102,9 @@ class VideoManager: ObservableObject {
         guard !isCleanedUp else { return }
         isCleanedUp = true
         saveCurrentPlaybackPosition(force: true)
-        
-        if let observer = playerTimeObserver, let player = currentPlayer {
-            player.removeTimeObserver(observer)
-            playerTimeObserver = nil
-            currentPlayer = nil
-        }
-        if let observer = playbackDidEndObserver {
-            NotificationCenter.default.removeObserver(observer)
-            playbackDidEndObserver = nil
-        }
+
+        removePlayerObservers()
+        currentPlayer = nil
         UIApplication.shared.endReceivingRemoteControlEvents()
     }
     
@@ -524,36 +523,78 @@ class VideoManager: ObservableObject {
         isLoading = false
     }
 
-    private func nativeWatchPageStreamingURL(for video: YTVideo) async throws -> URL? {
-        var components = URLComponents(string: "https://www.youtube.com/watch")
-        components?.queryItems = [
-            URLQueryItem(name: "v", value: video.videoId),
-            URLQueryItem(name: "bpctr", value: "9999999999"),
-            URLQueryItem(name: "has_verified", value: "1")
+    private func playbackHTTPHeaderFields() -> [String: String] {
+        var headers = [
+            "User-Agent": NativePlaybackSupport.androidUserAgent,
+            "Referer": "https://www.youtube.com/",
+            "Origin": "https://www.youtube.com"
         ]
 
-        guard let url = components?.url else { return nil }
-
-        var request = URLRequest(url: url)
-        request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Safari/605.1.15", forHTTPHeaderField: "User-Agent")
-        request.setValue("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", forHTTPHeaderField: "Accept")
-        request.setValue("\(youtubeService.model.selectedLocale);q=0.9", forHTTPHeaderField: "Accept-Language")
-
         if !youtubeService.model.cookies.isEmpty {
-            request.setValue(youtubeService.model.cookies, forHTTPHeaderField: "Cookie")
+            headers["Cookie"] = youtubeService.model.cookies
         }
 
-        let (data, _) = try await URLSession.shared.data(for: request)
-        let html = String(decoding: data, as: UTF8.self)
-
-        guard let playerResponseJSON = NativePlaybackSupport.extractInitialPlayerResponseJSON(from: html) else {
-            return nil
-        }
-
-        let playerResponse = try VideoInfosResponse.decodeJSON(json: JSON(parseJSON: playerResponseJSON))
-        return NativePlaybackSupport.streamingURL(from: playerResponse)
+        return headers
     }
-    
+
+    private func makePlaybackAsset(for streamingURL: URL) -> AVURLAsset {
+        AVURLAsset(
+            url: streamingURL,
+            options: [
+                "AVURLAssetHTTPHeaderFieldsKey": playbackHTTPHeaderFields()
+            ]
+        )
+    }
+
+    private func makePlayer(
+        for streamingURL: URL,
+        preferredPeakBitRate: Double? = nil,
+        preferredMaximumResolution: CGSize? = nil
+    ) -> AVPlayer {
+        let playerItem = AVPlayerItem(asset: makePlaybackAsset(for: streamingURL))
+        playerItem.preferredPeakBitRate = preferredPeakBitRate ?? 0
+        playerItem.preferredMaximumResolution = preferredMaximumResolution ?? .zero
+        playerItem.preferredForwardBufferDuration = 30
+        return AVPlayer(playerItem: playerItem)
+    }
+
+    private func validatedStreamingSelection(from streamingURL: URL) async -> StreamingPlaybackSelection {
+        guard NativePlaybackSupport.isLikelyHLSPlaylistURL(streamingURL) else {
+            return StreamingPlaybackSelection(url: streamingURL, preferredPeakBitRate: nil, preferredMaximumResolution: nil)
+        }
+
+        do {
+            var request = URLRequest(url: streamingURL)
+            request.setValue(NativePlaybackSupport.androidUserAgent, forHTTPHeaderField: "User-Agent")
+
+            let (data, _) = try await URLSession.shared.data(for: request)
+            let playlist = String(decoding: data, as: UTF8.self)
+
+            guard playlist.contains("#EXTM3U") else {
+                return StreamingPlaybackSelection(url: streamingURL, preferredPeakBitRate: nil, preferredMaximumResolution: nil)
+            }
+
+            guard playlist.contains("#EXT-X-STREAM-INF") else {
+                return StreamingPlaybackSelection(url: streamingURL, preferredPeakBitRate: nil, preferredMaximumResolution: nil)
+            }
+
+            guard let variant = NativePlaybackSupport.highestQualityHLSVariant(
+                from: playlist,
+                masterURL: streamingURL
+            ) else {
+                return StreamingPlaybackSelection(url: streamingURL, preferredPeakBitRate: nil, preferredMaximumResolution: nil)
+            }
+
+            return StreamingPlaybackSelection(
+                url: streamingURL,
+                preferredPeakBitRate: Double(variant.bandwidth),
+                preferredMaximumResolution: CGSize(width: variant.width, height: variant.height)
+            )
+        } catch {
+            return StreamingPlaybackSelection(url: streamingURL, preferredPeakBitRate: nil, preferredMaximumResolution: nil)
+        }
+    }
+
     func loadVideo(_ video: YTVideo) async {
         let loadID = beginVideoLoad()
         stopCurrentPlayerForReplacement()
@@ -575,7 +616,7 @@ class VideoManager: ObservableObject {
                 }
             }
             
-            let streamingURL: URL
+            var streamingURL: URL?
             var primaryPlaybackError: Error?
 
             do {
@@ -586,8 +627,8 @@ class VideoManager: ObservableObject {
 
                 if let hlsURL = streamingInfos.streamingURL {
                     streamingURL = hlsURL
-                } else if let directMuxedURL = NativePlaybackSupport.preferredMuxedStreamingURL(from: streamingInfos.defaultFormats) {
-                    streamingURL = directMuxedURL
+                } else if let primaryMuxedURL = NativePlaybackSupport.preferredMuxedStreamingURL(from: streamingInfos.defaultFormats) {
+                    streamingURL = primaryMuxedURL
                 } else {
                     throw PlaybackResolverError.noNativePlayableStream
                 }
@@ -600,22 +641,20 @@ class VideoManager: ObservableObject {
                         useCookies: nil
                     )
 
-                    guard let fallbackURL = NativePlaybackSupport.fallbackStreamingURL(from: downloadFormatsResponse) else {
+                    if let fallbackURL = NativePlaybackSupport.fallbackStreamingURL(from: downloadFormatsResponse) {
+                        streamingURL = fallbackURL
+                    } else {
                         if let primaryPlaybackError {
                             throw primaryPlaybackError
                         }
 
                         throw PlaybackResolverError.noNativePlayableStream
                     }
-
-                    streamingURL = fallbackURL
-                } catch let fallbackError {
-                    if let watchPageURL = try? await nativeWatchPageStreamingURL(for: video) {
-                        streamingURL = watchPageURL
-                    } else if let primaryPlaybackError {
+                } catch {
+                    if let primaryPlaybackError {
                         throw primaryPlaybackError
                     } else {
-                        throw fallbackError
+                        throw error
                     }
                 }
             }
@@ -632,8 +671,19 @@ class VideoManager: ObservableObject {
             
             guard isCurrentVideoLoad(loadID) else { return }
 
-            // Create and configure player
-            let newPlayer = AVPlayer(url: streamingURL)
+            guard let streamingURL else {
+                throw PlaybackResolverError.noNativePlayableStream
+            }
+
+            let playbackSelection = await validatedStreamingSelection(from: streamingURL)
+
+            guard isCurrentVideoLoad(loadID) else { return }
+
+            let newPlayer = makePlayer(
+                for: playbackSelection.url,
+                preferredPeakBitRate: playbackSelection.preferredPeakBitRate,
+                preferredMaximumResolution: playbackSelection.preferredMaximumResolution
+            )
             if let savedTime = savedPlaybackTime(for: video.videoId) {
                 await newPlayer.seek(to: savedTime)
             }
