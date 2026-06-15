@@ -62,6 +62,7 @@ class VideoManager: ObservableObject {
     private var modelContext: ModelContext?
     private var thumbnailImage: UIImage?
     private var isCleanedUp = false
+    private var currentVideoLoadID: UUID?
     private var lastPlaybackPositionSave = Date.distantPast
     private let maximumStoredPlaybackPositions = 200
     
@@ -233,6 +234,22 @@ class VideoManager: ObservableObject {
         guard force || now.timeIntervalSince(lastPlaybackPositionSave) >= 5 else { return }
 
         let durationSeconds = currentItem.duration.seconds.isFinite ? currentItem.duration.seconds : nil
+        if let durationSeconds, durationSeconds > 0 {
+            let completedThreshold = durationSeconds - min(5, durationSeconds * 0.05)
+            if currentSeconds >= completedThreshold {
+                if let position = playbackPosition(for: videoId) {
+                    modelContext.delete(position)
+                }
+                do {
+                    try modelContext.save()
+                    lastPlaybackPositionSave = now
+                } catch {
+                    print("Error clearing completed playback position:", error)
+                }
+                return
+            }
+        }
+
         let position = playbackPosition(for: videoId) ?? PlaybackPositionModel(videoId: videoId, positionSeconds: 0)
         position.positionSeconds = currentSeconds
         position.durationSeconds = durationSeconds
@@ -252,17 +269,37 @@ class VideoManager: ObservableObject {
         }
     }
 
-    private func setupPlayerObservation(for player: AVPlayer) {
-        // Remove any existing time observer from the current player
+    private func removePlayerObservers() {
         if let observer = playerTimeObserver, let oldPlayer = currentPlayer {
-            saveCurrentPlaybackPosition(force: true)
             oldPlayer.removeTimeObserver(observer)
             playerTimeObserver = nil
         }
+
         if let observer = playbackDidEndObserver {
             NotificationCenter.default.removeObserver(observer)
             playbackDidEndObserver = nil
         }
+    }
+
+    private func stopCurrentPlayerForReplacement(savePosition: Bool = true) {
+        if savePosition {
+            saveCurrentPlaybackPosition(force: true)
+        }
+
+        removePlayerObservers()
+
+        let oldPlayer = player ?? currentPlayer
+        oldPlayer?.pause()
+        oldPlayer?.replaceCurrentItem(with: nil)
+
+        player = nil
+        currentPlayer = nil
+        isPlaying = false
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+    }
+
+    private func setupPlayerObservation(for player: AVPlayer) {
+        removePlayerObservers()
         
         // Store the new player as current
         currentPlayer = player
@@ -407,6 +444,22 @@ class VideoManager: ObservableObject {
         }
     }
 
+    private func beginVideoLoad() -> UUID {
+        let loadID = UUID()
+        currentVideoLoadID = loadID
+        return loadID
+    }
+
+    private func isCurrentVideoLoad(_ loadID: UUID) -> Bool {
+        currentVideoLoadID == loadID
+    }
+
+    private func finishVideoLoad(_ loadID: UUID) {
+        guard isCurrentVideoLoad(loadID) else { return }
+        currentVideoLoadID = nil
+        isLoading = false
+    }
+
     private func nativeWatchPageStreamingURL(for video: YTVideo) async throws -> URL? {
         var components = URLComponents(string: "https://www.youtube.com/watch")
         components?.queryItems = [
@@ -438,6 +491,8 @@ class VideoManager: ObservableObject {
     }
     
     func loadVideo(_ video: YTVideo) async {
+        let loadID = beginVideoLoad()
+        stopCurrentPlayerForReplacement()
         isLoading = true
         error = nil
         
@@ -501,18 +556,30 @@ class VideoManager: ObservableObject {
                 }
             }
             
+            guard isCurrentVideoLoad(loadID) else { return }
+
             // Load thumbnail for now playing info
+            var loadedThumbnailImage: UIImage?
             if let thumbnailURL = video.thumbnails.first?.url {
                 if let data = try? await URLSession.shared.data(from: thumbnailURL).0 {
-                    thumbnailImage = UIImage(data: data)
+                    loadedThumbnailImage = UIImage(data: data)
                 }
             }
             
+            guard isCurrentVideoLoad(loadID) else { return }
+
             // Create and configure player
             let newPlayer = AVPlayer(url: streamingURL)
             if let savedTime = savedPlaybackTime(for: video.videoId) {
                 await newPlayer.seek(to: savedTime)
             }
+
+            guard isCurrentVideoLoad(loadID) else {
+                newPlayer.pause()
+                return
+            }
+
+            thumbnailImage = loadedThumbnailImage
             setupPlayerObservation(for: newPlayer)
             
             // Update state
@@ -526,41 +593,50 @@ class VideoManager: ObservableObject {
             
             // Start playback
             newPlayer.play()
+            finishVideoLoad(loadID)
             
             // Load playlists state
-            await loadPlaylistStates()
+            await loadPlaylistStates(for: video.videoId)
             
         } catch let error as ResponseExtractionError {
+            guard isCurrentVideoLoad(loadID) else { return }
             self.error = error.stepDescription.contains("Login is required") ?
                 "Authentication required. Please sign in." :
                 "Failed to load video: \(error.localizedDescription)"
         } catch let error as NetworkError {
+            guard isCurrentVideoLoad(loadID) else { return }
             if error.message.isEmpty {
                 self.error = "Failed to load video: Network error \(error.code)."
             } else {
                 self.error = "Failed to load video: \(error.message) (code \(error.code))"
             }
         } catch let error as VideoInfosWithDownloadFormatsResponse.ResponseError {
+            guard isCurrentVideoLoad(loadID) else { return }
             self.error = "Playable fallback stream parsing failed at \(String(describing: error.step)): \(error.reason)"
         } catch {
+            guard isCurrentVideoLoad(loadID) else { return }
             self.error = "Failed to load video: \(error.localizedDescription)"
         }
         
-        isLoading = false
+        finishVideoLoad(loadID)
     }
     
-    func loadPlaylistStates() async {
+    func loadPlaylistStates(for expectedVideoId: String? = nil) async {
         guard let video = selectedVideo else { return }
+        let requestedVideoId = expectedVideoId ?? video.videoId
         
         do {
             let response = try await video.fetchAllPossibleHostPlaylistsThrowing(
                 youtubeModel: youtubeService.model
             )
             
+            guard selectedVideo?.videoId == requestedVideoId else { return }
+
             withAnimation {
                 availablePlaylists = response.playlistsAndStatus
             }
         } catch {
+            guard selectedVideo?.videoId == requestedVideoId else { return }
             print("Error loading playlist states:", error)
         }
     }
@@ -665,14 +741,11 @@ class VideoManager: ObservableObject {
     }
     
     func selectVideo(_ video: YTVideo, playbackQueueContext: PlaybackQueueContext? = nil) {
-        saveCurrentPlaybackPosition(force: true)
+        stopCurrentPlayerForReplacement()
         self.playbackQueueContext = playbackQueueContext
         selectedVideo = video
         error = nil
         isLoading = true
-        isPlaying = false
-        player?.pause()
-        player = nil
         isVideoSheetPresented = true
 
         Task {

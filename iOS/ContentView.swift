@@ -95,6 +95,7 @@ struct ContentView: View {
             }
         }
         .task {
+            await authService.refreshAuthenticationFromStoredCookies()
             await Task.yield()
             isToolbarReady = true
         }
@@ -123,7 +124,11 @@ struct ContentView: View {
             }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase != .active {
+            if phase == .active {
+                Task {
+                    await authService.refreshAuthenticationFromStoredCookies()
+                }
+            } else {
                 videoManager.saveCurrentPlaybackPosition(force: true)
             }
         }

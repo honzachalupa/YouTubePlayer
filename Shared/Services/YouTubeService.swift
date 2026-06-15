@@ -33,7 +33,19 @@ final class YouTubeService: ObservableObject {
             model.cookies = cookies
             model.alwaysUseCookies = !cookies.isEmpty
             
-            UserDefaults.standard.set(cookies, forKey: "ytm_cookies")
+            if cookies.isEmpty {
+                YouTubeKeychainService.delete(.cookies)
+                Task {
+                    await YouTubeCloudAuthStore.delete()
+                }
+            } else {
+                YouTubeKeychainService.set(cookies, for: .cookies)
+                let cookiesToSync = cookies
+                Task {
+                    await YouTubeCloudAuthStore.save(cookies: cookiesToSync)
+                }
+            }
+            UserDefaults.standard.removeObject(forKey: "ytm_cookies")
             UserDefaults.standard.set(!cookies.isEmpty, forKey: "ytm_always_use_cookies")
         }
     }
@@ -49,11 +61,34 @@ final class YouTubeService: ObservableObject {
     @Published var accessToken: String?
     private var cachedVideoDetailsByID: [String: CacheEntry<CachedVideoDetails>] = [:]
     private var cachedRecommendedVideos: CacheEntry<[YTVideo]>?
+
+    func reloadStoredCookies() {
+        let storedCookies = Self.storedCookies()
+        guard cookies != storedCookies else { return }
+        cookies = storedCookies
+        alwaysUseCookies = !storedCookies.isEmpty
+    }
+
+    private static func storedCookies() -> String {
+        if let keychainCookies = YouTubeKeychainService.string(for: .cookies), !keychainCookies.isEmpty {
+            UserDefaults.standard.removeObject(forKey: "ytm_cookies")
+            return keychainCookies
+        }
+
+        let legacyCookies = UserDefaults.standard.string(forKey: "ytm_cookies") ?? ""
+        if !legacyCookies.isEmpty {
+            YouTubeKeychainService.set(legacyCookies, for: .cookies)
+            UserDefaults.standard.removeObject(forKey: "ytm_cookies")
+        }
+
+        return legacyCookies
+    }
     
     private init() {
         self.model = YouTubeModel()
-        self.cookies = UserDefaults.standard.string(forKey: "ytm_cookies") ?? ""
-        self.alwaysUseCookies = UserDefaults.standard.bool(forKey: "ytm_always_use_cookies")
+        let storedCookies = Self.storedCookies()
+        self.cookies = storedCookies
+        self.alwaysUseCookies = !storedCookies.isEmpty
         
         model.cookies = self.cookies
         model.alwaysUseCookies = self.alwaysUseCookies
@@ -70,13 +105,8 @@ final class YouTubeService: ObservableObject {
     func setup() {
         model.selectedLocale = Bundle.main.preferredLocalizations.first ?? "en"
         configureNativePlaybackHeaders()
-        
-        if let savedCookies = UserDefaults.standard.string(forKey: "ytm_cookies") {
-            cookies = savedCookies
-            alwaysUseCookies = UserDefaults.standard.bool(forKey: "ytm_always_use_cookies")
-        } else {
-            print("YouTubeService: No saved cookies found during setup")
-        }
+        alwaysUseCookies = !cookies.isEmpty
+        UserDefaults.standard.removeObject(forKey: "ytm_cookies")
     }
 
     private func configureNativePlaybackHeaders() {
@@ -102,6 +132,7 @@ final class YouTubeService: ObservableObject {
         cookies = ""
         alwaysUseCookies = false
         model.visitorData = ""
+        YouTubeKeychainService.delete(.cookies)
         
         // Clear all stored data
         UserDefaults.standard.removeObject(forKey: "ytm_cookies")
@@ -207,7 +238,7 @@ final class YouTubeService: ObservableObject {
                 print("YouTubeService: Couldn't get visitorData, request may fail.")
             }
         } catch {
-            print("YouTubeService: Error getting visitor data:", error.localizedDescription)
+            // Visitor data is opportunistic; callers handle empty visitorData when it is required.
         }
     }
     

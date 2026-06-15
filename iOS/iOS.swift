@@ -8,31 +8,40 @@ struct YouTubeApp: App {
     let container: ModelContainer
     
     init() {
+        let schema = Schema([
+            AuthenticationModel.self,
+            PlaybackPositionModel.self
+        ])
+
         do {
-            let schema = Schema([
-                AuthenticationModel.self,
-                PlaybackPositionModel.self
-            ])
-            let modelConfiguration = ModelConfiguration(
-                schema: schema,
-                isStoredInMemoryOnly: false
-            )
-            
-            container = try ModelContainer(
-                for: schema,
-                configurations: modelConfiguration
-            )
-            
-            // Set up YouTubeAuthService with ModelContext
-            let context = container.mainContext
-            YouTubeAuthService.shared.setModelContext(context)
-            VideoManager.shared.setModelContext(context)
-            
-            // Set up platform-specific functionality
-            YouTubeAuthService.shared.setupPlatformSpecific()
+            container = try Self.makeModelContainer(schema: schema, isStoredInMemoryOnly: false)
         } catch {
-            fatalError("Failed to create ModelContainer: \(error.localizedDescription)")
+            print("Failed to create persistent ModelContainer, falling back to in-memory store: \(error.localizedDescription)")
+            do {
+                container = try Self.makeModelContainer(schema: schema, isStoredInMemoryOnly: true)
+            } catch {
+                fatalError("Failed to create fallback ModelContainer: \(error.localizedDescription)")
+            }
         }
+        
+        // Set up YouTubeAuthService with ModelContext
+        let context = container.mainContext
+        YouTubeAuthService.shared.setModelContext(context)
+        VideoManager.shared.setModelContext(context)
+        
+        // Set up platform-specific functionality
+        YouTubeAuthService.shared.setupPlatformSpecific()
+    }
+
+    private static func makeModelContainer(schema: Schema, isStoredInMemoryOnly: Bool) throws -> ModelContainer {
+        let modelConfiguration = ModelConfiguration(
+            schema: schema,
+            isStoredInMemoryOnly: isStoredInMemoryOnly
+        )
+        return try ModelContainer(
+            for: schema,
+            configurations: modelConfiguration
+        )
     }
     
     var body: some Scene {

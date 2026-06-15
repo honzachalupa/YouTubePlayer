@@ -58,7 +58,9 @@ struct PlaylistsListView: View {
         .refreshable { await playlistService.fetchPlaylists() }
         .toolbar {
             if authService.isAuthenticated {
+                #if !os(tvOS)
                 ToolbarSpacer(placement: .primaryAction)
+                #endif
                 
                 ToolbarItem(placement: .primaryAction) {
                     Button {

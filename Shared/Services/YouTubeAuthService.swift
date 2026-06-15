@@ -58,6 +58,26 @@ final class YouTubeAuthService: NSObject, ObservableObject {
         }
     }
     
+    func refreshAuthenticationFromStoredCookies() async {
+        if isAuthenticated {
+            if !youtubeService.cookies.isEmpty {
+                await YouTubeCloudAuthStore.save(cookies: youtubeService.cookies)
+            }
+            return
+        }
+
+        youtubeService.reloadStoredCookies()
+
+        if youtubeService.cookies.isEmpty,
+           let cloudCookies = await YouTubeCloudAuthStore.loadCookies(),
+           !cloudCookies.isEmpty {
+            youtubeService.cookies = cloudCookies
+            youtubeService.alwaysUseCookies = true
+        }
+
+        await bootstrapAuthenticationFromStoredCookies()
+    }
+    
     private func loadAuthenticationData() async {
         guard let context = modelContext else { return }
         
@@ -70,22 +90,58 @@ final class YouTubeAuthService: NSObject, ObservableObject {
             let authData = try context.fetch(descriptor).first
             
             if let authData = authData {
-                youtubeService.cookies = authData.cookies
-                youtubeService.alwaysUseCookies = !authData.cookies.isEmpty
+                let legacyCookies = authData.cookies
+                if youtubeService.cookies.isEmpty, !legacyCookies.isEmpty {
+                    youtubeService.cookies = legacyCookies
+                }
+                if !legacyCookies.isEmpty {
+                    authData.cookies = ""
+                    try? context.save()
+                }
+
+                let storedCookies = youtubeService.cookies
+                youtubeService.alwaysUseCookies = !storedCookies.isEmpty
                 youtubeService.model.visitorData = authData.visitorData
                 
-                if hasAuthCookies(authData.cookies) {
+                if hasAuthCookies(storedCookies) {
                     self.isAuthenticated = true
                     self.userInfo = authData.userInfo
+
+                    if userInfo == nil {
+                        await fetchUserInfo()
+                        if userInfo != nil {
+                            saveAuthenticationData()
+                        }
+                    }
                 } else {
                     self.isAuthenticated = false
                     self.userInfo = nil
                     youtubeService.cookies = ""
                     youtubeService.alwaysUseCookies = false
                 }
+            } else {
+                await bootstrapAuthenticationFromStoredCookies()
             }
         } catch {
-            print("YouTubeAuthService: Error loading authentication data: \(error)")
+            authError = error.localizedDescription
+        }
+    }
+    
+    private func bootstrapAuthenticationFromStoredCookies() async {
+        let storedCookies = youtubeService.cookies
+        youtubeService.alwaysUseCookies = !storedCookies.isEmpty
+
+        guard hasAuthCookies(storedCookies) else {
+            isAuthenticated = false
+            userInfo = nil
+            return
+        }
+
+        isAuthenticated = true
+        await fetchUserInfo()
+
+        if userInfo != nil {
+            saveAuthenticationData()
         }
     }
     
@@ -100,7 +156,7 @@ final class YouTubeAuthService: NSObject, ObservableObject {
             
             // Save new authentication data
             let authData = AuthenticationModel(
-                cookies: youtubeService.cookies,
+                cookies: "",
                 visitorData: youtubeService.model.visitorData,
                 userInfo: userInfo
             )
@@ -108,24 +164,21 @@ final class YouTubeAuthService: NSObject, ObservableObject {
             
             try context.save()
         } catch {
-            print("YouTubeAuthService: Error saving authentication data: \(error)")
+            authError = error.localizedDescription
         }
     }
     
     func fetchUserInfo() async {
         guard !youtubeService.cookies.isEmpty else {
-            print("YouTubeAuthService: No cookies available")
             return
         }
         
         isLoading = true
         
         if youtubeService.model.visitorData.isEmpty {
-            print("YouTubeAuthService: No visitor data, fetching...")
             await youtubeService.getVisitorData()
             
             if youtubeService.model.visitorData.isEmpty {
-                print("YouTubeAuthService: Failed to get visitor data")
                 isLoading = false
                 return
             }
@@ -180,7 +233,6 @@ final class YouTubeAuthService: NSObject, ObservableObject {
                     )
                 }
             } else {
-                print("YouTubeAuthService: Could not fetch user info, account may be disconnected. Response: \(response)")
                 await MainActor.run {
                     self.userInfo = nil
                     self.isAuthenticated = false
@@ -188,7 +240,6 @@ final class YouTubeAuthService: NSObject, ObservableObject {
                 }
             }
         } catch {
-            print("YouTubeAuthService: Error fetching user info: \(error)")
             await MainActor.run {
                 self.userInfo = nil
                 self.isAuthenticated = false
@@ -218,8 +269,6 @@ final class YouTubeAuthService: NSObject, ObservableObject {
         await youtubeService.getVisitorData()
         
         if youtubeService.model.visitorData.isEmpty {
-            print("YouTubeAuthService: Failed to get visitor data")
-            
             isLoading = false
             
             return
@@ -228,7 +277,6 @@ final class YouTubeAuthService: NSObject, ObservableObject {
         self.isAuthenticated = true
         
         for attempt in 1...3 {
-            print("YouTubeAuthService: Fetching user info attempt \(attempt)")
             await fetchUserInfo()
             
             if userInfo != nil {
@@ -242,8 +290,6 @@ final class YouTubeAuthService: NSObject, ObservableObject {
         }
         
         if userInfo == nil {
-            print("YouTubeAuthService: Failed to fetch user info after 3 attempts")
-            
             self.isAuthenticated = false
         }
         
@@ -282,7 +328,7 @@ final class YouTubeAuthService: NSObject, ObservableObject {
                 existingData.forEach { context.delete($0) }
                 try context.save()
             } catch {
-                print("YouTubeAuthService: Error clearing authentication data: \(error)")
+                authError = error.localizedDescription
             }
         }
         

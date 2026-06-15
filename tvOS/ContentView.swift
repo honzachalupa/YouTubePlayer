@@ -3,6 +3,7 @@ import SwiftData
 import YouTubeKit
 
 struct ContentView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var horizontalSize
     @EnvironmentObject private var videoManager: VideoManager
     @StateObject private var authService = YouTubeAuthService.shared
@@ -61,6 +62,15 @@ struct ContentView: View {
             if !isAuthenticated {
                 playlistService.clearData()
             }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task {
+                await authService.refreshAuthenticationFromStoredCookies()
+            }
+        }
+        .task {
+            await authService.refreshAuthenticationFromStoredCookies()
         }
         .messageOverlay()
     }

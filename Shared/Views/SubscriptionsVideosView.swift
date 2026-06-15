@@ -236,8 +236,6 @@ struct SubscriptionsVideosView: View {
                 setPagedVideos(feedVideos)
             }
             SubscriptionsVideosCache.save(feedVideos)
-            
-            print("Subscriptions: feed videos=\(response.results.count), displayed videos=\(feedVideos.count)")
         } catch {
             withAnimation {
                 fetchError = error

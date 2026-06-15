@@ -31,8 +31,6 @@ class YouTubePlaylistService: ObservableObject {
         error = nil
         
         do {
-            print("YouTubePlaylistService: Fetching playlists...")
-            
             // Get playlists directly
             let response = try await AccountPlaylistsResponse.sendThrowingRequest(
                 youtubeModel: youtubeService.model,
@@ -51,10 +49,8 @@ class YouTubePlaylistService: ObservableObject {
                     }
                     return updatedPlaylist
                 }
-                print("YouTubePlaylistService: Found \(playlists.count) playlists")
             }
         } catch {
-            print("YouTubePlaylistService: Error fetching playlists: \(error)")
             self.error = error.localizedDescription
         }
         
@@ -67,8 +63,6 @@ class YouTubePlaylistService: ObservableObject {
         var createdPlaylistId: String? = nil
         
         do {
-            print("YouTubePlaylistService: Creating playlist '\(name)'...")
-            
             // Validate inputs
             guard !name.isEmpty else {
                 error = "Playlist name cannot be empty"
@@ -82,9 +76,6 @@ class YouTubePlaylistService: ObservableObject {
                 .params: privacy.rawValue,
                 .movingVideoId: defaultVideoId
             ]
-            print("YouTubePlaylistService: Creating playlist with data:", requestData)
-            print("YouTubePlaylistService: Privacy raw value:", privacy.rawValue)
-            print("YouTubePlaylistService: Is authenticated:", youtubeService.model.cookies != "")
             
             let response = try await CreatePlaylistResponse.sendThrowingRequest(
                 youtubeModel: youtubeService.model,
@@ -92,34 +83,23 @@ class YouTubePlaylistService: ObservableObject {
                 useCookies: true
             )
             
-            print("YouTubePlaylistService: Response - isDisconnected:", response.isDisconnected)
-            print("YouTubePlaylistService: Response - createdPlaylistId:", response.createdPlaylistId ?? "nil")
-            print("YouTubePlaylistService: Response - playlistCreatorId:", response.playlistCreatorId ?? "nil")
-            
             if response.isDisconnected {
-                print("YouTubePlaylistService: Not authenticated")
                 error = "Not authenticated. Please sign in."
                 isLoading = false
                 return false
             }
             
-            createdPlaylistId = response.createdPlaylistId
-            
-            if createdPlaylistId == nil {
-                print("YouTubePlaylistService: Failed to get playlist ID from response")
+            guard let createdId = response.createdPlaylistId else {
                 error = "Failed to get playlist ID from response"
                 isLoading = false
                 return false
             }
-            
-            print("YouTubePlaylistService: Created playlist with ID '\(createdPlaylistId!)'")
+            createdPlaylistId = createdId
         } catch let error as BadRequestDataError {
-            print("YouTubePlaylistService: Bad request data:", error.parametersValidatorErrors)
             self.error = error.parametersValidatorErrors.map { "\($0.dataType.rawValue): \($0.reason)" }.joined(separator: ", ")
             isLoading = false
             return false
         } catch {
-            print("YouTubePlaylistService: Error creating playlist:", error)
             self.error = error.localizedDescription
             isLoading = false
             return false
@@ -127,15 +107,13 @@ class YouTubePlaylistService: ObservableObject {
         
         // Now that we have created the playlist, try to remove the default video
         do {
-            print("YouTubePlaylistService: Removing default video from playlist...")
-            
             // Need to wait a bit for the playlist to be fully created
             try await Task.sleep(for: .seconds(1))
             
+            guard let createdPlaylistId else { return true }
+
             // Remove VL prefix if present, just like in deletePlaylist
-            let playlistIdForRemoval = createdPlaylistId!.hasPrefix("VL") ? String(createdPlaylistId!.dropFirst(2)) : createdPlaylistId!
-            
-            print("YouTubePlaylistService: Using playlist ID '\(playlistIdForRemoval)' for video removal")
+            let playlistIdForRemoval = createdPlaylistId.hasPrefix("VL") ? String(createdPlaylistId.dropFirst(2)) : createdPlaylistId
             
             let removeResponse = try await RemoveVideoByIdFromPlaylistResponse.sendThrowingRequest(
                 youtubeModel: youtubeService.model,
@@ -145,14 +123,8 @@ class YouTubePlaylistService: ObservableObject {
                 ],
                 useCookies: true
             )
-            
-            if !removeResponse.success {
-                print("YouTubePlaylistService: Failed to remove default video")
-            } else {
-                print("YouTubePlaylistService: Successfully removed default video")
-            }
+            _ = removeResponse.success
         } catch {
-            print("YouTubePlaylistService: Error removing default video: \(error)")
             // Don't set the error since the playlist was created successfully
         }
         

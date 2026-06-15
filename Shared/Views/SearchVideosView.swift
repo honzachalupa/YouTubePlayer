@@ -13,10 +13,6 @@ struct SearchVideosView: View {
     @State private var visitorData: String? = nil
 
     func searchVideos(loadMore: Bool = false) async {
-        print("searchVideos called with loadMore: \(loadMore)")
-        print("Current continuation token: \(continuationToken ?? "none")")
-        print("Current query: \(query)")
-        
         guard !query.isEmpty && !isLoading else {
             if query.isEmpty {
                 withAnimation {
@@ -34,7 +30,6 @@ struct SearchVideosView: View {
         do {
             if loadMore {
                 guard let token = continuationToken, let visitorData = visitorData else {
-                    print("Missing token or visitor data for continuation")
                     isLoading = false
                     return
                 }
@@ -44,14 +39,10 @@ struct SearchVideosView: View {
                     .visitorData: visitorData
                 ]
                 
-                print("Continuation request data: \(data)")
-                
                 let response = try await SearchResponse.Continuation.sendThrowingRequest(
                     youtubeModel: youtubeService.model,
                     data: data
                 )
-                
-                print("Continuation response - token: \(response.continuationToken ?? "none"), results: \(response.results.count)")
                 
                 withAnimation {
                     videos.append(contentsOf: response.results.compactMap { $0 as? YTVideo })
@@ -63,14 +54,10 @@ struct SearchVideosView: View {
                     .query: query
                 ]
                 
-                print("Initial search request data: \(data)")
-                
                 let response = try await SearchResponse.sendThrowingRequest(
                     youtubeModel: youtubeService.model,
                     data: data
                 )
-                
-                print("Initial response - token: \(response.continuationToken ?? "none"), results: \(response.results.count), visitor data: \(response.visitorData ?? "none")")
                 
                 withAnimation {
                     videos = response.results.compactMap { $0 as? YTVideo }
@@ -81,7 +68,6 @@ struct SearchVideosView: View {
                 }
             }
         } catch {
-            print("Search error: \(error)")
             fetchError = error
         }
         
@@ -122,8 +108,7 @@ struct SearchVideosView: View {
                 videos: videos,
                 error: fetchError,
                 fetchVideos: { await searchVideos() },
-                loadMoreIfNeeded: { video in
-                    print("Load more triggered for video: \(video.videoId)")
+                loadMoreIfNeeded: { _ in
                     Task {
                         await searchVideos(loadMore: true)
                     }

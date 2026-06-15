@@ -4,6 +4,7 @@ import AVKit
 
 struct VideoPlayerView: View {
     public let video: YTVideo
+    var isFullscreen = false
     
     @ObservedObject private var messageService = MessageService.shared
     @EnvironmentObject private var videoManager: VideoManager
@@ -18,10 +19,41 @@ struct VideoPlayerView: View {
             return controller
         }
         
-        func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) { }
+        func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
+            if uiViewController.player !== player {
+                uiViewController.player = player
+            }
+        }
+
+        static func dismantleUIViewController(_ uiViewController: AVPlayerViewController, coordinator: ()) {
+            uiViewController.player = nil
+        }
     }
     
     var body: some View {
+        playerContent
+            .modifier(VideoPlayerLayoutModifier(isFullscreen: isFullscreen))
+            .task {
+                if videoManager.selectedVideo?.videoId != video.videoId {
+                    await videoManager.loadVideo(video)
+                } else if let player = videoManager.player, !videoManager.isPlaying {
+                    player.play()
+                    videoManager.isPlaying = true
+                }
+            }
+            .onChange(of: video) {
+                if videoManager.selectedVideo?.videoId != video.videoId {
+                    Task { await videoManager.loadVideo(video) }
+                }
+            }
+            .onChange(of: videoManager.error) {
+                if let errorMessage = videoManager.error {
+                    messageService.show(message: errorMessage, type: .error)
+                }
+            }
+    }
+
+    private var playerContent: some View {
         Group {
             if videoManager.isLoading {
                 if let thumbnailURL = video.thumbnails.last?.url {
@@ -90,28 +122,21 @@ struct VideoPlayerView: View {
                     }
             }
         }
-        .aspectRatio(16/9, contentMode: .fit)
-        .backgroundExtensionEffect()
-        .task {
-            // Load if the requested video is not already selected or no player exists yet.
-            if videoManager.selectedVideo?.videoId != video.videoId || videoManager.player == nil {
-                await videoManager.loadVideo(video)
-            } else if !videoManager.isPlaying {
-                // If it's the same video but not playing, ensure it plays
-                videoManager.player?.play()
-                videoManager.isPlaying = true
-            }
-        }
-        .onChange(of: video) {
-            // Only load if it's a different video
-            if videoManager.selectedVideo?.videoId != video.videoId {
-                Task { await videoManager.loadVideo(video) }
-            }
-        }
-        .onChange(of: videoManager.error) {
-            if let errorMessage = videoManager.error {
-                messageService.show(message: errorMessage, type: .error)
-            }
+    }
+}
+
+private struct VideoPlayerLayoutModifier: ViewModifier {
+    let isFullscreen: Bool
+
+    func body(content: Content) -> some View {
+        if isFullscreen {
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.black)
+        } else {
+            content
+                .aspectRatio(16/9, contentMode: .fit)
+                .backgroundExtensionEffect()
         }
     }
 }

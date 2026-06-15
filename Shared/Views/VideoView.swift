@@ -69,10 +69,15 @@ struct VideoView: View {
     private func updateLandscapeFullscreen(for orientation: UIDeviceOrientation) {
         guard isPhone else { return }
 
-        if orientation.isLandscape {
+        switch orientation {
+        case .landscapeLeft, .landscapeRight:
             isLandscapeFullscreenPresented = true
-        } else if orientation.isPortrait {
+        case .portrait:
             isLandscapeFullscreenPresented = false
+        case .portraitUpsideDown, .faceUp, .faceDown, .unknown:
+            break
+        @unknown default:
+            break
         }
     }
     #endif
@@ -126,12 +131,16 @@ struct VideoView: View {
             return
         }
 
+        let requestedVideoId = currentVideo.videoId
         isLoadingMoreRecommended = true
+        defer { isLoadingMoreRecommended = false }
 
         do {
             let continuation = try await response.getRecommendedVideosContinationThrowing(
                 youtubeModel: youtubeService.model
             )
+            guard currentVideo.videoId == requestedVideoId else { return }
+
             response.mergeRecommendedVideosContination(continuation)
             let newVideos = continuation.results.compactMap { $0 as? YTVideo }
 
@@ -144,22 +153,28 @@ struct VideoView: View {
                 response: response,
                 description: description,
                 recommendedVideos: recommendedVideos,
-                for: currentVideo.videoId
+                for: requestedVideoId
             )
             
             videoManager.setRecommendedQueue(currentVideo: currentVideo, recommendedVideos: recommendedVideos)
         } catch {
+            guard currentVideo.videoId == requestedVideoId else { return }
             print("Error loading more recommended videos:", error)
         }
-
-        isLoadingMoreRecommended = false
     }
     
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                #if os(iOS)
+                if !isLandscapeFullscreenPresented {
+                    VideoPlayerView(video: currentVideo)
+                        .id(currentVideo.videoId)
+                }
+                #else
                 VideoPlayerView(video: currentVideo)
                     .id(currentVideo.videoId)
+                #endif
             
                 ScrollViewReader { proxy in
                     ScrollView(.vertical) {
@@ -217,7 +232,7 @@ struct VideoView: View {
         .fullScreenCover(isPresented: $isLandscapeFullscreenPresented) {
             ZStack {
                 Color.black.ignoresSafeArea()
-                VideoPlayerView(video: currentVideo)
+                VideoPlayerView(video: currentVideo, isFullscreen: true)
                     .environmentObject(videoManager)
             }
             .ignoresSafeArea()

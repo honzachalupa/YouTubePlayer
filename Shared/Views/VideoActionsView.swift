@@ -19,7 +19,9 @@ struct VideoActionsToolbarView: ToolbarContent {
             .symbolEffect(.bounce, value: videoManager.likeStatus == .liked)
         }
         
+        #if !os(tvOS)
         ToolbarSpacer(.fixed, placement: .bottomBar)
+        #endif
         
         ToolbarItem(placement: .bottomBar) {
             Button {
@@ -31,7 +33,9 @@ struct VideoActionsToolbarView: ToolbarContent {
             .symbolEffect(.bounce, value: videoManager.likeStatus == .disliked)
         }
         
+        #if !os(tvOS)
         ToolbarSpacer(placement: .bottomBar)
+        #endif
         
         #if os(iOS)
         ToolbarItem(placement: .bottomBar) {
@@ -45,7 +49,7 @@ struct VideoActionsToolbarView: ToolbarContent {
             Menu {
                 AddRemoveVideoPlaylistListView(video: video)
             } label: {
-                Label("Save", systemImage: "square.and.arrow.down")
+                Label("Save", systemImage: "bookmark")
             }
         }
     }
