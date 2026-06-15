@@ -11,11 +11,17 @@ struct VideoPlayerView: View {
     
     private struct CustomVideoPlayer: UIViewControllerRepresentable {
         let player: AVPlayer
+        @ObservedObject var videoManager: VideoManager
         
+        func makeCoordinator() -> Coordinator {
+            Coordinator()
+        }
+
         func makeUIViewController(context: Context) -> AVPlayerViewController {
             let controller = AVPlayerViewController()
             controller.player = player
             controller.allowsPictureInPicturePlayback = true
+            installOverlay(in: controller, context: context)
             return controller
         }
         
@@ -23,10 +29,44 @@ struct VideoPlayerView: View {
             if uiViewController.player !== player {
                 uiViewController.player = player
             }
+
+            context.coordinator.hostingController?.rootView = AnyView(
+                NextVideoPromptOverlay()
+                    .environmentObject(videoManager)
+            )
         }
 
-        static func dismantleUIViewController(_ uiViewController: AVPlayerViewController, coordinator: ()) {
+        static func dismantleUIViewController(_ uiViewController: AVPlayerViewController, coordinator: Coordinator) {
+            coordinator.hostingController?.view.removeFromSuperview()
+            coordinator.hostingController = nil
             uiViewController.player = nil
+        }
+
+        private func installOverlay(in controller: AVPlayerViewController, context: Context) {
+            guard let overlayView = controller.contentOverlayView else { return }
+
+            let hostingController = UIHostingController(
+                rootView: AnyView(
+                    NextVideoPromptOverlay()
+                        .environmentObject(videoManager)
+                )
+            )
+            hostingController.view.backgroundColor = .clear
+            hostingController.view.translatesAutoresizingMaskIntoConstraints = false
+
+            overlayView.addSubview(hostingController.view)
+            NSLayoutConstraint.activate([
+                hostingController.view.leadingAnchor.constraint(equalTo: overlayView.leadingAnchor),
+                hostingController.view.trailingAnchor.constraint(equalTo: overlayView.trailingAnchor),
+                hostingController.view.topAnchor.constraint(equalTo: overlayView.topAnchor),
+                hostingController.view.bottomAnchor.constraint(equalTo: overlayView.bottomAnchor)
+            ])
+
+            context.coordinator.hostingController = hostingController
+        }
+
+        final class Coordinator {
+            var hostingController: UIHostingController<AnyView>?
         }
     }
     
@@ -86,7 +126,7 @@ struct VideoPlayerView: View {
                         }
                 }
             } else if let player = videoManager.player {
-                CustomVideoPlayer(player: player)
+                CustomVideoPlayer(player: player, videoManager: videoManager)
                     .onAppear {
                         // Only play if not already playing
                         if !videoManager.isPlaying {
@@ -122,6 +162,73 @@ struct VideoPlayerView: View {
                     }
             }
         }
+    }
+}
+
+private struct NextVideoPromptOverlay: View {
+    @EnvironmentObject private var videoManager: VideoManager
+
+    private let promptCornerRadius: CGFloat = 34
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            Color.clear
+                .allowsHitTesting(false)
+
+            if let prompt = videoManager.nextVideoPrompt {
+                promptCard(prompt)
+                    .frame(width: 320)
+                    .padding(.top, 24)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.snappy, value: videoManager.nextVideoPrompt?.remainingSeconds)
+    }
+
+    private func promptCard(_ prompt: VideoManager.NextVideoPrompt) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Next video in \(prompt.remainingSeconds)s")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Text(prompt.video.title ?? "Next video")
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Button {
+                videoManager.playPromptedNextVideo()
+            } label: {
+                Label("Play", systemImage: "forward.fill")
+                    .labelStyle(.iconOnly)
+                    .font(.subheadline.weight(.semibold))
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding(.leading, 16)
+        .padding(.trailing, 8)
+        .padding(.vertical, 7)
+        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: promptCornerRadius))
+        .gesture(
+            DragGesture(minimumDistance: 20)
+                .onEnded { value in
+                    let translation = value.translation
+                    guard abs(translation.width) > 44 || abs(translation.height) > 44 else { return }
+                    videoManager.dismissNextVideoPrompt()
+                }
+        )
+    }
+}
+
+private struct NextVideoPromptGlassModifier: ViewModifier {
+    let cornerRadius: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 }
 

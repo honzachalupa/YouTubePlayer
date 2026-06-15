@@ -9,6 +9,11 @@ import SwiftData
 class VideoManager: ObservableObject {
     static let shared = VideoManager()
 
+    struct NextVideoPrompt {
+        let video: YTVideo
+        let remainingSeconds: Int
+    }
+
     struct PlaybackQueueContext {
         enum Source {
             case recommended
@@ -45,6 +50,7 @@ class VideoManager: ObservableObject {
     @Published var availablePlaylists: [(playlist: YTPlaylist, isVideoPresentInside: Bool)] = []
     @Published var temporaryPlaylistStates: [String: [(playlist: YTPlaylist, isVideoPresentInside: Bool)]] = [:]
     @Published private(set) var playbackQueueContext: PlaybackQueueContext?
+    @Published private(set) var nextVideoPrompt: NextVideoPrompt?
     
     var shouldShowAccessory: Bool {
         guard let title = selectedVideo?.title?.trimmingCharacters(in: .whitespacesAndNewlines) else {
@@ -63,6 +69,7 @@ class VideoManager: ObservableObject {
     private var thumbnailImage: UIImage?
     private var isCleanedUp = false
     private var currentVideoLoadID: UUID?
+    private var dismissedNextVideoPromptKey: String?
     private var lastPlaybackPositionSave = Date.distantPast
     private let maximumStoredPlaybackPositions = 200
     
@@ -295,6 +302,8 @@ class VideoManager: ObservableObject {
         player = nil
         currentPlayer = nil
         isPlaying = false
+        nextVideoPrompt = nil
+        dismissedNextVideoPromptKey = nil
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
 
@@ -336,6 +345,8 @@ class VideoManager: ObservableObject {
                     
                     // Playback rate
                     nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = player.rate
+
+                    self.updateNextVideoPrompt(elapsedTime: time, duration: duration)
                     
                     // Artwork
                     if let thumbnailImage = self.thumbnailImage {
@@ -351,6 +362,59 @@ class VideoManager: ObservableObject {
                 self.saveCurrentPlaybackPosition()
             }
         }
+    }
+
+    private func updateNextVideoPrompt(elapsedTime: CMTime, duration: CMTime) {
+        guard duration.isNumeric,
+              elapsedTime.isNumeric,
+              let currentVideoID = selectedVideo?.videoId,
+              let queue = playbackQueueContext,
+              let nextVideo = queue.nextVideo(after: currentVideoID) else {
+            nextVideoPrompt = nil
+            return
+        }
+
+        let promptKey = nextVideoPromptKey(currentVideoID: currentVideoID, nextVideoID: nextVideo.videoId)
+        guard dismissedNextVideoPromptKey != promptKey else {
+            nextVideoPrompt = nil
+            return
+        }
+
+        let remainingSeconds = duration.seconds - elapsedTime.seconds
+        guard remainingSeconds.isFinite,
+              remainingSeconds > 0,
+              remainingSeconds <= 10 else {
+            nextVideoPrompt = nil
+            return
+        }
+
+        nextVideoPrompt = NextVideoPrompt(
+            video: nextVideo,
+            remainingSeconds: max(0, Int(ceil(remainingSeconds)))
+        )
+    }
+
+    func dismissNextVideoPrompt() {
+        if let currentVideoID = selectedVideo?.videoId,
+           let nextVideoID = nextVideoPrompt?.video.videoId {
+            dismissedNextVideoPromptKey = nextVideoPromptKey(currentVideoID: currentVideoID, nextVideoID: nextVideoID)
+        }
+
+        nextVideoPrompt = nil
+    }
+
+    func playPromptedNextVideo() {
+        guard let currentVideoID = selectedVideo?.videoId,
+              let queue = playbackQueueContext,
+              let nextVideo = queue.nextVideo(after: currentVideoID) else {
+            return
+        }
+
+        selectVideo(nextVideo, playbackQueueContext: queue)
+    }
+
+    private func nextVideoPromptKey(currentVideoID: String, nextVideoID: String) -> String {
+        "\(currentVideoID)->\(nextVideoID)"
     }
 
     private func observePlaybackDidEnd(for item: AVPlayerItem?) {

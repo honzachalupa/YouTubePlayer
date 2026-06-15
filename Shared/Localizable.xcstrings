@@ -171,6 +171,16 @@
         }
       }
     },
+    "Next video in %llds" : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Další video za %llds"
+          }
+        }
+      }
+    },
     "No playlists available" : {
       "localizations" : {
         "cs" : {
