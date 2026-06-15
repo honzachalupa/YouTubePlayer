@@ -7,8 +7,9 @@ struct RecommendedVideosView: View {
     @State private var videos: [YTVideo] = []
     @State private var fetchError: Error? = nil
     @State private var hasLoadedOnce = false
-    @State private var shouldRefreshOnForeground = false
+    @State private var foregroundRefreshToken = UUID()
 
+    @discardableResult
     private func showCachedVideosIfNeeded() -> Bool {
         guard videos.isEmpty, let cachedVideos = youtubeService.cachedRecommendedVideosFeed() else {
             return false
@@ -65,23 +66,23 @@ struct RecommendedVideosView: View {
         }
     }
 
-    private func refreshVideosOnInitialLoad() async {
-        _ = showCachedVideosIfNeeded()
+    private func showCachedThenRefreshVideos() async {
+        showCachedVideosIfNeeded()
         await fetchVideos(forceRefresh: true)
     }
     
     var body: some View {
         VideosGridView(videos: videos, error: fetchError) {
-            await refreshVideosOnInitialLoad()
+            await showCachedThenRefreshVideos()
             hasLoadedOnce = true
         }
-        .task(id: shouldRefreshOnForeground) {
-            guard shouldRefreshOnForeground else { return }
+        .task(id: foregroundRefreshToken) {
+            guard hasLoadedOnce else { return }
             await fetchVideos(forceRefresh: true)
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active, hasLoadedOnce else { return }
-            shouldRefreshOnForeground.toggle()
+            foregroundRefreshToken = UUID()
         }
         #if os(iOS)
         .navigationTitle("Recommended")

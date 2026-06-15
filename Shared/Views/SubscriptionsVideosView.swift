@@ -126,7 +126,7 @@ struct SubscriptionsVideosView: View {
     @State private var fetchError: Error? = nil
     @State private var isLoadingMoreVisibleItems = false
     @State private var hasLoadedOnce = false
-    @State private var shouldRefreshOnForeground = false
+    @State private var foregroundRefreshToken = UUID()
     
     init() {
         let cachedVideos = SubscriptionsVideosCache.loadVideos()
@@ -256,13 +256,13 @@ struct SubscriptionsVideosView: View {
         }, loadMoreIfNeeded: { video in
             loadMoreIfNeeded(currentVideo: video)
         }, isLoadingMore: isLoadingMoreVisibleItems)
-        .task(id: shouldRefreshOnForeground) {
-            guard shouldRefreshOnForeground else { return }
+        .task(id: foregroundRefreshToken) {
+            guard hasLoadedOnce else { return }
             await fetchVideos()
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active, hasLoadedOnce else { return }
-            shouldRefreshOnForeground.toggle()
+            foregroundRefreshToken = UUID()
         }
         // Recreate grid when backing dataset size changes so viewport auto-fill can retry.
         .id("subscriptions-grid-\(allVideos.count)")
