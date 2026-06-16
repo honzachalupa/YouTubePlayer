@@ -523,6 +523,46 @@ class VideoManager: ObservableObject {
         isLoading = false
     }
 
+    private func mergedPlaylistStates(
+        fetchedStates: [(playlist: YTPlaylist, isVideoPresentInside: Bool)],
+        for videoID: String
+    ) -> [(playlist: YTPlaylist, isVideoPresentInside: Bool)] {
+        guard let temporaryStates = temporaryPlaylistStates[videoID], !temporaryStates.isEmpty else {
+            return fetchedStates
+        }
+
+        let temporaryLookup = Dictionary(
+            uniqueKeysWithValues: temporaryStates.map { ($0.playlist.playlistId, $0.isVideoPresentInside) }
+        )
+
+        return fetchedStates.map { item in
+            if let override = temporaryLookup[item.playlist.playlistId] {
+                return (playlist: item.playlist, isVideoPresentInside: override)
+            }
+            return item
+        }
+    }
+
+    private func updateTemporaryPlaylistState(
+        for videoID: String,
+        playlistID: String,
+        isPresent: Bool
+    ) {
+        var states = temporaryPlaylistStates[videoID] ?? []
+
+        if let index = states.firstIndex(where: { $0.playlist.playlistId == playlistID }) {
+            states[index] = (playlist: states[index].playlist, isVideoPresentInside: isPresent)
+        } else if let playlist = availablePlaylists.first(where: { $0.playlist.playlistId == playlistID })?.playlist {
+            states.append((playlist: playlist, isVideoPresentInside: isPresent))
+        }
+
+        temporaryPlaylistStates[videoID] = states
+
+        if selectedVideo?.videoId == videoID {
+            availablePlaylists = mergedPlaylistStates(fetchedStates: availablePlaylists, for: videoID)
+        }
+    }
+
     private func playbackHTTPHeaderFields() -> [String: String] {
         var headers = [
             "User-Agent": NativePlaybackSupport.androidUserAgent,
@@ -747,7 +787,10 @@ class VideoManager: ObservableObject {
             guard selectedVideo?.videoId == requestedVideoId else { return }
 
             withAnimation {
-                availablePlaylists = response.playlistsAndStatus
+                availablePlaylists = mergedPlaylistStates(
+                    fetchedStates: response.playlistsAndStatus,
+                    for: requestedVideoId
+                )
             }
         } catch {
             guard selectedVideo?.videoId == requestedVideoId else { return }
@@ -757,6 +800,10 @@ class VideoManager: ObservableObject {
     
     func addToPlaylist(_ playlist: YTPlaylist) async {
         guard let video = selectedVideo else { return }
+        await addVideo(video, to: playlist)
+    }
+
+    func addVideo(_ video: YTVideo, to playlist: YTPlaylist) async {
         
         do {
             let response = try await AddVideoToPlaylistResponse.sendThrowingRequest(
@@ -769,7 +816,14 @@ class VideoManager: ObservableObject {
             )
             
             if response.success {
-                await loadPlaylistStates()
+                updateTemporaryPlaylistState(
+                    for: video.videoId,
+                    playlistID: playlist.playlistId,
+                    isPresent: true
+                )
+                if selectedVideo?.videoId == video.videoId {
+                    await loadPlaylistStates(for: video.videoId)
+                }
             }
         } catch {
             print("Error adding video to playlist:", error)
@@ -778,6 +832,10 @@ class VideoManager: ObservableObject {
     
     func removeFromPlaylist(_ playlist: YTPlaylist) async {
         guard let video = selectedVideo else { return }
+        await removeVideo(video, from: playlist)
+    }
+
+    func removeVideo(_ video: YTVideo, from playlist: YTPlaylist) async {
         
         do {
             let response = try await RemoveVideoByIdFromPlaylistResponse.sendThrowingRequest(
@@ -790,7 +848,14 @@ class VideoManager: ObservableObject {
             )
             
             if response.success {
-                await loadPlaylistStates()
+                updateTemporaryPlaylistState(
+                    for: video.videoId,
+                    playlistID: playlist.playlistId,
+                    isPresent: false
+                )
+                if selectedVideo?.videoId == video.videoId {
+                    await loadPlaylistStates(for: video.videoId)
+                }
             }
         } catch {
             print("Error removing video from playlist:", error)
@@ -842,12 +907,19 @@ class VideoManager: ObservableObject {
     }
     
     func getPlaylistStates(for video: YTVideo) async -> [(playlist: YTPlaylist, isVideoPresentInside: Bool)] {
+        if let temporaryStates = temporaryPlaylistStates[video.videoId], !temporaryStates.isEmpty {
+            return temporaryStates
+        }
+
         do {
             let response = try await video.fetchAllPossibleHostPlaylistsThrowing(
                 youtubeModel: youtubeService.model
             )
             
-            return response.playlistsAndStatus
+            return mergedPlaylistStates(
+                fetchedStates: response.playlistsAndStatus,
+                for: video.videoId
+            )
         } catch {
             print("Error getting playlist states:", error)
             return []

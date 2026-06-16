@@ -23,12 +23,12 @@ class VideoPlaylistsViewModel: ObservableObject {
     }
     
     func addToPlaylist(_ playlist: YTPlaylist) async {
-        await videoManager.addToPlaylist(playlist)
+        await videoManager.addVideo(video, to: playlist)
         await fetchPlaylistStates()
     }
     
     func removeFromPlaylist(_ playlist: YTPlaylist) async {
-        await videoManager.removeFromPlaylist(playlist)
+        await videoManager.removeVideo(video, from: playlist)
         await fetchPlaylistStates()
     }
 } 

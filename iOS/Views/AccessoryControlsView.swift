@@ -18,27 +18,33 @@ struct AccessoryControlsView: View {
     
     var body: some View {
         Group {
-            if let video = videoManager.selectedVideo, !videoTitle.isEmpty {
+            if let video = videoManager.selectedVideo {
                 HStack {
-                    if let thumbnailUrl = video.channel?.thumbnails.first?.url, accessoryPlacement != .inline {
+                    if let thumbnailUrl = video.channel?.thumbnails.first?.url {
                         AsyncImage(url: thumbnailUrl) { phase in
                             if let image = phase.image {
                                 image.resizable()
+                                    .scaledToFill()
                                     .frame(width: 40, height: 40)
                                     .clipShape(Circle())
-                                    .padding(.leading, 0)
+                                    .layoutPriority(2)
                             }
                         }
+                        .frame(width: 40, height: 40)
+                        .padding(.leading, 2)
                     }
                     
                     Text(videoTitle)
                         .font(.callout)
                         .fontWeight(.bold)
                         .lineLimit(1)
+                        .truncationMode(.tail)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .onTapGesture {
                             videoManager.isVideoSheetPresented = true
                         }
-                    
+
                     Button {
                         videoManager.togglePlayPause()
                     } label: {
@@ -48,10 +54,11 @@ struct AccessoryControlsView: View {
                         )
                         .labelStyle(.iconOnly)
                     }
+                    .fixedSize()
+                    .layoutPriority(2)
                     .onReceive(timer) { _ in
                         updatePlayState()
                     }
-                    .padding(.leading, 5)
                 }
             }
         }
