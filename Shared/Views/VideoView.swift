@@ -6,7 +6,6 @@ struct VideoView: View {
     private let detailTopAnchorID = "video-detail-top"
     
     private let youtubeService = YouTubeService.shared
-    @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject private var videoManager: VideoManager
     @StateObject private var messageService = MessageService.shared
@@ -23,6 +22,20 @@ struct VideoView: View {
     private enum DetailQueueSection {
         case recommended(videos: [YTVideo])
         case playlist(title: String, videos: [YTVideo])
+    }
+
+    init(video: YTVideo) {
+        self.video = video
+
+        if let cachedDetails = YouTubeService.shared.cachedDetails(for: video.videoId) {
+            _description = State(initialValue: cachedDetails.description)
+            _recommendedVideos = State(initialValue: cachedDetails.recommendedVideos)
+            _moreInfosResponse = State(initialValue: cachedDetails.response)
+        } else if let persistedDetails = YouTubeService.shared.cachedPersistedDetails(for: video.videoId) {
+            _description = State(initialValue: persistedDetails.description)
+            _recommendedVideos = State(initialValue: persistedDetails.recommendedVideos)
+            _moreInfosResponse = State(initialValue: nil)
+        }
     }
     
     private var currentVideo: YTVideo {
@@ -258,7 +271,6 @@ struct VideoView: View {
             }
         }
         .onAppear {
-            print("VideoView appeared")
             isVideoActionsToolbarHidden = false
             #if os(iOS)
             updateLandscapeFullscreen(for: UIDevice.current.orientation)

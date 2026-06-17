@@ -1,19 +1,12 @@
 import SwiftUI
 import YouTubeKit
-import Combine
 
 struct AccessoryControlsView: View {
     @Environment(\.tabViewBottomAccessoryPlacement) private var accessoryPlacement
     @EnvironmentObject private var videoManager: VideoManager
-    @State private var isPlaying = false
-    private let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
     
     private var videoTitle: String {
         videoManager.selectedVideo?.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-    }
-    
-    private func updatePlayState() {
-        isPlaying = videoManager.isPlaying
     }
     
     var body: some View {
@@ -56,9 +49,6 @@ struct AccessoryControlsView: View {
                     }
                     .fixedSize()
                     .layoutPriority(2)
-                    .onReceive(timer) { _ in
-                        updatePlayState()
-                    }
                 }
             }
         }

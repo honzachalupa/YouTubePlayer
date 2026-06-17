@@ -39,7 +39,6 @@ struct VideoPlayerView: View {
         static func dismantleUIViewController(_ uiViewController: AVPlayerViewController, coordinator: Coordinator) {
             coordinator.hostingController?.view.removeFromSuperview()
             coordinator.hostingController = nil
-            uiViewController.player = nil
         }
 
         private func installOverlay(in controller: AVPlayerViewController, context: Context) {

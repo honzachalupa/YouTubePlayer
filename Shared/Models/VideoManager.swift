@@ -1004,6 +1004,14 @@ class VideoManager: ObservableObject {
     }
     
     func selectVideo(_ video: YTVideo, playbackQueueContext: PlaybackQueueContext? = nil) {
+        if selectedVideo?.videoId == video.videoId, player != nil {
+            self.playbackQueueContext = playbackQueueContext
+            error = nil
+            isLoading = false
+            isVideoSheetPresented = true
+            return
+        }
+
         stopCurrentPlayerForReplacement()
         self.playbackQueueContext = playbackQueueContext
         selectedVideo = video
