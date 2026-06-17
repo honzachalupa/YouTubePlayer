@@ -378,7 +378,7 @@ class VideoManager: ObservableObject {
         let remainingSeconds = duration.seconds - elapsedTime.seconds
         guard remainingSeconds.isFinite,
               remainingSeconds > 0,
-              remainingSeconds <= 10 else {
+              remainingSeconds <= 20 else {
             nextVideoPrompt = nil
             return
         }
@@ -407,6 +407,12 @@ class VideoManager: ObservableObject {
 
         selectVideo(nextVideo, playbackQueueContext: queue)
     }
+
+    #if DEBUG
+    func debugSetNextVideoPrompt(_ prompt: NextVideoPrompt?) {
+        nextVideoPrompt = prompt
+    }
+    #endif
 
     private func nextVideoPromptKey(currentVideoID: String, nextVideoID: String) -> String {
         "\(currentVideoID)->\(nextVideoID)"

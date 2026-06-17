@@ -210,7 +210,7 @@ private struct NextVideoPromptOverlay: View {
         .padding(.leading, 16)
         .padding(.trailing, 8)
         .padding(.vertical, 7)
-        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: promptCornerRadius))
+        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: promptCornerRadius, style: .continuous))
         .modifier(NextVideoPromptDismissGesture(videoManager: videoManager))
     }
 }
@@ -231,15 +231,6 @@ private struct NextVideoPromptDismissGesture: ViewModifier {
                 }
         )
         #endif
-    }
-}
-
-private struct NextVideoPromptGlassModifier: ViewModifier {
-    let cornerRadius: CGFloat
-
-    func body(content: Content) -> some View {
-        content
-            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 }
 
@@ -277,4 +268,23 @@ private struct VideoPlayerLayoutModifier: ViewModifier {
     )
     
     VideoPlayerView(video: video)
+}
+
+#Preview("NextVideoPromptOverlay") {
+    let videoManager = VideoManager()
+    let nextVideo = YTVideo(
+        videoId: "preview-next-video",
+        title: "Claude FM 🎵 music for thinking and building",
+        channel: YTLittleChannelInfos(
+            channelId: "preview-channel",
+            name: "OpenAI"
+        )
+    )
+
+    videoManager.debugSetNextVideoPrompt(
+        .init(video: nextVideo, remainingSeconds: 3)
+    )
+
+    return NextVideoPromptOverlay()
+        .environmentObject(videoManager)
 }
