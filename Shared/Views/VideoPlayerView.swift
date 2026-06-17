@@ -10,7 +10,7 @@ struct VideoPlayerView: View {
     @EnvironmentObject private var videoManager: VideoManager
     
     private struct CustomVideoPlayer: UIViewControllerRepresentable {
-        let player: AVPlayer
+        let player: AVQueuePlayer
         @ObservedObject var videoManager: VideoManager
         
         func makeCoordinator() -> Coordinator {

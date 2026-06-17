@@ -44,11 +44,12 @@ class VideoManager: ObservableObject {
         func nextVideo(after currentVideoID: String) -> YTVideo? {
             followingVideos(after: currentVideoID).first
         }
+
     }
     
     @Published var selectedVideo: YTVideo?
     @Published var isVideoSheetPresented = false
-    @Published private(set) var player: AVPlayer?
+    @Published private(set) var player: AVQueuePlayer?
     @Published var isPlaying = false
     @Published var isLoading = false
     @Published var error: String?
@@ -67,7 +68,8 @@ class VideoManager: ObservableObject {
     
     private var playerTimeObserver: Any?
     private var playbackDidEndObserver: NSObjectProtocol?
-    private var currentPlayer: AVPlayer?
+    private var currentPlayer: AVQueuePlayer?
+    private var nowPlayingSession: MPNowPlayingSession?
     private let authService: YouTubeAuthService
     private let playlistService = YouTubePlaylistService.shared
     private let youtubeService = YouTubeService.shared
@@ -92,7 +94,6 @@ class VideoManager: ObservableObject {
         self.authService = .shared
         
         configureAudioSession()
-        setupRemoteTransportControls()
         
         UIApplication.shared.beginReceivingRemoteControlEvents()
     }
@@ -105,6 +106,7 @@ class VideoManager: ObservableObject {
 
         removePlayerObservers()
         currentPlayer = nil
+        nowPlayingSession = nil
         UIApplication.shared.endReceivingRemoteControlEvents()
     }
     
@@ -120,9 +122,7 @@ class VideoManager: ObservableObject {
         }
     }
     
-    private func setupRemoteTransportControls() {
-        let commandCenter = MPRemoteCommandCenter.shared()
-        
+    private func setupRemoteTransportControls(for commandCenter: MPRemoteCommandCenter) {
         commandCenter.playCommand.addTarget { [weak self] _ in
             guard let self = self else { return .commandFailed }
             
@@ -157,36 +157,66 @@ class VideoManager: ObservableObject {
             }
             return .success
         }
-        
+
         commandCenter.skipBackwardCommand.addTarget { [weak self] event in
-            guard let self = self,
+            guard let self,
                   let skipEvent = event as? MPSkipIntervalCommandEvent else {
                 return .commandFailed
             }
-            
+
             Task { @MainActor in
-                if let currentTime = self.player?.currentTime() {
-                    let newTime = CMTimeSubtract(currentTime, CMTime(seconds: skipEvent.interval, preferredTimescale: 1))
-                    self.player?.seek(to: newTime)
+                guard let currentTime = self.player?.currentTime() else { return }
+                let newTime = CMTimeSubtract(
+                    currentTime,
+                    CMTime(seconds: skipEvent.interval, preferredTimescale: 1)
+                )
+                self.player?.seek(to: newTime) { _ in
                 }
             }
             return .success
         }
-        
+
         commandCenter.skipForwardCommand.addTarget { [weak self] event in
-            guard let self = self,
+            guard let self,
                   let skipEvent = event as? MPSkipIntervalCommandEvent else {
                 return .commandFailed
             }
-            
+
             Task { @MainActor in
-                if let currentTime = self.player?.currentTime() {
-                    let newTime = CMTimeAdd(currentTime, CMTime(seconds: skipEvent.interval, preferredTimescale: 1))
-                    self.player?.seek(to: newTime)
+                guard let currentTime = self.player?.currentTime() else { return }
+                let newTime = CMTimeAdd(
+                    currentTime,
+                    CMTime(seconds: skipEvent.interval, preferredTimescale: 1)
+                )
+                self.player?.seek(to: newTime) { _ in
                 }
             }
             return .success
         }
+
+        commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
+            guard let self,
+                  let positionEvent = event as? MPChangePlaybackPositionCommandEvent else {
+                return .commandFailed
+            }
+
+            Task { @MainActor in
+                let newTime = CMTime(seconds: positionEvent.positionTime, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+                self.player?.seek(to: newTime) { _ in
+                }
+            }
+            return .success
+        }
+
+        commandCenter.skipBackwardCommand.preferredIntervals = [10]
+        commandCenter.skipForwardCommand.preferredIntervals = [10]
+    }
+
+    private func configureNowPlayingSession(for player: AVQueuePlayer) {
+        let session = MPNowPlayingSession(players: [player])
+        session.automaticallyPublishesNowPlayingInfo = true
+        setupRemoteTransportControls(for: session.remoteCommandCenter)
+        nowPlayingSession = session
     }
     
     private func playbackPosition(for videoId: String) -> PlaybackPositionModel? {
@@ -303,10 +333,10 @@ class VideoManager: ObservableObject {
         isPlaying = false
         nextVideoPrompt = nil
         dismissedNextVideoPromptKey = nil
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        nowPlayingSession = nil
     }
 
-    private func setupPlayerObservation(for player: AVPlayer) {
+    private func setupPlayerObservation(for player: AVQueuePlayer) {
         removePlayerObservers()
         
         // Store the new player as current
@@ -319,43 +349,9 @@ class VideoManager: ObservableObject {
             guard let self = self else { return }
             
             Task { @MainActor in
-                // Update now playing info
                 if let currentItem = player.currentItem {
-                    var nowPlayingInfo = [String: Any]()
-                    
-                    // Title
-                    if let title = self.selectedVideo?.title {
-                        nowPlayingInfo[MPMediaItemPropertyTitle] = title
-                    }
-                    
-                    // Artist (channel name)
-                    if let channelName = self.selectedVideo?.channel?.name {
-                        nowPlayingInfo[MPMediaItemPropertyArtist] = channelName
-                    }
-                    
-                    // Duration
                     let duration = currentItem.duration
-                    if !duration.isIndefinite {
-                        nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = duration.seconds
-                    }
-                    
-                    // Current playback time
-                    nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = time.seconds
-                    
-                    // Playback rate
-                    nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = player.rate
-
                     self.updateNextVideoPrompt(elapsedTime: time, duration: duration)
-                    
-                    // Artwork
-                    if let thumbnailImage = self.thumbnailImage {
-                        let artwork = MPMediaItemArtwork(boundsSize: thumbnailImage.size) { _ in
-                            return thumbnailImage
-                        }
-                        nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
-                    }
-                    
-                    MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
                 }
 
                 self.saveCurrentPlaybackPosition()
@@ -586,16 +582,83 @@ class VideoManager: ObservableObject {
         )
     }
 
+    private func createMetadataItem(
+        identifier: AVMetadataIdentifier,
+        value: String
+    ) -> AVMetadataItem? {
+        let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedValue.isEmpty else { return nil }
+
+        let item = AVMutableMetadataItem()
+        item.identifier = identifier
+        item.value = trimmedValue as NSString
+        item.extendedLanguageTag = "und"
+        return item.copy() as? AVMetadataItem
+    }
+
+    private func createArtworkMetadataItem(from image: UIImage?) -> AVMetadataItem? {
+        guard let image,
+              let imageData = image.pngData() else {
+            return nil
+        }
+
+        let item = AVMutableMetadataItem()
+        item.identifier = .commonIdentifierArtwork
+        item.value = imageData as NSData
+        item.dataType = kCMMetadataBaseDataType_PNG as String
+        item.extendedLanguageTag = "und"
+        return item.copy() as? AVMetadataItem
+    }
+
+    private func makeNowPlayingInfo(for video: YTVideo) -> [String: Any] {
+        var info = [String: Any]()
+
+        if let title = video.title?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !title.isEmpty {
+            info[MPMediaItemPropertyTitle] = title
+        }
+
+        if let image = thumbnailImage {
+            info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+        }
+
+        return info
+    }
+
+    private func makeExternalMetadata(for video: YTVideo) -> [AVMetadataItem] {
+        let descriptionText =
+            youtubeService.cachedDetails(for: video.videoId)?.description ??
+            youtubeService.cachedPersistedDetails(for: video.videoId)?.description
+
+        return [
+            createMetadataItem(
+                identifier: .commonIdentifierTitle,
+                value: video.title ?? ""
+            ),
+            createMetadataItem(
+                identifier: .commonIdentifierDescription,
+                value: descriptionText ?? ""
+            ),
+            createArtworkMetadataItem(from: thumbnailImage)
+        ]
+        .compactMap { $0 }
+    }
+
     private func makePlayer(
+        for video: YTVideo,
         for streamingURL: URL,
         preferredPeakBitRate: Double? = nil,
         preferredMaximumResolution: CGSize? = nil
-    ) -> AVPlayer {
+    ) -> AVQueuePlayer {
         let playerItem = AVPlayerItem(asset: makePlaybackAsset(for: streamingURL))
+        playerItem.externalMetadata = makeExternalMetadata(for: video)
+        playerItem.nowPlayingInfo = makeNowPlayingInfo(for: video)
         playerItem.preferredPeakBitRate = preferredPeakBitRate ?? 0
         playerItem.preferredMaximumResolution = preferredMaximumResolution ?? .zero
         playerItem.preferredForwardBufferDuration = 30
-        return AVPlayer(playerItem: playerItem)
+        let player = AVQueuePlayer(items: [playerItem])
+        player.actionAtItemEnd = .pause
+        return player
     }
 
     private func validatedStreamingSelection(from streamingURL: URL) async -> StreamingPlaybackSelection {
@@ -720,6 +783,7 @@ class VideoManager: ObservableObject {
             guard isCurrentVideoLoad(loadID) else { return }
 
             let newPlayer = makePlayer(
+                for: video,
                 for: playbackSelection.url,
                 preferredPeakBitRate: playbackSelection.preferredPeakBitRate,
                 preferredMaximumResolution: playbackSelection.preferredMaximumResolution
@@ -734,6 +798,9 @@ class VideoManager: ObservableObject {
             }
 
             thumbnailImage = loadedThumbnailImage
+            newPlayer.currentItem?.externalMetadata = makeExternalMetadata(for: video)
+            newPlayer.currentItem?.nowPlayingInfo = makeNowPlayingInfo(for: video)
+            configureNowPlayingSession(for: newPlayer)
             setupPlayerObservation(for: newPlayer)
             
             // Update state
@@ -747,6 +814,7 @@ class VideoManager: ObservableObject {
             
             // Start playback
             newPlayer.play()
+            _ = await nowPlayingSession?.becomeActiveIfPossible()
             finishVideoLoad(loadID)
             
             // Load playlists state
