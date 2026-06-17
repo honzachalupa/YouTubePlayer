@@ -14,12 +14,16 @@ struct ContentView: View {
         TabView {
             if authService.isAuthenticated {
                 Tab("Subscriptions", systemImage: "heart.rectangle.fill") {
-                    SubscriptionsVideosView()
+                    NavigationStack {
+                        SubscriptionsVideosView()
+                    }
                 }
             }
             
             Tab("Recommended", systemImage: "play.rectangle.on.rectangle.fill") {
-                RecommendedVideosView()
+                NavigationStack {
+                    RecommendedVideosView()
+                }
             }
             
             if authService.isAuthenticated {
@@ -34,7 +38,9 @@ struct ContentView: View {
                 }
                 
                 Tab("History", systemImage: "memories") {
-                    HistoryVideosView()
+                    NavigationStack {
+                        HistoryVideosView()
+                    }
                 }
                 
                 /// iPadOS + macOS
@@ -42,19 +48,25 @@ struct ContentView: View {
                     TabSection("Playlists") {
                         ForEach(playlistService.playlists, id: \.playlistId) { playlist in
                             Tab(playlist.title ?? "", systemImage: getPlaylistIcon(playlist.title)) {
-                                PlaylistView(playlist: playlist)
+                                NavigationStack {
+                                    PlaylistView(playlist: playlist)
+                                }
                             }
                         }
                         
                         Tab("All...", systemImage: "list.bullet") {
-                            PlaylistsListView()
+                            NavigationStack {
+                                PlaylistsListView()
+                            }
                         }
                     }
                 }
             }
             
             Tab("Search", systemImage: "magnifyingglass", role: .search) {
-                SearchVideosView()
+                NavigationStack {
+                    SearchVideosView()
+                }
             }
         }
         .accentColor(Color("AccentColor"))

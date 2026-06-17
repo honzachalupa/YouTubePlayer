@@ -186,6 +186,9 @@ struct VideosGridView: View {
 struct VideoGridItemView: View {
     public let video: YTVideo
     public var playbackQueueContextProvider: ((YTVideo) -> VideoManager.PlaybackQueueContext?)?
+    public var onSelect: ((YTVideo) -> Void)?
+    public var navigationValue: VideoSheetRoute?
+    public var channelThumbnailURL: URL?
     
     @EnvironmentObject private var videoManager: VideoManager
     @StateObject private var playlistsViewModel: VideoPlaylistsViewModel
@@ -193,10 +196,16 @@ struct VideoGridItemView: View {
     
     init(
         video: YTVideo,
-        playbackQueueContextProvider: ((YTVideo) -> VideoManager.PlaybackQueueContext?)? = nil
+        playbackQueueContextProvider: ((YTVideo) -> VideoManager.PlaybackQueueContext?)? = nil,
+        onSelect: ((YTVideo) -> Void)? = nil,
+        navigationValue: VideoSheetRoute? = nil,
+        channelThumbnailURL: URL? = nil
     ) {
         self.video = video
         self.playbackQueueContextProvider = playbackQueueContextProvider
+        self.onSelect = onSelect
+        self.navigationValue = navigationValue
+        self.channelThumbnailURL = channelThumbnailURL
         self._playlistsViewModel = StateObject(wrappedValue: VideoPlaylistsViewModel(video: video, videoManager: VideoManager.shared))
     }
     
@@ -213,18 +222,29 @@ struct VideoGridItemView: View {
                         print("NavigationLink appeared")
                     }
             } label: {
-                VideoContent(video: video)
+                VideoContent(video: video, channelThumbnailURL: channelThumbnailURL)
             }
             .buttonStyle(.card)
             .focused($isFocused)
             #else
-            VideoContent(video: video)
-                .onTapGesture {
-                    videoManager.selectVideo(
-                        video,
-                        playbackQueueContext: playbackQueueContextProvider?(video)
-                    )
+            if let navigationValue {
+                NavigationLink(value: navigationValue) {
+                    VideoContent(video: video, channelThumbnailURL: channelThumbnailURL)
                 }
+                .buttonStyle(.plain)
+            } else {
+                VideoContent(video: video, channelThumbnailURL: channelThumbnailURL)
+                    .onTapGesture {
+                        if let onSelect {
+                            onSelect(video)
+                        } else {
+                            videoManager.selectVideo(
+                                video,
+                                playbackQueueContext: playbackQueueContextProvider?(video)
+                            )
+                        }
+                    }
+            }
             #endif
         }
         .contextMenu {
@@ -237,6 +257,7 @@ struct VideoGridItemView: View {
 
 private struct VideoContent: View {
     let video: YTVideo
+    let channelThumbnailURL: URL?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -259,7 +280,7 @@ private struct VideoContent: View {
             .aspectRatio(16/9, contentMode: .fit)
             .clipped()
             
-            VideoInfoView(video: video, mainLabel: .videoTitle)
+            VideoInfoView(video: video, mainLabel: .videoTitle, channelThumbnailURL: channelThumbnailURL)
                 .padding(.horizontal, 12)
                 .padding(.top, 10)
                 .padding(.bottom, 5)

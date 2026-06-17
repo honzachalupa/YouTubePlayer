@@ -8,10 +8,11 @@ enum MainLabel {
 struct VideoInfoView: View {
     let video: YTVideo
     let mainLabel: MainLabel
+    var channelThumbnailURL: URL? = nil
     
     var body: some View {
         HStack(spacing: 10) {
-            if let thumbnailUrl = video.channel?.thumbnails.first?.url {
+            if let thumbnailUrl = channelThumbnailURL ?? video.channel?.thumbnails.first?.url {
                 AsyncImage(url: thumbnailUrl) { phase in
                     Group {
                         if let image = phase.image {

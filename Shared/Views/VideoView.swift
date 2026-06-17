@@ -1,8 +1,46 @@
 import SwiftUI
 import YouTubeKit
 
+struct VideoSheetChannelRoute: Identifiable, Hashable {
+    let channelInfo: YTLittleChannelInfos
+
+    var id: String {
+        channelInfo.channelId
+    }
+
+    static func == (lhs: VideoSheetChannelRoute, rhs: VideoSheetChannelRoute) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+}
+
+struct VideoSheetVideoRoute: Identifiable, Hashable {
+    let video: YTVideo
+
+    var id: String {
+        video.videoId
+    }
+
+    static func == (lhs: VideoSheetVideoRoute, rhs: VideoSheetVideoRoute) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+}
+
+enum VideoSheetRoute: Hashable {
+    case channel(VideoSheetChannelRoute)
+    case video(VideoSheetVideoRoute)
+}
+
 struct VideoView: View {
     public let video: YTVideo
+    private let followsSelectedVideo: Bool
     private let detailTopAnchorID = "video-detail-top"
     
     private let youtubeService = YouTubeService.shared
@@ -14,6 +52,7 @@ struct VideoView: View {
     @State private var moreInfosResponse: MoreVideoInfosResponse?
     @State private var isLoadingMoreRecommended = false
     @State private var isVideoActionsToolbarHidden = false
+    @State private var videoPlayerSectionHeight: CGFloat = 0
     @State private var videoDetailsSectionHeight: CGFloat = 0
     #if os(iOS)
     @State private var isLandscapeFullscreenPresented = false
@@ -24,8 +63,9 @@ struct VideoView: View {
         case playlist(title: String, videos: [YTVideo])
     }
 
-    init(video: YTVideo) {
+    init(video: YTVideo, followsSelectedVideo: Bool = false) {
         self.video = video
+        self.followsSelectedVideo = followsSelectedVideo
 
         if let cachedDetails = YouTubeService.shared.cachedDetails(for: video.videoId) {
             _description = State(initialValue: cachedDetails.description)
@@ -39,7 +79,11 @@ struct VideoView: View {
     }
     
     private var currentVideo: YTVideo {
-        videoManager.selectedVideo ?? video
+        if followsSelectedVideo, let selectedVideo = videoManager.selectedVideo {
+            return selectedVideo
+        }
+
+        return video
     }
 
     private var detailQueueSection: DetailQueueSection? {
@@ -179,78 +223,89 @@ struct VideoView: View {
     }
     
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
+        ScrollViewReader { proxy in
+            ScrollView(.vertical) {
                 #if os(iOS)
                 if !isLandscapeFullscreenPresented {
                     VideoPlayerView(video: currentVideo)
                         .id(currentVideo.videoId)
+                        .background(alignment: .topLeading) {
+                            GeometryReader { geometry in
+                                Color.clear
+                                    .onAppear {
+                                        videoPlayerSectionHeight = geometry.size.height
+                                    }
+                                    .onChange(of: geometry.size.height) { _, newHeight in
+                                        videoPlayerSectionHeight = newHeight
+                                    }
+                            }
+                        }
                 }
                 #else
                 VideoPlayerView(video: currentVideo)
                     .id(currentVideo.videoId)
-                #endif
-            
-                ScrollViewReader { proxy in
-                    ScrollView(.vertical) {
-                        VStack(alignment: .leading) {
-                            videoDetailsSection
-
-                            if let detailQueueSection {
-                                queueSection(detailQueueSection)
-                            }
-                        }
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .onScrollGeometryChange(
-                        for: CGFloat.self,
-                        of: { geometry in
-                            geometry.contentOffset.y + geometry.contentInsets.top
-                        },
-                        action: { _, offset in
-                            guard detailQueueSection != nil else {
-                                withAnimation {
-                                    isVideoActionsToolbarHidden = false
+                    .background(alignment: .topLeading) {
+                        GeometryReader { geometry in
+                            Color.clear
+                                .onAppear {
+                                    videoPlayerSectionHeight = geometry.size.height
                                 }
-                                return
-                            }
-
-                            let shouldHideToolbar = offset >= videoDetailsSectionHeight
-                            guard shouldHideToolbar != isVideoActionsToolbarHidden else { return }
-
-                            withAnimation {
-                                isVideoActionsToolbarHidden = shouldHideToolbar
-                            }
-                        }
-                    )
-                    .onChange(of: detailQueueSection == nil) { _, isQueueMissing in
-                        if isQueueMissing {
-                            withAnimation {
-                                isVideoActionsToolbarHidden = false
-                            }
+                                .onChange(of: geometry.size.height) { _, newHeight in
+                                    videoPlayerSectionHeight = newHeight
+                                }
                         }
                     }
-                    .onChange(of: currentVideo.videoId) {
-                        proxy.scrollTo(detailTopAnchorID, anchor: .top)
+                #endif
+                
+                VStack(alignment: .leading) {
+                    videoDetailsSection
+
+                    if let detailQueueSection {
+                        queueSection(detailQueueSection)
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .onScrollGeometryChange(
+                for: CGFloat.self,
+                of: { geometry in
+                    geometry.contentOffset.y + geometry.contentInsets.top
+                },
+                action: { _, offset in
+                    guard detailQueueSection != nil else {
+                        withAnimation {
+                            isVideoActionsToolbarHidden = false
+                        }
+                        return
+                    }
+
+                    let shouldHideToolbar = offset >= (videoPlayerSectionHeight + videoDetailsSectionHeight)
+                    guard shouldHideToolbar != isVideoActionsToolbarHidden else { return }
+
+                    withAnimation {
+                        isVideoActionsToolbarHidden = shouldHideToolbar
+                    }
+                }
+            )
+            .onChange(of: detailQueueSection == nil) { _, isQueueMissing in
+                if isQueueMissing {
+                    withAnimation {
                         isVideoActionsToolbarHidden = false
                     }
                 }
             }
-            .navigationDestination(for: YTLittleChannelInfos.self) { channelInfo in
-                ChannelView(channelInfo: channelInfo)
+            .onChange(of: currentVideo.videoId) {
+                proxy.scrollTo(detailTopAnchorID, anchor: .top)
+                isVideoActionsToolbarHidden = false
             }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(role: .close) {
-                        dismiss()
-                    }
-                }
-                
-                VideoActionsToolbarView(video: currentVideo)
-            }
-            .toolbarVisibility(isVideoActionsToolbarHidden ? .hidden : .visible, for: .bottomBar)
         }
+        .toolbar {
+            VideoActionsToolbarView(video: currentVideo)
+        }
+        #if os(iOS)
+        .toolbarVisibility(isVideoActionsToolbarHidden ? .hidden : .visible, for: .bottomBar)
+        #endif
         .task(id: currentVideo.videoId) {
             if let cachedDetails = youtubeService.cachedDetails(for: currentVideo.videoId) {
                 description = cachedDetails.description
@@ -303,7 +358,7 @@ struct VideoView: View {
                 .font(.title)
             
             if let channelInfo = currentVideo.channel {
-                NavigationLink(value: channelInfo) {
+                NavigationLink(value: VideoSheetRoute.channel(VideoSheetChannelRoute(channelInfo: channelInfo))) {
                     VideoInfoView(video: currentVideo, mainLabel: .channelName)
                 }
                 .foregroundStyle(.foreground)

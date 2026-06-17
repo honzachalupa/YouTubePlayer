@@ -10,6 +10,8 @@ struct ContentView: View {
     @State private var selectedTab: ContentTab = YouTubeAuthService.shared.isAuthenticated ? .subscriptions : .recommended
     @State private var isToolbarReady = false
     @State private var hasCompletedInitialAuthRefresh = false
+    @State private var sheetRootVideo: YTVideo?
+    @State private var videoSheetPath: [VideoSheetRoute] = []
     
     private enum ContentTab: Hashable {
         case subscriptions
@@ -109,11 +111,21 @@ struct ContentView: View {
         .tabViewStyle(.sidebarAdaptable)
         .tabBarMinimizeBehavior(.onScrollDown)
         .sheet(isPresented: $videoManager.isVideoSheetPresented) {
-            if let video = videoManager.selectedVideo {
-                VideoView(video: video)
-                    .environmentObject(videoManager)
-                    .presentationSizing(.page)
-                    .presentationDragIndicator(.visible)
+            if let video = sheetRootVideo {
+                NavigationStack(path: $videoSheetPath) {
+                    VideoView(video: video, followsSelectedVideo: true)
+                        .navigationDestination(for: VideoSheetRoute.self) { route in
+                            switch route {
+                            case .channel(let channelRoute):
+                                ChannelView(channelInfo: channelRoute.channelInfo)
+                            case .video(let videoRoute):
+                                VideoView(video: videoRoute.video, followsSelectedVideo: true)
+                            }
+                        }
+                }
+                .environmentObject(videoManager)
+                .presentationSizing(.page)
+                .presentationDragIndicator(.visible)
             } else {
                 ContentUnavailableView("No video selected", systemImage: "play.slash.fill")
                     .presentationSizing(.page)
@@ -123,6 +135,21 @@ struct ContentView: View {
         .onAppear {
             if authService.isAuthenticated {
                 selectedTab = .subscriptions
+            }
+        }
+        .onChange(of: videoManager.isVideoSheetPresented) { _, isPresented in
+            if isPresented {
+                sheetRootVideo = videoManager.selectedVideo
+                videoSheetPath.removeAll()
+            } else {
+                sheetRootVideo = nil
+                videoSheetPath.removeAll()
+            }
+        }
+        .onChange(of: videoManager.selectedVideo?.videoId) {
+            guard videoManager.isVideoSheetPresented, videoSheetPath.isEmpty else { return }
+            if let selectedVideo = videoManager.selectedVideo {
+                sheetRootVideo = selectedVideo
             }
         }
         .onChange(of: scenePhase) { _, phase in

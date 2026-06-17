@@ -81,6 +81,26 @@
         }
       }
     },
+    "Channel" : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kanál"
+          }
+        }
+      }
+    },
+    "Channel unavailable" : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kanál není k dispozici"
+          }
+        }
+      }
+    },
     "Create" : {
       "localizations" : {
         "cs" : {
@@ -127,6 +147,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nepodařilo se smazat playlist \"%@\"."
+          }
+        }
+      }
+    },
+    "Failed to load channel" : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nepodařilo se načíst kanál"
           }
         }
       }
