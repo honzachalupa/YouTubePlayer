@@ -14,6 +14,8 @@ struct VideoView: View {
     @State private var recommendedVideos: [YTVideo] = []
     @State private var moreInfosResponse: MoreVideoInfosResponse?
     @State private var isLoadingMoreRecommended = false
+    @State private var isVideoActionsToolbarHidden = false
+    @State private var videoDetailsSectionHeight: CGFloat = 0
     #if os(iOS)
     @State private var isLandscapeFullscreenPresented = false
     #endif
@@ -188,8 +190,37 @@ struct VideoView: View {
                         .padding()
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .onScrollGeometryChange(
+                        for: CGFloat.self,
+                        of: { geometry in
+                            geometry.contentOffset.y + geometry.contentInsets.top
+                        },
+                        action: { _, offset in
+                            guard detailQueueSection != nil else {
+                                withAnimation {
+                                    isVideoActionsToolbarHidden = false
+                                }
+                                return
+                            }
+
+                            let shouldHideToolbar = offset >= videoDetailsSectionHeight
+                            guard shouldHideToolbar != isVideoActionsToolbarHidden else { return }
+
+                            withAnimation {
+                                isVideoActionsToolbarHidden = shouldHideToolbar
+                            }
+                        }
+                    )
+                    .onChange(of: detailQueueSection == nil) { _, isQueueMissing in
+                        if isQueueMissing {
+                            withAnimation {
+                                isVideoActionsToolbarHidden = false
+                            }
+                        }
+                    }
                     .onChange(of: currentVideo.videoId) {
                         proxy.scrollTo(detailTopAnchorID, anchor: .top)
+                        isVideoActionsToolbarHidden = false
                     }
                 }
             }
@@ -205,6 +236,7 @@ struct VideoView: View {
                 
                 VideoActionsToolbarView(video: currentVideo)
             }
+            .toolbarVisibility(isVideoActionsToolbarHidden ? .hidden : .visible, for: .bottomBar)
         }
         .task(id: currentVideo.videoId) {
             if let cachedDetails = youtubeService.cachedDetails(for: currentVideo.videoId) {
@@ -227,9 +259,13 @@ struct VideoView: View {
         }
         .onAppear {
             print("VideoView appeared")
+            isVideoActionsToolbarHidden = false
             #if os(iOS)
             updateLandscapeFullscreen(for: UIDevice.current.orientation)
             #endif
+        }
+        .onDisappear {
+            isVideoActionsToolbarHidden = false
         }
         #if os(iOS)
         .onRotate { orientation in
@@ -263,6 +299,17 @@ struct VideoView: View {
             
             if let description {
                 Text(.init(description))
+            }
+        }
+        .background(alignment: .topLeading) {
+            GeometryReader { geometry in
+                Color.clear
+                    .onAppear {
+                        videoDetailsSectionHeight = geometry.size.height
+                    }
+                    .onChange(of: geometry.size.height) { _, newHeight in
+                        videoDetailsSectionHeight = newHeight
+                    }
             }
         }
     }
