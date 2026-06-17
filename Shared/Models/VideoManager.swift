@@ -618,6 +618,11 @@ class VideoManager: ObservableObject {
             info[MPMediaItemPropertyTitle] = title
         }
 
+        if let subtitle = video.channel?.name?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !subtitle.isEmpty {
+            info[MPMediaItemPropertyArtist] = subtitle
+        }
+
         if let image = thumbnailImage {
             info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
         }
@@ -634,6 +639,10 @@ class VideoManager: ObservableObject {
             createMetadataItem(
                 identifier: .commonIdentifierTitle,
                 value: video.title ?? ""
+            ),
+            createMetadataItem(
+                identifier: .iTunesMetadataTrackSubTitle,
+                value: video.channel?.name ?? ""
             ),
             createMetadataItem(
                 identifier: .commonIdentifierDescription,
