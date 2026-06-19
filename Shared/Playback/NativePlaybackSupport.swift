@@ -12,6 +12,31 @@ enum NativePlaybackSupport {
         }
     }
 
+    static func preferredOriginalAudioOption<Option>(
+        from options: [Option],
+        defaultOption: Option?,
+        displayName: (Option) -> String,
+        extendedLanguageTag: (Option) -> String?
+    ) -> Option? {
+        guard !options.isEmpty else { return nil }
+        guard options.count > 1 else { return options[0] }
+
+        if let original = options.first(where: { isOriginalAudioOption(displayName: displayName($0), extendedLanguageTag: extendedLanguageTag($0)) }) {
+            return original
+        }
+
+        if let defaultOption,
+           !isDubbedAudioOption(displayName: displayName(defaultOption), extendedLanguageTag: extendedLanguageTag(defaultOption)) {
+            return defaultOption
+        }
+
+        if let nonDubbed = options.first(where: { !isDubbedAudioOption(displayName: displayName($0), extendedLanguageTag: extendedLanguageTag($0)) }) {
+            return nonDubbed
+        }
+
+        return defaultOption ?? options[0]
+    }
+
     static let androidClientVersion = "21.24.37"
     static let androidUserAgent = "com.google.android.youtube/\(androidClientVersion) (Linux; U; Android 15) gzip"
 
@@ -69,6 +94,38 @@ enum NativePlaybackSupport {
             value.contains("/manifest/hls") ||
             value.contains("hls_playlist") ||
             value.contains("playlist_type=hls")
+    }
+
+    private static func isOriginalAudioOption(displayName: String, extendedLanguageTag: String?) -> Bool {
+        let searchableText = audioOptionSearchText(
+            displayName: displayName,
+            extendedLanguageTag: extendedLanguageTag
+        )
+
+        return searchableText.contains("original") ||
+            searchableText.contains("orig") ||
+            searchableText.contains("default")
+    }
+
+    private static func isDubbedAudioOption(displayName: String, extendedLanguageTag: String?) -> Bool {
+        let searchableText = audioOptionSearchText(
+            displayName: displayName,
+            extendedLanguageTag: extendedLanguageTag
+        )
+
+        return searchableText.contains("dub") ||
+            searchableText.contains("dubbed") ||
+            searchableText.contains("descriptive") ||
+            searchableText.contains("description") ||
+            searchableText.contains("commentary") ||
+            searchableText.contains("translation")
+    }
+
+    private static func audioOptionSearchText(displayName: String, extendedLanguageTag: String?) -> String {
+        [displayName, extendedLanguageTag]
+            .compactMap { $0 }
+            .joined(separator: " ")
+            .lowercased()
     }
 
     static func preferredMuxedStreamingURL(from formats: [any DownloadFormat]) -> URL? {
@@ -185,19 +242,19 @@ enum NativePlaybackSupport {
     }
 
     static func streamingURL(from response: VideoInfosResponse) -> URL? {
-        if let hlsURL = response.streamingURL {
-            return hlsURL
+        if let muxedURL = preferredMuxedStreamingURL(from: response.defaultFormats) {
+            return muxedURL
         }
 
-        return preferredMuxedStreamingURL(from: response.defaultFormats)
+        return response.streamingURL
     }
 
     static func fallbackStreamingURL(from response: VideoInfosWithDownloadFormatsResponse) -> URL? {
-        if let streamURL = response.videoInfos.streamingURL {
-            return streamURL
+        if let muxedURL = preferredMuxedStreamingURL(from: response.defaultFormats) {
+            return muxedURL
         }
 
-        return preferredMuxedStreamingURL(from: response.defaultFormats)
+        return response.videoInfos.streamingURL
     }
 
 }

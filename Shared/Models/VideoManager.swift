@@ -58,6 +58,7 @@ class VideoManager: ObservableObject {
     @Published var temporaryPlaylistStates: [String: [(playlist: YTPlaylist, isVideoPresentInside: Bool)]] = [:]
     @Published private(set) var playbackQueueContext: PlaybackQueueContext?
     @Published private(set) var nextVideoPrompt: NextVideoPrompt?
+    @Published private(set) var openedDetailVideoIDs: Set<String> = []
     
     var shouldShowAccessory: Bool {
         guard let title = selectedVideo?.title?.trimmingCharacters(in: .whitespacesAndNewlines) else {
@@ -82,6 +83,7 @@ class VideoManager: ObservableObject {
     private var dismissedNextVideoPromptKey: String?
     private var lastPlaybackPositionSave = Date.distantPast
     private let maximumStoredPlaybackPositions = 200
+    private let openedDetailVideoIDsKey = "ytm_opened_detail_video_ids"
     
     func clearPlaylistData() {
         availablePlaylists = []
@@ -91,9 +93,21 @@ class VideoManager: ObservableObject {
     func setModelContext(_ context: ModelContext) {
         modelContext = context
     }
+
+    func hasOpenedDetail(for video: YTVideo) -> Bool {
+        openedDetailVideoIDs.contains(video.videoId)
+    }
+
+    func markDetailOpened(for video: YTVideo) {
+        guard !openedDetailVideoIDs.contains(video.videoId) else { return }
+
+        openedDetailVideoIDs.insert(video.videoId)
+        UserDefaults.standard.set(Array(openedDetailVideoIDs), forKey: openedDetailVideoIDsKey)
+    }
     
     init() {
         self.authService = .shared
+        self.openedDetailVideoIDs = Set(UserDefaults.standard.stringArray(forKey: openedDetailVideoIDsKey) ?? [])
         
         configureAudioSession()
 
@@ -743,8 +757,30 @@ class VideoManager: ObservableObject {
         playerItem.preferredMaximumResolution = preferredMaximumResolution ?? .zero
         playerItem.preferredForwardBufferDuration = 30
         let player = AVQueuePlayer(items: [playerItem])
+        player.appliesMediaSelectionCriteriaAutomatically = false
         player.actionAtItemEnd = .pause
         return player
+    }
+
+    private func selectOriginalAudioIfAvailable(for playerItem: AVPlayerItem) async {
+        do {
+            guard let audibleGroup = try await playerItem.asset.loadMediaSelectionGroup(for: .audible) else {
+                return
+            }
+
+            guard let audioOption = NativePlaybackSupport.preferredOriginalAudioOption(
+                from: audibleGroup.options,
+                defaultOption: audibleGroup.defaultOption,
+                displayName: { $0.displayName },
+                extendedLanguageTag: { $0.extendedLanguageTag }
+            ) else {
+                return
+            }
+
+            playerItem.select(audioOption, in: audibleGroup)
+        } catch {
+            print("Failed to select original audio track:", error)
+        }
     }
 
     private func validatedStreamingSelection(from streamingURL: URL) async -> StreamingPlaybackSelection {
@@ -785,35 +821,11 @@ class VideoManager: ObservableObject {
     }
 
     private func preferredStreamingURL(from streamingInfos: VideoInfosResponse) -> URL? {
-        #if os(tvOS)
-        if let primaryMuxedURL = NativePlaybackSupport.preferredMuxedStreamingURL(from: streamingInfos.defaultFormats) {
-            return primaryMuxedURL
-        }
-
-        return streamingInfos.streamingURL
-        #else
-        if let hlsURL = streamingInfos.streamingURL {
-            return hlsURL
-        }
-
-        return NativePlaybackSupport.preferredMuxedStreamingURL(from: streamingInfos.defaultFormats)
-        #endif
+        NativePlaybackSupport.streamingURL(from: streamingInfos)
     }
 
     private func preferredFallbackStreamingURL(from response: VideoInfosWithDownloadFormatsResponse) -> URL? {
-        #if os(tvOS)
-        if let fallbackMuxedURL = NativePlaybackSupport.preferredMuxedStreamingURL(from: response.defaultFormats) {
-            return fallbackMuxedURL
-        }
-
-        return response.videoInfos.streamingURL
-        #else
-        if let hlsURL = response.videoInfos.streamingURL {
-            return hlsURL
-        }
-
-        return NativePlaybackSupport.preferredMuxedStreamingURL(from: response.defaultFormats)
-        #endif
+        NativePlaybackSupport.fallbackStreamingURL(from: response)
     }
 
     func loadVideo(_ video: YTVideo) async {
@@ -904,6 +916,10 @@ class VideoManager: ObservableObject {
                 preferredPeakBitRate: playbackSelection.preferredPeakBitRate,
                 preferredMaximumResolution: playbackSelection.preferredMaximumResolution
             )
+            if NativePlaybackSupport.isLikelyHLSPlaylistURL(playbackSelection.url),
+               let playerItem = newPlayer.currentItem {
+                await selectOriginalAudioIfAvailable(for: playerItem)
+            }
             if let savedTime = savedPlaybackTime(for: video.videoId) {
                 await newPlayer.seek(to: savedTime)
             }

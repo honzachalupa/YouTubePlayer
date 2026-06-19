@@ -258,6 +258,8 @@ struct VideoGridItemView: View {
 private struct VideoContent: View {
     let video: YTVideo
     let channelThumbnailURL: URL?
+
+    @EnvironmentObject private var videoManager: VideoManager
     
     var body: some View {
         VStack(spacing: 0) {
@@ -276,18 +278,31 @@ private struct VideoContent: View {
                     }
                 }
 
-                if let timeLength = video.timeLength, !timeLength.isEmpty {
-                    VStack {
+                VStack {
+                    Spacer()
+
+                    HStack(spacing: 5) {
                         Spacer()
 
-                        HStack {
-                            Spacer()
+                        Group {
+                            if videoManager.hasOpenedDetail(for: video) {
+                                Image(systemName: "eye.fill")
+                                    .frame(width: 13, height: 13)
+                                    .background(.thinMaterial, in: .circle)
+                            }
 
-                            DurationBadge(text: timeLength)
+                            if let timeLength = video.timeLength, !timeLength.isEmpty {
+                                Text(timeLength)
+                            }
                         }
+                        .font(.footnote.weight(.semibold))
+                        .frame(height: 13)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 5)
+                        .background(.thinMaterial, in: .capsule)
                     }
-                    .padding(5)
                 }
+                .padding(5)
             }
             .frame(maxWidth: .infinity)
             .aspectRatio(16/9, contentMode: .fit)
@@ -303,18 +318,6 @@ private struct VideoContent: View {
         .background(.regularMaterial)
         .cornerRadius(20)
         .shadow(color: .black.opacity(0.3), radius: 10)
-    }
-}
-
-private struct DurationBadge: View {
-    let text: String
-
-    var body: some View {
-        Text(text)
-            .font(.caption.weight(.semibold))
-            .padding(.horizontal, 7)
-            .padding(.vertical, 5)
-            .glassEffect(.regular)
     }
 }
 

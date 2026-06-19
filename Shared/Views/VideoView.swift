@@ -267,6 +267,8 @@ struct VideoView: View {
             videoManager.stopPlayback()
         }
         .task(id: currentVideo.videoId) {
+            videoManager.markDetailOpened(for: currentVideo)
+
             if let cachedDetails = youtubeService.cachedDetails(for: currentVideo.videoId) {
                 description = cachedDetails.description
                 recommendedVideos = cachedDetails.recommendedVideos
@@ -370,6 +372,8 @@ struct VideoView: View {
         .toolbarVisibility(isVideoActionsToolbarHidden ? .hidden : .visible, for: .bottomBar)
         #endif
         .task(id: currentVideo.videoId) {
+            videoManager.markDetailOpened(for: currentVideo)
+
             if let cachedDetails = youtubeService.cachedDetails(for: currentVideo.videoId) {
                 description = cachedDetails.description
                 recommendedVideos = cachedDetails.recommendedVideos

@@ -87,12 +87,13 @@ final class NativePlaybackSupportTests: XCTestCase {
         XCTAssertNil(NativePlaybackSupport.preferredMuxedStreamingURL(from: [nonHTTP, wrongCodec]))
     }
 
-    func testStreamingURLPrefersHLSBeforeMuxedFallback() {
+    func testStreamingURLPrefersMuxedMP4BeforeHLS() {
         let hls = URL(string: "https://example.com/master.m3u8")!
+        let muxedURL = URL(string: "https://example.com/video.mp4")!
         let muxed = VideoDownloadFormat(
             mimeType: "video/mp4",
             codec: "avc1",
-            url: URL(string: "https://example.com/video.mp4"),
+            url: muxedURL,
             height: 360
         )
 
@@ -101,7 +102,7 @@ final class NativePlaybackSupportTests: XCTestCase {
             defaultFormats: [muxed]
         )
 
-        XCTAssertEqual(NativePlaybackSupport.streamingURL(from: response), hls)
+        XCTAssertEqual(NativePlaybackSupport.streamingURL(from: response), muxedURL)
     }
 
     func testStreamingURLFallsBackToMuxedMP4() {
@@ -121,8 +122,7 @@ final class NativePlaybackSupportTests: XCTestCase {
         XCTAssertEqual(NativePlaybackSupport.streamingURL(from: response), muxedURL)
     }
 
-    func testFallbackStreamingURLPrefersNestedVideoInfosStream() {
-        let hls = URL(string: "https://example.com/master.m3u8")!
+    func testFallbackStreamingURLPrefersMuxedMP4BeforeNestedVideoInfosStream() {
         let fallback = VideoDownloadFormat(
             mimeType: "video/mp4",
             codec: "avc1",
@@ -137,7 +137,60 @@ final class NativePlaybackSupportTests: XCTestCase {
         )
         response.defaultFormats = [fallback]
 
-        XCTAssertEqual(NativePlaybackSupport.fallbackStreamingURL(from: response), hls)
+        XCTAssertEqual(NativePlaybackSupport.fallbackStreamingURL(from: response), URL(string: "https://example.com/video.mp4")!)
+    }
+
+    func testPreferredOriginalAudioOptionUsesOriginalMarker() {
+        let options = [
+            AudioOption(displayName: "Hindi Dubbed", languageTag: "hi"),
+            AudioOption(displayName: "English Original", languageTag: "en")
+        ]
+
+        let selected = NativePlaybackSupport.preferredOriginalAudioOption(
+            from: options,
+            defaultOption: options[0],
+            displayName: \.displayName,
+            extendedLanguageTag: \.languageTag
+        )
+
+        XCTAssertEqual(selected?.displayName, "English Original")
+    }
+
+    func testPreferredOriginalAudioOptionFallsBackToNonDubbedDefault() {
+        let options = [
+            AudioOption(displayName: "English", languageTag: "en"),
+            AudioOption(displayName: "Hindi Dubbed", languageTag: "hi")
+        ]
+
+        let selected = NativePlaybackSupport.preferredOriginalAudioOption(
+            from: options,
+            defaultOption: options[0],
+            displayName: \.displayName,
+            extendedLanguageTag: \.languageTag
+        )
+
+        XCTAssertEqual(selected?.displayName, "English")
+    }
+
+    func testPreferredOriginalAudioOptionSkipsDubbedDefaultWhenPossible() {
+        let options = [
+            AudioOption(displayName: "Hindi Dubbed", languageTag: "hi"),
+            AudioOption(displayName: "English", languageTag: "en")
+        ]
+
+        let selected = NativePlaybackSupport.preferredOriginalAudioOption(
+            from: options,
+            defaultOption: options[0],
+            displayName: \.displayName,
+            extendedLanguageTag: \.languageTag
+        )
+
+        XCTAssertEqual(selected?.displayName, "English")
+    }
+
+    private struct AudioOption {
+        let displayName: String
+        let languageTag: String?
     }
 
 }
