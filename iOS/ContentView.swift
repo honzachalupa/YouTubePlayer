@@ -109,7 +109,6 @@ struct ContentView: View {
                 .padding(.trailing, 15)
         }
         .tabViewStyle(.sidebarAdaptable)
-        .tabBarMinimizeBehavior(.onScrollDown)
         .sheet(isPresented: $videoManager.isVideoSheetPresented) {
             Group {
                 if let video = sheetRootVideo {

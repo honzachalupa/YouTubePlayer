@@ -154,6 +154,12 @@ final class YouTubeService: ObservableObject {
     }
 
     private static func storedCookies() -> String {
+        #if DEBUG && os(tvOS)
+        if let debugCookies = debugTVOSCookies() {
+            return debugCookies
+        }
+        #endif
+
         if let keychainCookies = YouTubeKeychainService.string(for: .cookies), !keychainCookies.isEmpty {
             UserDefaults.standard.removeObject(forKey: "ytm_cookies")
             return keychainCookies
@@ -167,6 +173,25 @@ final class YouTubeService: ObservableObject {
 
         return legacyCookies
     }
+
+    #if DEBUG && os(tvOS)
+    private static func debugTVOSCookies() -> String? {
+        let sourceFileURL = URL(fileURLWithPath: #filePath)
+        let projectRootURL = sourceFileURL
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let cookiesURL = projectRootURL.appendingPathComponent("DebugTVOSCookies.txt")
+
+        guard let cookies = try? String(contentsOf: cookiesURL, encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !cookies.isEmpty else {
+            return nil
+        }
+
+        return cookies
+    }
+    #endif
     
     private init() {
         self.model = YouTubeModel()

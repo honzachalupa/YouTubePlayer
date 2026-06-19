@@ -298,21 +298,6 @@ final class YouTubeAuthService: NSObject, ObservableObject {
         isLoading = false
     }
 
-    #if DEBUG
-    func importDebugCookies(_ rawCookies: String) async {
-        let normalizedCookies = rawCookies
-            .replacingOccurrences(of: "\r", with: "")
-            .replacingOccurrences(of: "\n", with: "; ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard !normalizedCookies.isEmpty else {
-            authError = "Cookie string is empty."
-            return
-        }
-
-        await handleSignIn(cookies: normalizedCookies)
-    }
-    #endif
 
     private func hasAuthCookies(_ cookies: String) -> Bool {
         let hasSAPISID = containsCookie(named: "SAPISID", in: cookies)

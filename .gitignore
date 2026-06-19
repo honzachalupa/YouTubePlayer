@@ -6,3 +6,6 @@ xcuserdata/
 .derivedData
 .codex-cache
 .codex-home
+
+# Local debug auth secrets
+DebugTVOSCookies.txt
