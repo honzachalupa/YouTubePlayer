@@ -130,6 +130,7 @@ final class YouTubeAuthService: NSObject, ObservableObject {
     private func bootstrapAuthenticationFromStoredCookies() async {
         let storedCookies = youtubeService.cookies
         youtubeService.alwaysUseCookies = !storedCookies.isEmpty
+        debugLogCookies(storedCookies, reason: "bootstrapAuthenticationFromStoredCookies")
 
         guard hasAuthCookies(storedCookies) else {
             isAuthenticated = false
@@ -255,6 +256,7 @@ final class YouTubeAuthService: NSObject, ObservableObject {
         
         youtubeService.cookies = cookies
         youtubeService.alwaysUseCookies = true
+        debugLogCookies(cookies, reason: "handleSignIn")
         
         guard hasAuthCookies(cookies) else {
             self.isAuthenticated = false
@@ -296,6 +298,22 @@ final class YouTubeAuthService: NSObject, ObservableObject {
         isLoading = false
     }
 
+    #if DEBUG
+    func importDebugCookies(_ rawCookies: String) async {
+        let normalizedCookies = rawCookies
+            .replacingOccurrences(of: "\r", with: "")
+            .replacingOccurrences(of: "\n", with: "; ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !normalizedCookies.isEmpty else {
+            authError = "Cookie string is empty."
+            return
+        }
+
+        await handleSignIn(cookies: normalizedCookies)
+    }
+    #endif
+
     private func hasAuthCookies(_ cookies: String) -> Bool {
         let hasSAPISID = containsCookie(named: "SAPISID", in: cookies)
         let hasPAPISID = containsCookie(named: "__Secure-1PAPISID", in: cookies) || containsCookie(named: "__Secure-3PAPISID", in: cookies)
@@ -307,6 +325,15 @@ final class YouTubeAuthService: NSObject, ObservableObject {
         let escaped = NSRegularExpression.escapedPattern(for: name)
         let pattern = "(^|;\\s*)\(escaped)="
         return cookies.range(of: pattern, options: .regularExpression) != nil
+    }
+
+    private func debugLogCookies(_ cookies: String, reason: String) {
+        #if DEBUG
+        guard !cookies.isEmpty else { return }
+        print("=== YOUTUBE DEBUG COOKIES BEGIN [\(reason)] ===")
+        print(cookies)
+        print("=== YOUTUBE DEBUG COOKIES END ===")
+        #endif
     }
     
     func signOut() {

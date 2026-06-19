@@ -10,6 +10,7 @@
 		21210E722E30BECC007904A3 /* SwiftCore in Frameworks */ = {isa = PBXBuildFile; productRef = 21210E712E30BECC007904A3 /* SwiftCore */; };
 		219661762FE0953E00F183A4 /* YouTubeKit in Frameworks */ = {isa = PBXBuildFile; productRef = 219661752FE0953E00F183A4 /* YouTubeKit */; };
 		219661782FE0954700F183A4 /* YouTubeKit in Frameworks */ = {isa = PBXBuildFile; productRef = 219661772FE0954700F183A4 /* YouTubeKit */; };
+		2196617B2FE4503A00F183A4 /* SwiftCore in Frameworks */ = {isa = PBXBuildFile; productRef = 2196617A2FE4503A00F183A4 /* SwiftCore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -60,6 +61,7 @@
 				Views/PlaylistView.swift,
 				Views/RecommendedVideosView.swift,
 				Views/SearchVideosView.swift,
+				Views/SettingsView.swift,
 				Views/SubscriptionsVideosView.swift,
 				Views/TrendingVideosView.swift,
 				Views/VideoActionsView.swift,
@@ -117,6 +119,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				219661782FE0954700F183A4 /* YouTubeKit in Frameworks */,
+				2196617B2FE4503A00F183A4 /* SwiftCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -189,6 +192,7 @@
 			name = tvOS;
 			packageProductDependencies = (
 				219661772FE0954700F183A4 /* YouTubeKit */,
+				2196617A2FE4503A00F183A4 /* SwiftCore */,
 			);
 			productName = "YouTube-tvOS";
 			productReference = 211D40B72E0C335100CD2C6F /* tvOS.app */;
@@ -730,6 +734,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 219661742FE0953E00F183A4 /* XCRemoteSwiftPackageReference "YouTubeKit" */;
 			productName = YouTubeKit;
+		};
+		2196617A2FE4503A00F183A4 /* SwiftCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 21210E702E30BECC007904A3 /* XCRemoteSwiftPackageReference "SwiftCore" */;
+			productName = SwiftCore;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

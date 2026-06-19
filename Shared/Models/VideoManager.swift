@@ -68,6 +68,8 @@ class VideoManager: ObservableObject {
     
     private var playerTimeObserver: Any?
     private var playbackDidEndObserver: NSObjectProtocol?
+    private var playbackFailedObserver: NSObjectProtocol?
+    private var playerItemStatusObservation: NSKeyValueObservation?
     private var currentPlayer: AVQueuePlayer?
     private var nowPlayingSession: MPNowPlayingSession?
     private let authService: YouTubeAuthService
@@ -94,8 +96,10 @@ class VideoManager: ObservableObject {
         self.authService = .shared
         
         configureAudioSession()
-        
+
+        #if os(iOS)
         UIApplication.shared.beginReceivingRemoteControlEvents()
+        #endif
     }
     
     @MainActor
@@ -107,7 +111,9 @@ class VideoManager: ObservableObject {
         removePlayerObservers()
         currentPlayer = nil
         nowPlayingSession = nil
+        #if os(iOS)
         UIApplication.shared.endReceivingRemoteControlEvents()
+        #endif
     }
     
     private nonisolated func configureAudioSession() {
@@ -315,6 +321,13 @@ class VideoManager: ObservableObject {
             NotificationCenter.default.removeObserver(observer)
             playbackDidEndObserver = nil
         }
+
+        if let observer = playbackFailedObserver {
+            NotificationCenter.default.removeObserver(observer)
+            playbackFailedObserver = nil
+        }
+
+        playerItemStatusObservation = nil
     }
 
     private func stopCurrentPlayerForReplacement(savePosition: Bool = true) {
@@ -336,12 +349,17 @@ class VideoManager: ObservableObject {
         nowPlayingSession = nil
     }
 
+    func stopPlayback(savePosition: Bool = true) {
+        stopCurrentPlayerForReplacement(savePosition: savePosition)
+    }
+
     private func setupPlayerObservation(for player: AVQueuePlayer) {
         removePlayerObservers()
         
         // Store the new player as current
         currentPlayer = player
         observePlaybackDidEnd(for: player.currentItem)
+        observePlaybackFailure(for: player.currentItem)
         
         // Add new time observer
         let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
@@ -430,6 +448,57 @@ class VideoManager: ObservableObject {
                 self?.playNextVideoIfAvailable()
             }
         }
+    }
+
+    private func observePlaybackFailure(for item: AVPlayerItem?) {
+        guard let item else { return }
+
+        playbackFailedObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemFailedToPlayToEndTime,
+            object: item,
+            queue: .main
+        ) { [weak self] notification in
+            Task { @MainActor in
+                let notificationError = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? NSError
+                self?.handlePlaybackFailure(for: item, fallbackError: notificationError)
+            }
+        }
+
+        playerItemStatusObservation = item.observe(\.status, options: [.initial, .new]) { [weak self] observedItem, _ in
+            guard observedItem.status == .failed else { return }
+
+            Task { @MainActor in
+                self?.handlePlaybackFailure(for: observedItem, fallbackError: observedItem.error as NSError?)
+            }
+        }
+    }
+
+    private func handlePlaybackFailure(for item: AVPlayerItem, fallbackError: NSError?) {
+        let resolvedError = (item.error as NSError?) ?? fallbackError
+        let errorDescription = resolvedError?.localizedDescription ?? "Unknown playback failure"
+        let failureReason = resolvedError?.localizedFailureReason ?? ""
+        let recoverySuggestion = resolvedError?.localizedRecoverySuggestion ?? ""
+        let combinedDetails = [failureReason, recoverySuggestion]
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+
+        let message = combinedDetails.isEmpty
+            ? "Playback failed: \(errorDescription)"
+            : "Playback failed: \(errorDescription). \(combinedDetails)"
+
+        if error != message {
+            error = message
+        }
+
+        isPlaying = false
+
+        print("Playback failure:", [
+            "videoId": selectedVideo?.videoId ?? "unknown",
+            "status": item.status.rawValue,
+            "error": resolvedError?.description ?? "nil",
+            "accessLogEvents": item.accessLog()?.events.count ?? 0,
+            "errorLogEvents": item.errorLog()?.events.count ?? 0
+        ])
     }
 
     private func playNextVideoIfAvailable() {
@@ -667,7 +736,9 @@ class VideoManager: ObservableObject {
     ) -> AVQueuePlayer {
         let playerItem = AVPlayerItem(asset: makePlaybackAsset(for: streamingURL))
         playerItem.externalMetadata = makeExternalMetadata(for: video)
+        #if os(iOS)
         playerItem.nowPlayingInfo = makeNowPlayingInfo(for: video)
+        #endif
         playerItem.preferredPeakBitRate = preferredPeakBitRate ?? 0
         playerItem.preferredMaximumResolution = preferredMaximumResolution ?? .zero
         playerItem.preferredForwardBufferDuration = 30
@@ -713,6 +784,38 @@ class VideoManager: ObservableObject {
         }
     }
 
+    private func preferredStreamingURL(from streamingInfos: VideoInfosResponse) -> URL? {
+        #if os(tvOS)
+        if let primaryMuxedURL = NativePlaybackSupport.preferredMuxedStreamingURL(from: streamingInfos.defaultFormats) {
+            return primaryMuxedURL
+        }
+
+        return streamingInfos.streamingURL
+        #else
+        if let hlsURL = streamingInfos.streamingURL {
+            return hlsURL
+        }
+
+        return NativePlaybackSupport.preferredMuxedStreamingURL(from: streamingInfos.defaultFormats)
+        #endif
+    }
+
+    private func preferredFallbackStreamingURL(from response: VideoInfosWithDownloadFormatsResponse) -> URL? {
+        #if os(tvOS)
+        if let fallbackMuxedURL = NativePlaybackSupport.preferredMuxedStreamingURL(from: response.defaultFormats) {
+            return fallbackMuxedURL
+        }
+
+        return response.videoInfos.streamingURL
+        #else
+        if let hlsURL = response.videoInfos.streamingURL {
+            return hlsURL
+        }
+
+        return NativePlaybackSupport.preferredMuxedStreamingURL(from: response.defaultFormats)
+        #endif
+    }
+
     func loadVideo(_ video: YTVideo) async {
         let loadID = beginVideoLoad()
         stopCurrentPlayerForReplacement()
@@ -743,10 +846,8 @@ class VideoManager: ObservableObject {
                     useCookies: nil
                 )
 
-                if let hlsURL = streamingInfos.streamingURL {
-                    streamingURL = hlsURL
-                } else if let primaryMuxedURL = NativePlaybackSupport.preferredMuxedStreamingURL(from: streamingInfos.defaultFormats) {
-                    streamingURL = primaryMuxedURL
+                if let preferredURL = preferredStreamingURL(from: streamingInfos) {
+                    streamingURL = preferredURL
                 } else {
                     throw PlaybackResolverError.noNativePlayableStream
                 }
@@ -759,7 +860,7 @@ class VideoManager: ObservableObject {
                         useCookies: nil
                     )
 
-                    if let fallbackURL = NativePlaybackSupport.fallbackStreamingURL(from: downloadFormatsResponse) {
+                    if let fallbackURL = preferredFallbackStreamingURL(from: downloadFormatsResponse) {
                         streamingURL = fallbackURL
                     } else {
                         if let primaryPlaybackError {
@@ -814,8 +915,10 @@ class VideoManager: ObservableObject {
 
             thumbnailImage = loadedThumbnailImage
             newPlayer.currentItem?.externalMetadata = makeExternalMetadata(for: video)
+            #if os(iOS)
             newPlayer.currentItem?.nowPlayingInfo = makeNowPlayingInfo(for: video)
             configureNowPlayingSession(for: newPlayer)
+            #endif
             setupPlayerObservation(for: newPlayer)
             
             // Update state
@@ -829,7 +932,9 @@ class VideoManager: ObservableObject {
             
             // Start playback
             newPlayer.play()
+            #if os(iOS)
             _ = await nowPlayingSession?.becomeActiveIfPossible()
+            #endif
             finishVideoLoad(loadID)
             
             // Load playlists state

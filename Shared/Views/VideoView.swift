@@ -79,6 +79,12 @@ struct VideoView: View {
     }
     
     private var currentVideo: YTVideo {
+        #if os(tvOS)
+        if let selectedVideo = videoManager.selectedVideo {
+            return selectedVideo
+        }
+        #endif
+
         if followsSelectedVideo, let selectedVideo = videoManager.selectedVideo {
             return selectedVideo
         }
@@ -118,6 +124,28 @@ struct VideoView: View {
             source: .recommended,
             videos: [currentVideo] + recommendedVideos
         )
+    }
+
+    private var relatedVideosForPlaybackUI: [YTVideo] {
+        switch detailQueueSection {
+        case .recommended(let videos):
+            return videos
+        case .playlist(_, let videos):
+            return videos
+        case nil:
+            return []
+        }
+    }
+
+    private var relatedTitleForPlaybackUI: String {
+        switch detailQueueSection {
+        case .recommended:
+            return String(localized: "Recommended")
+        case .playlist(let title, _):
+            return title
+        case nil:
+            return String(localized: "Recommended")
+        }
     }
 
     #if os(iOS)
@@ -223,6 +251,41 @@ struct VideoView: View {
     }
     
     var body: some View {
+        #if os(tvOS)
+        VideoPlayerView(
+            video: currentVideo,
+            isFullscreen: true,
+            relatedVideos: relatedVideosForPlaybackUI,
+            relatedTitle: relatedTitleForPlaybackUI,
+            relatedSelectionContext: detailQueueContextForSelection,
+            videoDescription: description
+        )
+        .background(Color.black)
+        .ignoresSafeArea()
+        .toolbar(.hidden, for: .navigationBar)
+        .onDisappear {
+            videoManager.stopPlayback()
+        }
+        .task(id: currentVideo.videoId) {
+            if let cachedDetails = youtubeService.cachedDetails(for: currentVideo.videoId) {
+                description = cachedDetails.description
+                recommendedVideos = cachedDetails.recommendedVideos
+                moreInfosResponse = cachedDetails.response
+                videoManager.setRecommendedQueue(currentVideo: currentVideo, recommendedVideos: cachedDetails.recommendedVideos)
+            } else if let persistedDetails = youtubeService.cachedPersistedDetails(for: currentVideo.videoId) {
+                description = persistedDetails.description
+                recommendedVideos = persistedDetails.recommendedVideos
+                moreInfosResponse = nil
+                videoManager.setRecommendedQueue(currentVideo: currentVideo, recommendedVideos: persistedDetails.recommendedVideos)
+                await fetchDetails(for: currentVideo)
+            } else {
+                description = nil
+                recommendedVideos = []
+                moreInfosResponse = nil
+                await fetchDetails(for: currentVideo)
+            }
+        }
+        #else
         ScrollViewReader { proxy in
             ScrollView(.vertical) {
                 #if os(iOS)
@@ -349,6 +412,7 @@ struct VideoView: View {
                 updateLandscapeFullscreen(for: orientation)
             }
         }
+        #endif
         #endif
     }
 

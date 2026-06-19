@@ -68,6 +68,12 @@ struct ContentView: View {
                     SearchVideosView()
                 }
             }
+
+            Tab("Settings", systemImage: "gearshape") {
+                NavigationStack {
+                    SettingsView()
+                }
+            }
         }
         .accentColor(Color("AccentColor"))
         .tabViewStyle(.sidebarAdaptable)

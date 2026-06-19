@@ -275,6 +275,19 @@ private struct VideoContent: View {
                         Color.clear
                     }
                 }
+
+                if let timeLength = video.timeLength, !timeLength.isEmpty {
+                    VStack {
+                        Spacer()
+
+                        HStack {
+                            Spacer()
+
+                            DurationBadge(text: timeLength)
+                        }
+                    }
+                    .padding(5)
+                }
             }
             .frame(maxWidth: .infinity)
             .aspectRatio(16/9, contentMode: .fit)
@@ -290,6 +303,18 @@ private struct VideoContent: View {
         .background(.regularMaterial)
         .cornerRadius(20)
         .shadow(color: .black.opacity(0.3), radius: 10)
+    }
+}
+
+private struct DurationBadge: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.caption.weight(.semibold))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 5)
+            .glassEffect(.regular)
     }
 }
 

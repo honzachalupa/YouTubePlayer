@@ -111,26 +111,26 @@ struct ContentView: View {
         .tabViewStyle(.sidebarAdaptable)
         .tabBarMinimizeBehavior(.onScrollDown)
         .sheet(isPresented: $videoManager.isVideoSheetPresented) {
-            if let video = sheetRootVideo {
-                NavigationStack(path: $videoSheetPath) {
-                    VideoView(video: video, followsSelectedVideo: true)
-                        .navigationDestination(for: VideoSheetRoute.self) { route in
-                            switch route {
-                            case .channel(let channelRoute):
-                                ChannelView(channelInfo: channelRoute.channelInfo)
-                            case .video(let videoRoute):
-                                VideoView(video: videoRoute.video, followsSelectedVideo: true)
+            Group {
+                if let video = sheetRootVideo {
+                    NavigationStack(path: $videoSheetPath) {
+                        VideoView(video: video, followsSelectedVideo: true)
+                            .navigationDestination(for: VideoSheetRoute.self) { route in
+                                switch route {
+                                    case .channel(let channelRoute):
+                                        ChannelView(channelInfo: channelRoute.channelInfo)
+                                    case .video(let videoRoute):
+                                        VideoView(video: videoRoute.video, followsSelectedVideo: true)
+                                }
                             }
-                        }
+                    }
+                    .environmentObject(videoManager)
+                } else {
+                    ContentUnavailableView("No video selected", systemImage: "play.slash.fill")
                 }
-                .environmentObject(videoManager)
-                .presentationSizing(.page)
-                .presentationDragIndicator(.visible)
-            } else {
-                ContentUnavailableView("No video selected", systemImage: "play.slash.fill")
-                    .presentationSizing(.page)
-                    .presentationDragIndicator(.visible)
             }
+            .presentationSizing(.page)
+            .presentationDragIndicator(isPhone ? .visible : .automatic)
         }
         .onAppear {
             if authService.isAuthenticated {
