@@ -12,6 +12,58 @@ private enum SubscriptionsVideosPagingConfig {
     static let pageSize = 16
 }
 
+private struct ChronologicalSubscriptionsFeedResponse: AuthenticatedResponse {
+    static let headersType: HeaderTypes = .usersSubscriptionsFeedHeaders
+    static let parametersValidationList: ValidationList = [:]
+
+    var isDisconnected = true
+    var results: [YTVideo] = []
+
+    static func decodeJSON(json: JSON) throws -> ChronologicalSubscriptionsFeedResponse {
+        var response = ChronologicalSubscriptionsFeedResponse()
+
+        guard !(json["responseContext", "mainAppWebResponseContext", "loggedOut"].bool ?? true) else {
+            return response
+        }
+
+        response.isDisconnected = false
+
+        guard let tab = json["contents", "twoColumnBrowseResultsRenderer", "tabs"].arrayValue.first(where: {
+            $0["tabRenderer", "selected"].boolValue
+        }), tab["tabRenderer", "tabIdentifier"].string == "FEsubscriptions" else {
+            throw NSError(
+                domain: "SubscriptionsFeed",
+                code: 0,
+                userInfo: [NSLocalizedDescriptionKey: "Unable to find subscriptions feed tab."]
+            )
+        }
+
+        for item in tab["tabRenderer", "content", "richGridRenderer", "contents"].arrayValue {
+            guard item["richItemRenderer"].exists(),
+                  let video = video(from: item["richItemRenderer"])
+            else {
+                continue
+            }
+
+            response.results.append(video)
+        }
+
+        return response
+    }
+
+    private static func video(from itemRenderer: JSON) -> YTVideo? {
+        if itemRenderer["content", "videoRenderer"].exists() {
+            return YTVideo.decodeJSON(json: itemRenderer["content", "videoRenderer"])
+        }
+
+        if itemRenderer["content", "lockupViewModel"].exists() {
+            return YTVideo.decodeLockupJSON(json: itemRenderer["content", "lockupViewModel"])
+        }
+
+        return nil
+    }
+}
+
 private struct CachedSubscriptionsVideos: Codable {
     let videos: [CachedYTVideo]
 }
@@ -206,7 +258,7 @@ struct SubscriptionsVideosView: View {
                 .visitorData: youtubeService.model.visitorData
             ]
             
-            let response = try await AccountSubscriptionsFeedResponse.sendThrowingRequest(
+            let response = try await ChronologicalSubscriptionsFeedResponse.sendThrowingRequest(
                 youtubeModel: youtubeService.model,
                 data: data,
                 useCookies: true
