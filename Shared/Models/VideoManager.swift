@@ -103,6 +103,7 @@ class VideoManager: ObservableObject {
     private var playbackDidEndObserver: NSObjectProtocol?
     private var playbackFailedObserver: NSObjectProtocol?
     private var playerItemStatusObservation: NSKeyValueObservation?
+    private var playerTimeControlStatusObservation: NSKeyValueObservation?
     private var currentPlayer: AVQueuePlayer?
     private var nowPlayingSession: MPNowPlayingSession?
     private let authService: YouTubeAuthService
@@ -375,6 +376,7 @@ class VideoManager: ObservableObject {
         }
 
         playerItemStatusObservation = nil
+        playerTimeControlStatusObservation = nil
     }
 
     private func stopCurrentPlayerForReplacement(savePosition: Bool = true) {
@@ -405,6 +407,7 @@ class VideoManager: ObservableObject {
         
         // Store the new player as current
         currentPlayer = player
+        observePlaybackState(for: player)
         observePlaybackDidEnd(for: player.currentItem)
         observePlaybackFailure(for: player.currentItem)
         
@@ -420,6 +423,15 @@ class VideoManager: ObservableObject {
                 }
 
                 self.saveCurrentPlaybackPosition()
+            }
+        }
+    }
+
+    private func observePlaybackState(for player: AVQueuePlayer) {
+        playerTimeControlStatusObservation = player.observe(\.timeControlStatus, options: [.initial, .new]) { [weak self] observedPlayer, _ in
+            Task { @MainActor in
+                guard let self, self.currentPlayer === observedPlayer else { return }
+                self.isPlaying = observedPlayer.timeControlStatus != .paused
             }
         }
     }

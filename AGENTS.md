@@ -52,6 +52,10 @@ Validation
 - After every change to files that are actually built as part of the app target, run the app directly using Xcode's currently active run destination.
 - Use Xcode's Run action / `RunProject` for validation; do not run a separate `BuildProject` first unless the user explicitly asks for build-only validation.
 - Do not hard-code or switch to a simulator for validation unless explicitly requested; if a device (physical or simulated) is selected in Xcode, run on that device.
+- `XcodeBuildMCP build_run_sim` only validates an iOS Simulator and must not be reported as an app run when Xcode's active destination is `My Mac (Designed for iPad)`.
+- For `My Mac (Designed for iPad)`, invoke Xcode's actual Run action (`Cmd-R`) with the existing active scheme and destination. Do not try to launch the built iOS `.app` with `open`; Xcode must create and launch its Designed-for-iPad wrapper.
+- After invoking Run on `My Mac`, verify that the app process exists with `pgrep -fl '/iOS.app/|/iOS$'`. A valid run has a path containing `Wrapper/iOS.app/iOS`; a successful build without this process is not a successful Run.
+- If the active destination is unclear, inspect `xcodebuild -project YouTube.xcodeproj -scheme iOS -showdestinations`. The compatible Mac destination is the `platform:macOS` entry with `variant:Designed for [iPad,iPhone]`; do not substitute a simulator destination.
 - Resolve all compiler errors introduced by your changes.
 - Resolve all warnings introduced by your changes.
 - Verify that the implemented feature actually works before finishing.
