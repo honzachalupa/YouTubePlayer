@@ -195,6 +195,7 @@ struct VideoPlayerView: View {
     var body: some View {
         playerContent
             .modifier(VideoPlayerLayoutModifier(isFullscreen: isFullscreen))
+            .modifier(PlaybackIdleTimerModifier(isPlaying: videoManager.isPlaying))
             .task {
                 if videoManager.selectedVideo?.videoId != video.videoId {
                     await videoManager.loadVideo(video)
@@ -294,6 +295,61 @@ struct VideoPlayerView: View {
         }
     }
 }
+
+private struct PlaybackIdleTimerModifier: ViewModifier {
+    let isPlaying: Bool
+
+    #if os(iOS)
+    @State private var requestID = UUID()
+    @State private var isVisible = false
+    #endif
+
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        content
+            .onAppear {
+                isVisible = true
+                updateIdleTimer()
+            }
+            .onDisappear {
+                isVisible = false
+                PlaybackIdleTimer.release(requestID)
+            }
+            .onChange(of: isPlaying) {
+                updateIdleTimer()
+            }
+        #else
+        content
+        #endif
+    }
+
+    #if os(iOS)
+    private func updateIdleTimer() {
+        if isVisible && isPlaying {
+            PlaybackIdleTimer.retain(requestID)
+        } else {
+            PlaybackIdleTimer.release(requestID)
+        }
+    }
+    #endif
+}
+
+#if os(iOS)
+@MainActor
+private enum PlaybackIdleTimer {
+    private static var activeRequestIDs: Set<UUID> = []
+
+    static func retain(_ id: UUID) {
+        activeRequestIDs.insert(id)
+        UIApplication.shared.isIdleTimerDisabled = true
+    }
+
+    static func release(_ id: UUID) {
+        activeRequestIDs.remove(id)
+        UIApplication.shared.isIdleTimerDisabled = !activeRequestIDs.isEmpty
+    }
+}
+#endif
 
 private struct NextVideoPromptOverlay: View {
     @EnvironmentObject private var videoManager: VideoManager

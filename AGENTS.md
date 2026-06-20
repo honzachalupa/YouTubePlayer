@@ -49,7 +49,8 @@ Code Quality
 
 Validation
 
-- After every change to files that are actually built as part of the app target, run the app using the currently selected simulator or device.
+- After every change to files that are actually built as part of the app target, run the app using Xcode's currently active run destination.
+- Do not hard-code or switch to a simulator for validation unless explicitly requested; if a device (physical or simulated) is selected in Xcode, run on that device.
 - Resolve all compiler errors introduced by your changes.
 - Resolve all warnings introduced by your changes.
 - Verify that the implemented feature actually works before finishing.
