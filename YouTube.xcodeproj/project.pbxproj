@@ -42,6 +42,7 @@
 			membershipExceptions = (
 				Localizable.xcstrings,
 				Models/AuthenticationModel.swift,
+				Models/SearchQueryModel.swift,
 				Models/VideoManager.swift,
 				Models/VideoPlaylistsViewModel.swift,
 				Playback/NativePlaybackSupport.swift,
@@ -53,6 +54,7 @@
 				Services/YouTubeService.swift,
 				Views/AccountView.swift,
 				Views/AddRemoveVideoPlaylistListView.swift,
+				Views/AppProgressView.swift,
 				Views/CreatePlaylistView.swift,
 				Views/HistoryVideosView.swift,
 				Views/ChannelView.swift,

@@ -20,8 +20,7 @@ struct PlaylistsListView: View {
             if !authService.isAuthenticated {
                 ContentUnavailableView("Sign in to view this content", systemImage: "person.crop.circle.badge.exclamationmark")
             } else if playlistService.isLoading {
-                ProgressView()
-                    .controlSize(.large)
+                AppProgressView()
             } else if let error = playlistService.error {
                 ContentUnavailableView(error, systemImage: "exclamationmark.triangle.fill")
             } else if playlistService.playlists.isEmpty {

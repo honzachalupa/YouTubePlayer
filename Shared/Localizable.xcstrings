@@ -101,6 +101,9 @@
         }
       }
     },
+    "Channels" : {
+
+    },
     "Create" : {
       "localizations" : {
         "cs" : {
@@ -170,6 +173,9 @@
           }
         }
       }
+    },
+    "Find videos, channels, and topics." : {
+
     },
     "History" : {
       "localizations" : {
@@ -391,6 +397,9 @@
         }
       }
     },
+    "Search YouTube" : {
+
+    },
     "Settings" : {
       "localizations" : {
         "cs" : {
@@ -454,6 +463,9 @@
     },
     "TrendingVideosView" : {
       "shouldTranslate" : false
+    },
+    "Videos" : {
+
     }
   },
   "version" : "1.1"

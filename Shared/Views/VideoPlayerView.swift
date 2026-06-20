@@ -228,15 +228,13 @@ struct VideoPlayerView: View {
                                     Color.black
                                         .opacity(0.3)
                                     
-                                    ProgressView()
-                                        .controlSize(.large)
+                                    AppProgressView(.overlay)
                                 }
                         } else {
                             Color.gray
                                 .opacity(0.2)
                                 .overlay {
-                                    ProgressView()
-                                        .controlSize(.large)
+                                    AppProgressView(.overlay)
                                 }
                         }
                     }
@@ -244,8 +242,7 @@ struct VideoPlayerView: View {
                     Color.gray
                         .opacity(0.2)
                         .overlay {
-                            ProgressView()
-                                .controlSize(.large)
+                            AppProgressView(.overlay)
                         }
                 }
             } else if let player = videoManager.player {
@@ -288,8 +285,7 @@ struct VideoPlayerView: View {
             } else {
                 Color.gray.opacity(0.2)
                     .overlay {
-                        ProgressView()
-                            .controlSize(.large)
+                        AppProgressView(.overlay)
                     }
             }
         }

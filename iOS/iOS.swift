@@ -10,7 +10,8 @@ struct YouTubeApp: App {
     init() {
         let schema = Schema([
             AuthenticationModel.self,
-            PlaybackPositionModel.self
+            PlaybackPositionModel.self,
+            SearchQueryModel.self
         ])
 
         do {

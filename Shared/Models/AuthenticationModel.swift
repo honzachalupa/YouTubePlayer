@@ -35,4 +35,4 @@ final class PlaybackPositionModel {
         self.durationSeconds = durationSeconds
         self.updatedAt = updatedAt
     }
-} 
+}

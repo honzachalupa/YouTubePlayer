@@ -21,6 +21,8 @@ struct VideosGridView: View {
     public var fetchVideos: () async -> Void
     public var loadMoreIfNeeded: ((YTVideo) -> Void)?
     public var isLoadingMore: Bool = false
+    public var isLoadingInitial: Bool = false
+    public var topContent: AnyView?
     public var autoFillRetryKey: Int?
     public var playbackQueueContextProvider: ((YTVideo) -> VideoManager.PlaybackQueueContext?)?
     
@@ -83,55 +85,55 @@ struct VideosGridView: View {
     
     var body: some View {
         Group {
-            if isLoading && !isRefreshing && videos.isEmpty {
-                Spacer()
-                ProgressView()
-                    .controlSize(.large)
-                Spacer()
+            if (isLoading || isLoadingInitial) && !isRefreshing && videos.isEmpty {
+                AppProgressView()
             } else if videos.isEmpty {
-                Spacer()
-                ContentUnavailableView("No videos found", systemImage: "play.slash.fill")
-                Spacer()
+                VStack {
+                    Spacer()
+                    ContentUnavailableView("No videos found", systemImage: "play.slash.fill")
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
                     VStack(spacing: 0) {
-                        LazyVGrid(columns: getColumns(for: scrollViewportWidth), spacing: 20) {
-                            ForEach(videos, id: \.videoId) { video in
-                                VideoGridItemView(
-                                    video: video,
-                                    playbackQueueContextProvider: playbackQueueContextProvider
-                                )
-                                .onAppear {
-                                    if let lastVideo = videos.last, video.videoId == lastVideo.videoId {
-                                        print("Last video appeared, triggering load more")
-                                        loadMoreIfNeeded?(video)
+                        topContent
+
+                        VStack(spacing: 0) {
+                            LazyVGrid(columns: getColumns(for: scrollViewportWidth), spacing: 20) {
+                                ForEach(videos, id: \.videoId) { video in
+                                    VideoGridItemView(
+                                        video: video,
+                                        playbackQueueContextProvider: playbackQueueContextProvider
+                                    )
+                                    .onAppear {
+                                        if let lastVideo = videos.last, video.videoId == lastVideo.videoId {
+                                            print("Last video appeared, triggering load more")
+                                            loadMoreIfNeeded?(video)
+                                        }
                                     }
                                 }
                             }
-                        }
-                        
-                        // Footer sentinel handles large viewports where content does not become scrollable.
-                        if let lastVideo = videos.last, loadMoreIfNeeded != nil {
-                            Color.clear
-                                .frame(height: 1)
-                                .id("load-more-sentinel-\(videos.count)")
-                                .onAppear {
-                                    loadMoreIfNeeded?(lastVideo)
-                                }
-                        }
 
-                        if isLoadingMore {
-                            HStack {
-                                Spacer()
-                                ProgressView()
-                                    .controlSize(.regular)
-                                Spacer()
+                            // Footer sentinel handles large viewports where content does not become scrollable.
+                            if let lastVideo = videos.last, loadMoreIfNeeded != nil {
+                                Color.clear
+                                    .frame(height: 1)
+                                    .id("load-more-sentinel-\(videos.count)")
+                                    .onAppear {
+                                        loadMoreIfNeeded?(lastVideo)
+                                    }
                             }
-                            .padding(.top, 12)
-                            .padding(.bottom, 8)
+
+                            if isLoadingMore {
+                                AppProgressView(.inline)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.top, 12)
+                                    .padding(.bottom, 8)
+                            }
                         }
+                        .padding()
                     }
-                    .padding()
                     .background {
                         GeometryReader { contentProxy in
                             Color.clear

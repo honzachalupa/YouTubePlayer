@@ -44,9 +44,7 @@ struct CreatePlaylistView: View {
             }
             .overlay {
                 if playlistService.isLoading {
-                    ProgressView()
-                        .controlSize(.large)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    AppProgressView()
                         .background(.ultraThinMaterial)
                 }
             }

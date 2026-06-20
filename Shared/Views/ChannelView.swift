@@ -273,9 +273,8 @@ private struct ChannelVideosSection: View {
     var body: some View {
         Group {
             if isLoading && videos.isEmpty {
-                ProgressView()
-                    .controlSize(.large)
-                    .frame(maxWidth: .infinity)
+                AppProgressView()
+                    .frame(minHeight: 80)
                     .padding(.vertical, 40)
             } else if let error, videos.isEmpty {
                 ContentUnavailableView(
@@ -305,14 +304,11 @@ private struct ChannelVideosSection: View {
                     }
 
                     if isLoadingMore {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                            Spacer()
-                        }
-                        .gridCellColumns(columns.count)
-                        .padding(.top, 12)
-                        .padding(.bottom, 8)
+                        AppProgressView(.inline)
+                            .frame(maxWidth: .infinity)
+                            .gridCellColumns(columns.count)
+                            .padding(.top, 12)
+                            .padding(.bottom, 8)
                     }
                 }
             }

@@ -485,12 +485,9 @@ struct VideoView: View {
                 }
 
                 if showsLoadMore && isLoadingMoreRecommended {
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                        Spacer()
-                    }
-                    .padding(.vertical, 8)
+                    AppProgressView(.inline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
                 }
             }
         }

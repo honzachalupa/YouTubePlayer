@@ -148,7 +148,7 @@ struct PlaylistView: View {
                         showingDeleteConfirmation = true
                     } label: {
                         if isDeletingPlaylist {
-                            ProgressView()
+                            AppProgressView(.inline)
                         } else {
                             Label("Delete playlist", systemImage: "trash.fill")
                         }
