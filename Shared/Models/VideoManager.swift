@@ -5,6 +5,38 @@ import MediaPlayer
 import Combine
 import SwiftData
 
+private actor PlaylistMembershipReadGate {
+    private var isLocked = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func perform(_ operation: () async -> VideoPlaylistStates?) async -> VideoPlaylistStates? {
+        await waitForTurn()
+        defer { finishTurn() }
+        guard !Task.isCancelled else { return nil }
+        return await operation()
+    }
+
+    private func waitForTurn() async {
+        if !isLocked {
+            isLocked = true
+            return
+        }
+
+        await withCheckedContinuation { continuation in
+            waiters.append(continuation)
+        }
+    }
+
+    private func finishTurn() {
+        guard !waiters.isEmpty else {
+            isLocked = false
+            return
+        }
+
+        waiters.removeFirst().resume()
+    }
+}
+
 @MainActor
 class VideoManager: ObservableObject {
     static let shared = VideoManager()
@@ -55,7 +87,7 @@ class VideoManager: ObservableObject {
     @Published var error: String?
     @Published var likeStatus: YTLikeStatus = .nothing
     @Published var availablePlaylists: [(playlist: YTPlaylist, isVideoPresentInside: Bool)] = []
-    @Published var temporaryPlaylistStates: [String: [(playlist: YTPlaylist, isVideoPresentInside: Bool)]] = [:]
+    @Published private(set) var availablePlaylistsVideoId: String?
     @Published private(set) var playbackQueueContext: PlaybackQueueContext?
     @Published private(set) var nextVideoPrompt: NextVideoPrompt?
     @Published private(set) var openedDetailVideoIDs: Set<String> = []
@@ -76,6 +108,7 @@ class VideoManager: ObservableObject {
     private let authService: YouTubeAuthService
     private let playlistService = YouTubePlaylistService.shared
     private let youtubeService = YouTubeService.shared
+    private let playlistMembershipReadGate = PlaylistMembershipReadGate()
     private var modelContext: ModelContext?
     private var thumbnailImage: UIImage?
     private var isCleanedUp = false
@@ -87,7 +120,7 @@ class VideoManager: ObservableObject {
     
     func clearPlaylistData() {
         availablePlaylists = []
-        temporaryPlaylistStates = [:]
+        availablePlaylistsVideoId = nil
     }
 
     func setModelContext(_ context: ModelContext) {
@@ -608,44 +641,32 @@ class VideoManager: ObservableObject {
         isLoading = false
     }
 
-    private func mergedPlaylistStates(
-        fetchedStates: [(playlist: YTPlaylist, isVideoPresentInside: Bool)],
+    private func playlistListStatesPreservingAvailableMembership(
+        _ states: VideoPlaylistStates,
         for videoID: String
-    ) -> [(playlist: YTPlaylist, isVideoPresentInside: Bool)] {
-        guard let temporaryStates = temporaryPlaylistStates[videoID], !temporaryStates.isEmpty else {
-            return fetchedStates
+    ) -> VideoPlaylistStates {
+        guard availablePlaylistsVideoId == videoID else {
+            return states
         }
 
-        let temporaryLookup = Dictionary(
-            uniqueKeysWithValues: temporaryStates.map { ($0.playlist.playlistId, $0.isVideoPresentInside) }
+        let currentMembership = Dictionary(
+            availablePlaylists.map { (VideoPlaylistStateMapper.normalizedPlaylistID($0.playlist.playlistId), $0.isVideoPresentInside) },
+            uniquingKeysWith: { _, latest in latest }
         )
 
-        return fetchedStates.map { item in
-            if let override = temporaryLookup[item.playlist.playlistId] {
-                return (playlist: item.playlist, isVideoPresentInside: override)
-            }
-            return item
+        return states.map { item in
+            let playlistID = VideoPlaylistStateMapper.normalizedPlaylistID(item.playlist.playlistId)
+            guard let isVideoPresentInside = currentMembership[playlistID] else { return item }
+            return (playlist: item.playlist, isVideoPresentInside: isVideoPresentInside)
         }
     }
 
-    private func updateTemporaryPlaylistState(
-        for videoID: String,
-        playlistID: String,
-        isPresent: Bool
+    private func setAvailablePlaylistStates(
+        _ states: VideoPlaylistStates,
+        for videoID: String
     ) {
-        var states = temporaryPlaylistStates[videoID] ?? []
-
-        if let index = states.firstIndex(where: { $0.playlist.playlistId == playlistID }) {
-            states[index] = (playlist: states[index].playlist, isVideoPresentInside: isPresent)
-        } else if let playlist = availablePlaylists.first(where: { $0.playlist.playlistId == playlistID })?.playlist {
-            states.append((playlist: playlist, isVideoPresentInside: isPresent))
-        }
-
-        temporaryPlaylistStates[videoID] = states
-
-        if selectedVideo?.videoId == videoID {
-            availablePlaylists = mergedPlaylistStates(fetchedStates: availablePlaylists, for: videoID)
-        }
+        availablePlaylists = states
+        availablePlaylistsVideoId = videoID
     }
 
     private func playbackHTTPHeaderFields() -> [String: String] {
@@ -940,6 +961,7 @@ class VideoManager: ObservableObject {
             // Update state
             withAnimation {
                 selectedVideo = video
+                setAvailablePlaylistStates(cachedPlaylistListStates() ?? [], for: video.videoId)
                 player = newPlayer
                 isPlaying = true
                 // Like status will be fetched separately
@@ -982,23 +1004,22 @@ class VideoManager: ObservableObject {
     func loadPlaylistStates(for expectedVideoId: String? = nil) async {
         guard let video = selectedVideo else { return }
         let requestedVideoId = expectedVideoId ?? video.videoId
-        
-        do {
-            let response = try await video.fetchAllPossibleHostPlaylistsThrowing(
-                youtubeModel: youtubeService.model
-            )
-            
-            guard selectedVideo?.videoId == requestedVideoId else { return }
 
-            withAnimation {
-                availablePlaylists = mergedPlaylistStates(
-                    fetchedStates: response.playlistsAndStatus,
-                    for: requestedVideoId
-                )
-            }
-        } catch {
-            guard selectedVideo?.videoId == requestedVideoId else { return }
-            print("Error loading playlist states:", error)
+        let cachedStates = await loadPlaylistListStates()
+        guard selectedVideo?.videoId == requestedVideoId else { return }
+
+        withAnimation {
+            setAvailablePlaylistStates(
+                playlistListStatesPreservingAvailableMembership(cachedStates, for: requestedVideoId),
+                for: requestedVideoId
+            )
+        }
+
+        guard let refreshedStates = await refreshPlaylistMembershipStates(for: video) else { return }
+        guard selectedVideo?.videoId == requestedVideoId else { return }
+
+        withAnimation {
+            setAvailablePlaylistStates(refreshedStates, for: requestedVideoId)
         }
     }
     
@@ -1007,30 +1028,33 @@ class VideoManager: ObservableObject {
         await addVideo(video, to: playlist)
     }
 
-    func addVideo(_ video: YTVideo, to playlist: YTPlaylist) async {
-        
+    @discardableResult
+    func addVideo(_ video: YTVideo, to playlist: YTPlaylist) async -> Bool {
         do {
             let response = try await AddVideoToPlaylistResponse.sendThrowingRequest(
                 youtubeModel: youtubeService.model,
                 data: [
-                    .browseId: playlist.playlistId.hasPrefix("VL") ? String(playlist.playlistId.dropFirst(2)) : playlist.playlistId,
+                    .browseId: VideoPlaylistStateMapper.playlistIDWithoutVLPrefix(playlist.playlistId),
                     .movingVideoId: video.videoId
                 ],
                 useCookies: true
             )
             
-            if response.success {
-                updateTemporaryPlaylistState(
-                    for: video.videoId,
-                    playlistID: playlist.playlistId,
-                    isPresent: true
+            if response.success, selectedVideo?.videoId == video.videoId {
+                setAvailablePlaylistStates(
+                    VideoPlaylistStateMapper.settingPlaylistPresence(
+                        playlistID: playlist.playlistId,
+                        isPresent: true,
+                        in: availablePlaylists
+                    ),
+                    for: video.videoId
                 )
-                if selectedVideo?.videoId == video.videoId {
-                    await loadPlaylistStates(for: video.videoId)
-                }
             }
+
+            return response.success
         } catch {
             print("Error adding video to playlist:", error)
+            return false
         }
     }
     
@@ -1039,30 +1063,33 @@ class VideoManager: ObservableObject {
         await removeVideo(video, from: playlist)
     }
 
-    func removeVideo(_ video: YTVideo, from playlist: YTPlaylist) async {
-        
+    @discardableResult
+    func removeVideo(_ video: YTVideo, from playlist: YTPlaylist) async -> Bool {
         do {
             let response = try await RemoveVideoByIdFromPlaylistResponse.sendThrowingRequest(
                 youtubeModel: youtubeService.model,
                 data: [
-                    .browseId: playlist.playlistId.hasPrefix("VL") ? String(playlist.playlistId.dropFirst(2)) : playlist.playlistId,
+                    .browseId: VideoPlaylistStateMapper.playlistIDWithoutVLPrefix(playlist.playlistId),
                     .movingVideoId: video.videoId
                 ],
                 useCookies: true
             )
             
-            if response.success {
-                updateTemporaryPlaylistState(
-                    for: video.videoId,
-                    playlistID: playlist.playlistId,
-                    isPresent: false
+            if response.success, selectedVideo?.videoId == video.videoId {
+                setAvailablePlaylistStates(
+                    VideoPlaylistStateMapper.settingPlaylistPresence(
+                        playlistID: playlist.playlistId,
+                        isPresent: false,
+                        in: availablePlaylists
+                    ),
+                    for: video.videoId
                 )
-                if selectedVideo?.videoId == video.videoId {
-                    await loadPlaylistStates(for: video.videoId)
-                }
             }
+
+            return response.success
         } catch {
             print("Error removing video from playlist:", error)
+            return false
         }
     }
     
@@ -1110,24 +1137,60 @@ class VideoManager: ObservableObject {
         }
     }
     
-    func getPlaylistStates(for video: YTVideo) async -> [(playlist: YTPlaylist, isVideoPresentInside: Bool)] {
-        if let temporaryStates = temporaryPlaylistStates[video.videoId], !temporaryStates.isEmpty {
-            return temporaryStates
+    func cachedPlaylistListStates() -> VideoPlaylistStates? {
+        guard !playlistService.playlists.isEmpty else { return nil }
+        return VideoPlaylistStateMapper.cachedPlaylistStates(from: playlistService.playlists)
+    }
+
+    func cachedEditablePlaylists() -> [YTPlaylist] {
+        return playlistService.editablePlaylists
+    }
+
+    func canEditPlaylist(_ playlist: YTPlaylist) -> Bool {
+        let playlistID = VideoPlaylistStateMapper.normalizedPlaylistID(playlist.playlistId)
+        return playlistService.editablePlaylists.contains {
+            VideoPlaylistStateMapper.normalizedPlaylistID($0.playlistId) == playlistID
+        }
+    }
+
+    private func cacheEditablePlaylists(from fetchedStates: VideoPlaylistStates) {
+        playlistService.cacheEditablePlaylists(fetchedStates.map(\.playlist))
+    }
+
+    func loadPlaylistListStates() async -> VideoPlaylistStates {
+        if let cachedStates = cachedPlaylistListStates() {
+            return cachedStates
         }
 
+        await playlistService.fetchPlaylists()
+        return cachedPlaylistListStates() ?? []
+    }
+
+    private func fetchPlaylistMembershipStates(for video: YTVideo) async -> VideoPlaylistStates? {
         do {
             let response = try await video.fetchAllPossibleHostPlaylistsThrowing(
                 youtubeModel: youtubeService.model
             )
-            
-            return mergedPlaylistStates(
-                fetchedStates: response.playlistsAndStatus,
-                for: video.videoId
-            )
+            return response.playlistsAndStatus
         } catch {
-            print("Error getting playlist states:", error)
-            return []
+            return nil
         }
+    }
+
+    func refreshPlaylistMembershipStates(for video: YTVideo) async -> VideoPlaylistStates? {
+        let fetchedStates = await playlistMembershipReadGate.perform {
+            return await fetchPlaylistMembershipStates(for: video)
+        }
+
+        guard let fetchedStates else {
+            return nil
+        }
+
+        cacheEditablePlaylists(from: fetchedStates)
+        return VideoPlaylistStateMapper.membershipStates(
+            from: fetchedStates,
+            limitedTo: playlistService.editablePlaylists
+        )
     }
     
     func selectVideo(_ video: YTVideo, playbackQueueContext: PlaybackQueueContext? = nil) {
@@ -1142,6 +1205,7 @@ class VideoManager: ObservableObject {
         stopCurrentPlayerForReplacement()
         self.playbackQueueContext = playbackQueueContext
         selectedVideo = video
+        setAvailablePlaylistStates(cachedPlaylistListStates() ?? [], for: video.videoId)
         error = nil
         isLoading = true
         isVideoSheetPresented = true

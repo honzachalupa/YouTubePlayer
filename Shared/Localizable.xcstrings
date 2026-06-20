@@ -191,6 +191,16 @@
         }
       }
     },
+    "Loading playlists..." : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Načítání playlistů..."
+          }
+        }
+      }
+    },
     "Name" : {
       "localizations" : {
         "cs" : {

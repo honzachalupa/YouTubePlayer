@@ -12,24 +12,29 @@ struct AddRemoveVideoPlaylistListView: View {
     }
     
     var body: some View {
-        if playlistsViewModel.playlistStates.isEmpty {
-            Text("No playlists available")
-        } else {
-            ForEach(playlistsViewModel.playlistStates, id: \.playlist.playlistId) { item in
-                if item.isVideoPresentInside {
-                    Button(role: .destructive) {
-                        Task { await playlistsViewModel.removeFromPlaylist(item.playlist) }
-                    } label: {
-                        Label(item.playlist.title ?? "", systemImage: "minus.circle")
-                    }
-                } else {
-                    Button {
-                        Task { await playlistsViewModel.addToPlaylist(item.playlist) }
-                    } label: {
-                        Label(item.playlist.title ?? "", systemImage: "plus.circle")
+        Group {
+            if playlistsViewModel.playlistStates.isEmpty {
+                Text(playlistsViewModel.isLoading ? "Loading playlists..." : "No playlists available")
+            } else {
+                ForEach(playlistsViewModel.playlistStates, id: \.playlist.playlistId) { item in
+                    if item.isVideoPresentInside {
+                        Button(role: .destructive) {
+                            Task { await playlistsViewModel.removeFromPlaylist(item.playlist) }
+                        } label: {
+                            Label(item.playlist.title ?? "", systemImage: "minus.circle")
+                        }
+                    } else {
+                        Button {
+                            Task { await playlistsViewModel.addToPlaylist(item.playlist) }
+                        } label: {
+                            Label(item.playlist.title ?? "", systemImage: "plus.circle")
+                        }
                     }
                 }
             }
+        }
+        .task(id: video.videoId) {
+            await playlistsViewModel.load(video: video)
         }
     }
 }

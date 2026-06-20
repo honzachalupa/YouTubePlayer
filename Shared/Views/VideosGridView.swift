@@ -191,7 +191,6 @@ struct VideoGridItemView: View {
     public var channelThumbnailURL: URL?
     
     @EnvironmentObject private var videoManager: VideoManager
-    @StateObject private var playlistsViewModel: VideoPlaylistsViewModel
     @FocusState private var isFocused: Bool
     
     init(
@@ -206,52 +205,55 @@ struct VideoGridItemView: View {
         self.onSelect = onSelect
         self.navigationValue = navigationValue
         self.channelThumbnailURL = channelThumbnailURL
-        self._playlistsViewModel = StateObject(wrappedValue: VideoPlaylistsViewModel(video: video, videoManager: VideoManager.shared))
     }
     
     var body: some View {
-        Group {
-            #if os(tvOS)
-            NavigationLink {
-                VideoView(video: video)
-                    .task {
-                        videoManager.setPlaybackQueueContext(playbackQueueContextProvider?(video))
-                        await videoManager.loadVideo(video)
-                    }
-                    .onAppear {
-                        print("NavigationLink appeared")
-                    }
-            } label: {
-                VideoContent(video: video, channelThumbnailURL: channelThumbnailURL)
-            }
-            .buttonStyle(.card)
-            .focused($isFocused)
-            #else
-            if let navigationValue {
-                NavigationLink(value: navigationValue) {
-                    VideoContent(video: video, channelThumbnailURL: channelThumbnailURL)
+        itemContent
+            .contextMenu {
+                Section("Add to playlist") {
+                    AddRemoveVideoPlaylistListView(video: video)
+                        .id(video.videoId)
                 }
-                .buttonStyle(.plain)
-            } else {
+            }
+    }
+    
+    @ViewBuilder
+    private var itemContent: some View {
+        #if os(tvOS)
+        NavigationLink {
+            VideoView(video: video)
+                .task {
+                    videoManager.setPlaybackQueueContext(playbackQueueContextProvider?(video))
+                    await videoManager.loadVideo(video)
+                }
+                .onAppear {
+                    print("NavigationLink appeared")
+                }
+        } label: {
+            VideoContent(video: video, channelThumbnailURL: channelThumbnailURL)
+        }
+        .buttonStyle(.card)
+        .focused($isFocused)
+        #else
+        if let navigationValue {
+            NavigationLink(value: navigationValue) {
                 VideoContent(video: video, channelThumbnailURL: channelThumbnailURL)
-                    .onTapGesture {
-                        if let onSelect {
-                            onSelect(video)
-                        } else {
-                            videoManager.selectVideo(
-                                video,
-                                playbackQueueContext: playbackQueueContextProvider?(video)
-                            )
-                        }
+            }
+            .buttonStyle(.plain)
+        } else {
+            VideoContent(video: video, channelThumbnailURL: channelThumbnailURL)
+                .onTapGesture {
+                    if let onSelect {
+                        onSelect(video)
+                    } else {
+                        videoManager.selectVideo(
+                            video,
+                            playbackQueueContext: playbackQueueContextProvider?(video)
+                        )
                     }
-            }
-            #endif
+                }
         }
-        .contextMenu {
-            Section("Add to playlist") {
-                AddRemoveVideoPlaylistListView(video: video)
-            }
-        }
+        #endif
     }
 }
 

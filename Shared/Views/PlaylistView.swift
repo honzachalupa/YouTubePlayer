@@ -76,7 +76,7 @@ struct PlaylistView: View {
                         "platform": "DESKTOP"
                     ]
                 ],
-                "browseId": playlist.playlistId.hasPrefix("VL") ? playlist.playlistId : "VL\(playlist.playlistId)"
+                "browseId": VideoPlaylistStateMapper.playlistIDWithVLPrefix(playlist.playlistId)
             ]
             
             // Convert to JSON data

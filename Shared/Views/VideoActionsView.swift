@@ -5,6 +5,12 @@ struct VideoActionsToolbarView: ToolbarContent {
     public let video: YTVideo
     
     @EnvironmentObject private var videoManager: VideoManager
+
+    private var isVideoInAnyPlaylist: Bool {
+        videoManager.selectedVideo?.videoId == video.videoId
+            && videoManager.availablePlaylistsVideoId == video.videoId
+            && videoManager.availablePlaylists.contains { $0.isVideoPresentInside }
+    }
     
     var body: some ToolbarContent {
         ToolbarItem(placement: .bottomBar) {
@@ -48,8 +54,9 @@ struct VideoActionsToolbarView: ToolbarContent {
         ToolbarItem(placement: .bottomBar) {
             Menu {
                 AddRemoveVideoPlaylistListView(video: video)
+                    .id(video.videoId)
             } label: {
-                Label("Save", systemImage: "bookmark")
+                Label("Save", systemImage: isVideoInAnyPlaylist ? "bookmark.fill" : "bookmark")
             }
         }
     }

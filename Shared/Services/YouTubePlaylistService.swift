@@ -8,10 +8,13 @@ class YouTubePlaylistService: ObservableObject {
     static let shared = YouTubePlaylistService()
     
     @Published var playlists: [YTPlaylist] = []
+    @Published private(set) var editablePlaylists: [YTPlaylist] = []
     @Published var isLoading = false
     @Published var error: String?
     
     private let youtubeService = YouTubeService.shared
+    private var fetchPlaylistsTask: (id: UUID, task: Task<(playlists: [YTPlaylist], error: String?), Never>)?
+    private var fetchPlaylistsRequestID: UUID?
     
     // YouTube requires a video ID when creating a playlist, even if we don't want to add any videos.
     // This is a limitation of their API. We use a known working video ID from YouTubeKit's test cases.
@@ -22,41 +25,71 @@ class YouTubePlaylistService: ObservableObject {
     }
     
     func clearData() {
+        fetchPlaylistsTask?.task.cancel()
+        fetchPlaylistsTask = nil
+        fetchPlaylistsRequestID = nil
         playlists = []
+        editablePlaylists = []
+        isLoading = false
         error = nil
     }
+
+    func cacheEditablePlaylists(_ playlists: [YTPlaylist]) {
+        editablePlaylists = VideoPlaylistStateMapper.currentEditablePlaylists(from: playlists)
+    }
     
-    func fetchPlaylists() async {
+    func fetchPlaylists(forceRefresh: Bool = false) async {
+        if !forceRefresh, let fetchPlaylistsTask {
+            let result = await fetchPlaylistsTask.task.value
+            guard fetchPlaylistsRequestID == fetchPlaylistsTask.id else { return }
+            playlists = result.playlists
+            error = result.error
+            return
+        }
+
+        if forceRefresh {
+            fetchPlaylistsTask?.task.cancel()
+        }
+
         isLoading = true
         error = nil
-        
-        do {
-            // Get playlists directly
-            let response = try await AccountPlaylistsResponse.sendThrowingRequest(
-                youtubeModel: youtubeService.model,
-                data: [.browseId: "FEplaylist_aggregation"],
-                useCookies: true
-            )
-            
-            if response.isDisconnected {
-                error = "Not authenticated. Please sign in."
-            } else {
-                // Ensure all playlist IDs have VL prefix
-                playlists = response.results.map { playlist in
+        let requestID = UUID()
+        fetchPlaylistsRequestID = requestID
+
+        let task = Task<(playlists: [YTPlaylist], error: String?), Never> { [youtubeService] in
+            do {
+                let response = try await AccountPlaylistsResponse.sendThrowingRequest(
+                    youtubeModel: youtubeService.model,
+                    data: [.browseId: "FEplaylist_aggregation"],
+                    useCookies: true
+                )
+
+                guard !response.isDisconnected else {
+                    return (playlists: [], error: "Not authenticated. Please sign in.")
+                }
+
+                let playlists = response.results.map { playlist in
                     var updatedPlaylist = playlist
-                    if !updatedPlaylist.playlistId.hasPrefix("VL") {
-                        updatedPlaylist.playlistId = "VL" + updatedPlaylist.playlistId
-                    }
+                    updatedPlaylist.playlistId = VideoPlaylistStateMapper.playlistIDWithVLPrefix(updatedPlaylist.playlistId)
                     return updatedPlaylist
                 }
+                return (playlists: playlists, error: nil as String?)
+            } catch {
+                return (playlists: [], error: error.localizedDescription)
             }
-        } catch {
-            self.error = error.localizedDescription
         }
-        
+        fetchPlaylistsTask = (id: requestID, task: task)
+
+        let result = await task.value
+        guard fetchPlaylistsRequestID == requestID else { return }
+
+        playlists = result.playlists
+        error = result.error
+        fetchPlaylistsTask = nil
+        fetchPlaylistsRequestID = nil
         isLoading = false
     }
-    
+
     func createPlaylist(name: String, privacy: YTPrivacy = .private) async -> Bool {
         isLoading = true
         error = nil
@@ -112,8 +145,7 @@ class YouTubePlaylistService: ObservableObject {
             
             guard let createdPlaylistId else { return true }
 
-            // Remove VL prefix if present, just like in deletePlaylist
-            let playlistIdForRemoval = createdPlaylistId.hasPrefix("VL") ? String(createdPlaylistId.dropFirst(2)) : createdPlaylistId
+            let playlistIdForRemoval = VideoPlaylistStateMapper.playlistIDWithoutVLPrefix(createdPlaylistId)
             
             let removeResponse = try await RemoveVideoByIdFromPlaylistResponse.sendThrowingRequest(
                 youtubeModel: youtubeService.model,
@@ -129,7 +161,7 @@ class YouTubePlaylistService: ObservableObject {
         }
         
         // Fetch playlists to update the list
-        await fetchPlaylists()
+        await fetchPlaylists(forceRefresh: true)
         isLoading = false
         return true
     }
@@ -142,7 +174,7 @@ class YouTubePlaylistService: ObservableObject {
             let response = try await DeletePlaylistResponse.sendThrowingRequest(
                 youtubeModel: youtubeService.model,
                 data: [
-                    .browseId: playlist.playlistId.hasPrefix("VL") ? String(playlist.playlistId.dropFirst(2)) : playlist.playlistId
+                    .browseId: VideoPlaylistStateMapper.playlistIDWithoutVLPrefix(playlist.playlistId)
                 ],
                 useCookies: true
             )
@@ -153,7 +185,7 @@ class YouTubePlaylistService: ObservableObject {
             }
             
             if response.success {
-                await fetchPlaylists()
+                await fetchPlaylists(forceRefresh: true)
                 return true
             } else {
                 error = "Failed to delete playlist"
