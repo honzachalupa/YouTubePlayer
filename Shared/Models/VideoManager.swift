@@ -5,6 +5,17 @@ import MediaPlayer
 import Combine
 import SwiftData
 
+private struct NativeVideoInfosResponse: YouTubeResponse {
+    static let headersType: HeaderTypes = .videoInfos
+    static let parametersValidationList: ValidationList = [.query: .videoIdValidator]
+
+    let videoInfos: VideoInfosResponse
+
+    static func decodeJSON(json: JSON) throws -> NativeVideoInfosResponse {
+        NativeVideoInfosResponse(videoInfos: try VideoInfosResponse.decodeJSON(json: json))
+    }
+}
+
 private actor PlaylistMembershipReadGate {
     private var isLocked = false
     private var waiters: [CheckedContinuation<Void, Never>] = []
@@ -861,6 +872,16 @@ class VideoManager: ObservableObject {
         NativePlaybackSupport.fallbackStreamingURL(from: response)
     }
 
+    private var shouldUseTemporaryLowQualityPlayback: Bool {
+        #if os(tvOS)
+        true
+        #elseif os(iOS)
+        ProcessInfo.processInfo.isiOSAppOnMac
+        #else
+        false
+        #endif
+    }
+
     func loadVideo(_ video: YTVideo) async {
         let loadID = beginVideoLoad()
         stopCurrentPlayerForReplacement()
@@ -886,10 +907,19 @@ class VideoManager: ObservableObject {
             var primaryPlaybackError: Error?
 
             do {
-                let streamingInfos = try await video.fetchStreamingInfosThrowing(
-                    youtubeModel: youtubeService.model,
-                    useCookies: nil
-                )
+                let streamingInfos: VideoInfosResponse
+                if shouldUseTemporaryLowQualityPlayback {
+                    streamingInfos = try await NativeVideoInfosResponse.sendThrowingRequest(
+                        youtubeModel: youtubeService.model,
+                        data: [.query: video.videoId],
+                        useCookies: nil
+                    ).videoInfos
+                } else {
+                    streamingInfos = try await video.fetchStreamingInfosThrowing(
+                        youtubeModel: youtubeService.model,
+                        useCookies: nil
+                    )
+                }
 
                 if let preferredURL = preferredStreamingURL(from: streamingInfos) {
                     streamingURL = preferredURL
